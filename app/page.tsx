@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { isAdmin } from "@/lib/adminAuth";
 
 export default async function Home() {
-  const sessions = await prisma.session.findMany({
-    orderBy: { date: "desc" },
-    include: { signUps: { where: { status: "CONFIRMED" } } },
-  });
+  const [sessions, admin] = await Promise.all([
+    prisma.session.findMany({
+      orderBy: { date: "desc" },
+      include: { signUps: { where: { status: "CONFIRMED" } } },
+    }),
+    isAdmin(),
+  ]);
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -44,6 +48,12 @@ export default async function Home() {
           </li>
         ))}
       </ul>
+
+      {admin && (
+        <Link href="/admin" className="text-xs text-gray-300 hover:text-gray-400 self-center mt-4">
+          แอดมิน
+        </Link>
+      )}
     </main>
   );
 }

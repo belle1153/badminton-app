@@ -10,6 +10,7 @@ export default async function AdminDashboardPage() {
   }
 
   const sessions = await prisma.session.findMany({
+    where: { status: "OPEN" },
     orderBy: { date: "desc" },
     include: { signUps: { where: { status: "CONFIRMED" } } },
   });
@@ -20,11 +21,17 @@ export default async function AdminDashboardPage() {
         ← หน้าแรก
       </Link>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">แผงแอดมิน</h1>
-        <div className="flex gap-3 text-sm">
+        <div className="flex gap-3 text-sm items-center">
+          <Link href="/admin/athletes" className="text-brand-700 hover:underline">
+            ข้อมูลผู้เล่น
+          </Link>
           <Link href="/admin/master" className="text-brand-700 hover:underline">
             Master ข้อมูล
+          </Link>
+          <Link href="/admin/history" className="text-brand-700 hover:underline">
+            ประวัติย้อนหลัง
           </Link>
           <Link
             href="/session/new"
@@ -36,7 +43,13 @@ export default async function AdminDashboardPage() {
       </div>
 
       {sessions.length === 0 && (
-        <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่น กดสร้างรอบใหม่ได้เลยครับ</p>
+        <p className="text-gray-500 text-sm">
+          ยังไม่มีรอบเล่นที่เปิดอยู่ กดสร้างรอบใหม่ได้เลยครับ (ดูรอบที่ปิดแล้วได้ที่{" "}
+          <Link href="/admin/history" className="underline">
+            ประวัติย้อนหลัง
+          </Link>
+          )
+        </p>
       )}
 
       <ul className="flex flex-col gap-3">

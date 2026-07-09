@@ -9,11 +9,10 @@ export default async function MasterDataPage() {
     redirect("/admin/login");
   }
 
-  const [courtRates, shuttlecockTypes, settings, athletes] = await Promise.all([
+  const [courtRates, shuttlecockTypes, settings] = await Promise.all([
     prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
-    prisma.athlete.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -21,12 +20,11 @@ export default async function MasterDataPage() {
       <Link href="/admin" className="text-sm text-gray-500 hover:underline">
         ← กลับไปแผงแอดมิน
       </Link>
-      <h1 className="text-xl font-bold">Master ข้อมูล</h1>
+      <h1 className="text-xl font-bold">Master ข้อมูล (ค่าใช้จ่าย)</h1>
       <MasterDataForm
         courtRates={courtRates}
         shuttlecockTypes={shuttlecockTypes}
         qrImageDataUrl={settings?.qrImageDataUrl ?? null}
-        athletes={athletes}
       />
     </main>
   );
