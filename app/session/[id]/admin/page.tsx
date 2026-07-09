@@ -74,8 +74,11 @@ export default async function SessionAdminPage({
         <Link href="/admin" className="text-sm text-gray-500 hover:underline">
           ← กลับไปแผงแอดมิน
         </Link>
-        <Link href={`/session/${id}`} className="text-sm text-gray-500 hover:underline">
-          ดูหน้าผู้เล่น →
+        <Link
+          href={`/session/${id}`}
+          className="flex items-center gap-1.5 rounded-md border border-gray-300 text-gray-600 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 hover:text-brand-700"
+        >
+          🧑 ดูหน้า User
         </Link>
       </div>
       <h1 className="text-xl font-bold">

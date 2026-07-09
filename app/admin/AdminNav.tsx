@@ -22,12 +22,18 @@ export default function AdminNav() {
 
   return (
     <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex items-center justify-between">
-        <Link href="/" className="text-xs text-gray-400 hover:text-brand-700">
-          ← หน้าแรก
+      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex items-center justify-between gap-2">
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 rounded-md border border-gray-300 text-gray-600 px-2.5 py-1 text-xs font-medium hover:bg-gray-50 hover:text-brand-700"
+        >
+          🧑 ดูหน้า User
         </Link>
-        <button onClick={handleLogout} className="text-xs font-medium text-red-500 hover:text-red-700">
-          ออกจากระบบ
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 rounded-md border border-red-200 text-red-600 px-2.5 py-1 text-xs font-medium hover:bg-red-50"
+        >
+          🚪 ออกจากระบบ
         </button>
       </div>
       <nav className="max-w-2xl mx-auto w-full px-4 pb-2.5 pt-1.5 flex items-center gap-2 flex-wrap">
