@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 
-export default function TabBar() {
-  const params = useParams<{ id: string }>();
+export default function TabBar({ base }: { base: string }) {
   const pathname = usePathname();
-  const base = `/session/${params.id}`;
 
   const tabs = [
     { href: base, label: "ลงชื่อ", icon: "📝" },
