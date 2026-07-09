@@ -392,6 +392,7 @@ export default function AdminPanel({
                 step={0.5}
                 value={courtHours}
                 onChange={(e) => setCourtHours(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 className="input w-24"
                 placeholder="ชม."
               />
@@ -413,6 +414,7 @@ export default function AdminPanel({
                 min={0}
                 value={shuttlecockQty}
                 onChange={(e) => setShuttlecockQty(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 className="input w-24"
                 placeholder="ลูก"
               />

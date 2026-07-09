@@ -130,6 +130,7 @@ export default function MasterDataForm({
             placeholder="บาท/ชม."
             value={ratePrice}
             onChange={(e) => setRatePrice(e.target.value)}
+            onFocus={(e) => e.target.select()}
             className="input w-28"
             required
           />
@@ -168,6 +169,7 @@ export default function MasterDataForm({
             placeholder="บาท/ลูก"
             value={shuttlePrice}
             onChange={(e) => setShuttlePrice(e.target.value)}
+            onFocus={(e) => e.target.select()}
             className="input w-28"
             required
           />

@@ -8,7 +8,7 @@ export default function NewSessionForm() {
   const [date, setDate] = useState("");
   const [venue, setVenue] = useState("");
   const [startTime, setStartTime] = useState("19:00");
-  const [maxPlayers, setMaxPlayers] = useState(22);
+  const [maxPlayers, setMaxPlayers] = useState("22");
   const [courtConfigNote, setCourtConfigNote] = useState("");
   const [remark, setRemark] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +71,8 @@ export default function NewSessionForm() {
             min={1}
             required
             value={maxPlayers}
-            onChange={(e) => setMaxPlayers(Number(e.target.value))}
+            onChange={(e) => setMaxPlayers(e.target.value)}
+            onFocus={(e) => e.target.select()}
             className="input"
           />
         </Field>
