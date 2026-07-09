@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV = [
-  { href: "/admin", label: "แผงแอดมิน" },
-  { href: "/admin/athletes", label: "ข้อมูลผู้เล่น" },
-  { href: "/admin/master", label: "Master ข้อมูล" },
-  { href: "/admin/history", label: "ประวัติย้อนหลัง" },
+  { href: "/admin", label: "แผงแอดมิน", icon: "📋" },
+  { href: "/admin/athletes", label: "ข้อมูลผู้เล่น", icon: "🏸" },
+  { href: "/admin/master", label: "Master ข้อมูล", icon: "💰" },
+  { href: "/admin/history", label: "ประวัติย้อนหลัง", icon: "🗂️" },
 ];
 
-export default function AdminSidebar() {
+export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -21,37 +21,34 @@ export default function AdminSidebar() {
   }
 
   return (
-    <nav className="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div className="max-w-2xl mx-auto w-full px-2 flex items-center gap-1 overflow-x-auto">
-        <Link
-          href="/"
-          className="px-3 py-3 text-sm text-gray-400 hover:text-brand-700 whitespace-nowrap"
-        >
+    <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
+      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex items-center justify-between">
+        <Link href="/" className="text-xs text-gray-400 hover:text-brand-700">
           ← หน้าแรก
         </Link>
+        <button onClick={handleLogout} className="text-xs font-medium text-red-500 hover:text-red-700">
+          ออกจากระบบ
+        </button>
+      </div>
+      <nav className="max-w-2xl mx-auto w-full px-4 pb-2.5 pt-1.5 flex items-center gap-2 flex-wrap">
         {NAV.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 -mb-px ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition ${
                 active
-                  ? "border-brand-600 text-brand-700"
-                  : "border-transparent text-gray-500 hover:text-brand-700"
+                  ? "bg-brand-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700"
               }`}
             >
+              <span>{item.icon}</span>
               {item.label}
             </Link>
           );
         })}
-        <button
-          onClick={handleLogout}
-          className="ml-auto px-3 py-3 text-sm font-medium text-red-600 hover:text-red-700 whitespace-nowrap"
-        >
-          ออกจากระบบ
-        </button>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

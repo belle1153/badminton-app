@@ -23,6 +23,7 @@ export default function PinGate({ redirectTo }: { redirectTo?: string }) {
       if (!res.ok) throw new Error(data.error ?? "PIN ไม่ถูกต้อง");
       if (redirectTo) {
         router.push(redirectTo);
+        router.refresh();
       } else {
         router.refresh();
       }
