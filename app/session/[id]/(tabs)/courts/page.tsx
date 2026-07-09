@@ -1,15 +1,22 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import SelfCourtBanner from "../../SelfCourtBanner";
-import CourtGrid from "../../CourtGrid";
+import SelfCourtBanner from "../../../SelfCourtBanner";
+import CourtGrid from "../../../CourtGrid";
+import RoundTabs from "../../../RoundTabs";
 
 export default async function SessionCourtsPage({
   params,
+  searchParams,
+  basePath,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ round?: string }>;
+  basePath?: string;
 }) {
   const { id } = await params;
+  const { round: roundParam } = await searchParams;
+
   const [session, admin] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
@@ -35,42 +42,54 @@ export default async function SessionCourtsPage({
   });
 
   const allMatches = session.matches.map(toTeamMatch);
+  const roundNumbers = [...new Set(allMatches.map((m) => m.round))].sort((a, b) => a - b);
+  const latestRound = roundNumbers.length > 0 ? roundNumbers[roundNumbers.length - 1] : null;
 
-  const matchesByCourt = new Map<number, ReturnType<typeof toTeamMatch>[]>();
-  for (const m of allMatches) {
-    const list = matchesByCourt.get(m.court) ?? [];
-    list.push(m);
-    matchesByCourt.set(m.court, list);
-  }
+  const requestedRound = roundParam ? Number(roundParam) : null;
+  const selectedRound =
+    requestedRound != null && roundNumbers.includes(requestedRound) ? requestedRound : latestRound;
 
-  const playingByRound = new Map<number, Set<string>>();
-  for (const m of session.matches) {
-    const set = playingByRound.get(m.round) ?? new Set<string>();
-    for (const p of m.players) set.add(p.signUpId);
-    playingByRound.set(m.round, set);
-  }
-  const confirmedPlayers = session.signUps.map((s) => ({ id: s.id, name: s.name }));
+  const matchesForRound = selectedRound != null ? allMatches.filter((m) => m.round === selectedRound) : [];
+  const matchByCourt = new Map(matchesForRound.map((m) => [m.court, m]));
 
-  const allCourts = Array.from({ length: 6 }, (_, i) => {
+  const courts = Array.from({ length: 6 }, (_, i) => {
     const court = i + 1;
-    const entries = matchesByCourt.get(court) ?? [];
-    const next = entries.length >= 2 ? entries[entries.length - 1] : null;
-    const current = entries.length >= 2 ? entries[entries.length - 2] : (entries[0] ?? null);
-    const nextSubstitutes = next
-      ? confirmedPlayers.filter((p) => !playingByRound.get(next.round)?.has(p.id))
-      : [];
-    return { court, current, next, nextSubstitutes };
+    return { court, match: matchByCourt.get(court) ?? null };
   });
 
-  const hasAnyMatch = allCourts.some((c) => c.current != null);
+  const isLatestRound = selectedRound != null && selectedRound === latestRound && session.status === "OPEN";
+  const playingInSelectedRound = new Set(
+    matchesForRound.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
+  );
+  const substitutes = isLatestRound
+    ? session.signUps.filter((s) => !playingInSelectedRound.has(s.id)).map((s) => ({ id: s.id, name: s.name }))
+    : [];
+
+  const path = basePath ?? `/session/${id}/courts`;
 
   return (
     <>
       <SelfCourtBanner matches={allMatches} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">{hasAnyMatch ? "สนามทั้งหมด" : "ยังไม่มีการจับคู่"}</h2>
-        <CourtGrid sessionId={id} isAdmin={admin} courts={allCourts} />
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-semibold">สนามทั้งหมด</h2>
+          {selectedRound != null && <span className="text-sm text-gray-400">รอบที่ {selectedRound}</span>}
+        </div>
+
+        {roundNumbers.length > 0 && <RoundTabs base={path} rounds={roundNumbers} selected={selectedRound!} />}
+
+        {roundNumbers.length === 0 ? (
+          <p className="text-gray-500 text-sm">ยังไม่มีการจับคู่</p>
+        ) : (
+          <CourtGrid
+            sessionId={id}
+            isAdmin={admin}
+            editable={isLatestRound}
+            courts={courts}
+            substitutes={substitutes}
+          />
+        )}
       </section>
     </>
   );

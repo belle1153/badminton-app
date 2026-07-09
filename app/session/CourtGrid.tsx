@@ -10,26 +10,27 @@ interface PlayerInfo {
 
 interface TeamMatch {
   id: string;
-  round: number;
   team1: PlayerInfo[];
   team2: PlayerInfo[];
 }
 
 interface CourtEntry {
   court: number;
-  current: TeamMatch | null;
-  next: TeamMatch | null;
-  nextSubstitutes: PlayerInfo[];
+  match: TeamMatch | null;
 }
 
 export default function CourtGrid({
   sessionId,
   isAdmin,
+  editable,
   courts,
+  substitutes,
 }: {
   sessionId: string;
   isAdmin: boolean;
+  editable: boolean;
   courts: CourtEntry[];
+  substitutes: PlayerInfo[];
 }) {
   const [selfId, setSelfId] = useState<string | null>(null);
 
@@ -42,18 +43,17 @@ export default function CourtGrid({
       {courts.map((c) => {
         const isSelf =
           selfId != null &&
-          !!c.current &&
-          (c.current.team1.some((p) => p.id === selfId) || c.current.team2.some((p) => p.id === selfId));
+          !!c.match &&
+          (c.match.team1.some((p) => p.id === selfId) || c.match.team2.some((p) => p.id === selfId));
         return (
           <CourtCard
             key={c.court}
             sessionId={sessionId}
-            isAdmin={isAdmin}
             court={c.court}
-            current={c.current}
-            next={c.next}
-            nextSubstitutes={c.nextSubstitutes}
+            match={c.match}
+            substitutes={substitutes}
             isSelf={isSelf}
+            editable={isAdmin && editable}
           />
         );
       })}

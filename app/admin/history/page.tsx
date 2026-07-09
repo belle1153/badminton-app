@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import DeleteSessionButton from "../DeleteSessionButton";
 
 export default async function HistoryPage() {
   if (!(await isAdmin())) {
@@ -22,12 +23,12 @@ export default async function HistoryPage() {
 
       <ul className="flex flex-col gap-3">
         {sessions.map((s) => (
-          <li key={s.id}>
-            <Link
-              href={`/session/${s.id}/admin`}
-              className="block rounded-lg border border-gray-200 p-4 hover:border-brand-400 hover:shadow-sm transition"
-            >
-              <div className="flex items-center justify-between">
+          <li
+            key={s.id}
+            className="relative rounded-lg border border-gray-200 hover:border-brand-400 hover:shadow-sm transition"
+          >
+            <Link href={`/session/${s.id}/admin`} className="block p-4">
+              <div className="flex items-center justify-between pr-10">
                 <span className="font-semibold">{s.venue}</span>
                 <span className="text-sm text-gray-500">{s.signUps.length} คน</span>
               </div>
@@ -46,6 +47,9 @@ export default async function HistoryPage() {
                 </div>
               )}
             </Link>
+            <div className="absolute top-4 right-4">
+              <DeleteSessionButton sessionId={s.id} venue={s.venue} />
+            </div>
           </li>
         ))}
       </ul>

@@ -10,7 +10,6 @@ interface PlayerInfo {
 
 interface TeamMatch {
   id: string;
-  round: number;
   team1: PlayerInfo[];
   team2: PlayerInfo[];
 }
@@ -18,19 +17,17 @@ interface TeamMatch {
 export default function CourtCard({
   sessionId,
   court,
-  current,
-  next,
-  nextSubstitutes,
+  match,
+  substitutes,
   isSelf,
-  isAdmin,
+  editable,
 }: {
   sessionId: string;
   court: number;
-  current: TeamMatch | null;
-  next?: TeamMatch | null;
-  nextSubstitutes?: PlayerInfo[];
+  match: TeamMatch | null;
+  substitutes?: PlayerInfo[];
   isSelf?: boolean;
-  isAdmin?: boolean;
+  editable?: boolean;
 }) {
   const router = useRouter();
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
@@ -45,11 +42,11 @@ export default function CourtCard({
   }
 
   async function handleSwap(outSignUpId: string) {
-    if (!next || !replacement) return;
+    if (!match || !replacement) return;
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/matches/${next.id}/swap`, {
+      const res = await fetch(`/api/sessions/${sessionId}/matches/${match.id}/swap`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ outSignUpId, inSignUpId: replacement }),
@@ -65,13 +62,23 @@ export default function CourtCard({
     }
   }
 
-  function renderNextPlayer(p: PlayerInfo) {
-    if (!isAdmin) {
-      return <span key={p.id}>{p.name}</span>;
+  function renderPlayer(p: PlayerInfo) {
+    if (!editable) {
+      return (
+        <span
+          key={p.id}
+          className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1"
+        >
+          {p.name}
+        </span>
+      );
     }
     if (editingPlayerId === p.id) {
       return (
-        <span key={p.id} className="inline-flex items-center gap-1 bg-white/10 rounded px-1 py-0.5">
+        <span
+          key={p.id}
+          className="inline-flex items-center gap-1 bg-white rounded-full px-2 py-1"
+        >
           <select
             value={replacement}
             onChange={(e) => setReplacement(e.target.value)}
@@ -79,7 +86,7 @@ export default function CourtCard({
             autoFocus
           >
             <option value="">แทนด้วย...</option>
-            {nextSubstitutes?.map((s) => (
+            {substitutes?.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
@@ -88,11 +95,11 @@ export default function CourtCard({
           <button
             onClick={() => handleSwap(p.id)}
             disabled={!replacement || loading}
-            className="text-brand-300 disabled:opacity-50"
+            className="text-brand-700 disabled:opacity-50"
           >
             ✓
           </button>
-          <button onClick={() => setEditingPlayerId(null)} className="text-white/50">
+          <button onClick={() => setEditingPlayerId(null)} className="text-gray-400">
             ✕
           </button>
         </span>
@@ -103,7 +110,7 @@ export default function CourtCard({
         key={p.id}
         type="button"
         onClick={() => startEdit(p.id)}
-        className="underline decoration-dotted decoration-white/50 hover:text-white"
+        className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 underline decoration-dotted decoration-gray-400"
       >
         {p.name}
       </button>
@@ -118,61 +125,20 @@ export default function CourtCard({
     >
       <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
         สนาม {court}
-        {current && <span className="ml-1.5 font-normal text-white/60">(รอบที่ {current.round})</span>}
         {isSelf && <span className="ml-1.5 text-brand-300">(คุณ)</span>}
       </div>
       <div className="bg-gradient-to-b from-slate-600 to-slate-800 p-3 flex flex-col justify-center gap-2 flex-1 min-h-[140px]">
-        {!current ? (
+        {error && <p className="text-red-300 text-xs text-center">{error}</p>}
+        {!match ? (
           <p className="text-center text-white/50 text-sm font-medium">ว่าง</p>
         ) : (
           <>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {current.team1.map((p) => (
-                <span
-                  key={p.id}
-                  className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1"
-                >
-                  {p.name}
-                </span>
-              ))}
-            </div>
+            <div className="flex flex-wrap justify-center gap-1.5">{match.team1.map(renderPlayer)}</div>
             <div className="border-t-2 border-dashed border-white/60" />
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {current.team2.map((p) => (
-                <span
-                  key={p.id}
-                  className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1"
-                >
-                  {p.name}
-                </span>
-              ))}
-            </div>
+            <div className="flex flex-wrap justify-center gap-1.5">{match.team2.map(renderPlayer)}</div>
           </>
         )}
       </div>
-      {next && (
-        <div className="bg-slate-900/90 px-3 py-1.5 text-xs text-white/70 flex flex-col gap-0.5">
-          <div className="flex items-center justify-between">
-            <span className="text-white/50">ถัดไป (รอบที่ {next.round})</span>
-            {error && <span className="text-red-300">{error}</span>}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-1">
-            {next.team1.map((p, i) => (
-              <span key={p.id} className="flex items-center gap-1">
-                {i > 0 && "+"}
-                {renderNextPlayer(p)}
-              </span>
-            ))}
-            <span className="mx-1">vs</span>
-            {next.team2.map((p, i) => (
-              <span key={p.id} className="flex items-center gap-1">
-                {i > 0 && "+"}
-                {renderNextPlayer(p)}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

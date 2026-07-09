@@ -51,7 +51,7 @@ export default function AdminPanel({
   const isClosed = status === "CLOSED";
   const confirmedCount = confirmedSignUps.length;
 
-  const [selectedCourts, setSelectedCourts] = useState<Set<number>>(new Set());
+  const [selectedCourts, setSelectedCourts] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
   const checkedInIds = confirmedSignUps.filter((s) => s.checkedIn).map((s) => s.id);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set(checkedInIds));
 
