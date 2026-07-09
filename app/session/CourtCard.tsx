@@ -70,9 +70,9 @@ export default function CourtCard({
       return (
         <span
           key={p.id}
-          className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1"
+          className="bg-white text-gray-900 text-sm font-medium rounded-full px-4 py-1.5 shadow-sm whitespace-nowrap"
         >
-          {p.name} <span className="text-gray-400">: {SKILL_LABELS[p.skillLevel]}</span>
+          {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel]}</span>
         </span>
       );
     }
@@ -80,12 +80,12 @@ export default function CourtCard({
       return (
         <span
           key={p.id}
-          className="inline-flex items-center gap-1 bg-white rounded-full px-2 py-1"
+          className="inline-flex items-center gap-1.5 bg-white rounded-full px-3 py-1.5 shadow-sm"
         >
           <select
             value={replacement}
             onChange={(e) => setReplacement(e.target.value)}
-            className="text-black text-xs rounded max-w-[6rem]"
+            className="text-black text-sm rounded max-w-[8rem]"
             autoFocus
           >
             <option value="">แทนด้วย...</option>
@@ -113,9 +113,10 @@ export default function CourtCard({
         key={p.id}
         type="button"
         onClick={() => startEdit(p.id)}
-        className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 underline decoration-dotted decoration-gray-400"
+        className="bg-white text-gray-900 text-sm font-medium rounded-full px-4 py-1.5 shadow-sm whitespace-nowrap inline-flex items-center gap-1.5"
       >
-        {p.name} <span className="text-gray-400">: {SKILL_LABELS[p.skillLevel]}</span>
+        {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel]}</span>
+        <span className="text-brand-500 text-xs">✎</span>
       </button>
     );
   }
@@ -126,20 +127,21 @@ export default function CourtCard({
         isSelf ? "border-brand-500 ring-2 ring-brand-300" : "border-gray-200"
       }`}
     >
-      <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
+      <div className="bg-slate-800 text-white text-center text-sm font-semibold py-2">
         สนาม {court}
-        {isSelf && <span className="ml-1.5 text-brand-300">(คุณ)</span>}
       </div>
-      <div className="bg-gradient-to-b from-slate-600 to-slate-800 p-3 flex flex-col justify-center gap-2 flex-1 min-h-[140px]">
-        {error && <p className="text-red-300 text-xs text-center">{error}</p>}
+      <div className="bg-gradient-to-b from-slate-600 to-slate-800 p-4 flex flex-col flex-1 min-h-[200px]">
+        {error && <p className="text-red-300 text-xs text-center mb-1">{error}</p>}
         {!match ? (
-          <p className="text-center text-white/50 text-sm font-medium">ว่าง</p>
+          <div className="flex-1 rounded-lg border-2 border-white/20 flex items-center justify-center">
+            <p className="text-white/50 text-sm font-medium">ว่าง</p>
+          </div>
         ) : (
-          <>
-            <div className="flex flex-wrap justify-center gap-1.5">{match.team1.map(renderPlayer)}</div>
+          <div className="flex-1 rounded-lg border-2 border-white/25 px-3 py-4 flex flex-col justify-around gap-3">
+            <div className="flex flex-wrap justify-center items-center gap-2">{match.team1.map(renderPlayer)}</div>
             <div className="border-t-2 border-dashed border-white/60" />
-            <div className="flex flex-wrap justify-center gap-1.5">{match.team2.map(renderPlayer)}</div>
-          </>
+            <div className="flex flex-wrap justify-center items-center gap-2">{match.team2.map(renderPlayer)}</div>
+          </div>
         )}
       </div>
     </div>
