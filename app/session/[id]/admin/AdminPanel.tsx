@@ -66,6 +66,7 @@ export default function AdminPanel({
     "matches" | "clearMatches" | "pair" | "unpair" | "close" | "registration" | null
   >(null);
   const [benchNames, setBenchNames] = useState<string[] | null>(null);
+  const [createdRounds, setCreatedRounds] = useState<number[] | null>(null);
 
   const [partnerA, setPartnerA] = useState("");
   const [partnerB, setPartnerB] = useState("");
@@ -136,6 +137,7 @@ export default function AdminPanel({
     setError(null);
     setLoading("matches");
     setBenchNames(null);
+    setCreatedRounds(null);
     try {
       const res = await fetch(`/api/sessions/${sessionId}/matches`, {
         method: "POST",
@@ -147,6 +149,7 @@ export default function AdminPanel({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "รันรอบไม่สำเร็จ");
+      setCreatedRounds(data.rounds);
       setBenchNames(data.bench.map((p: { name: string }) => p.name));
       router.refresh();
     } catch (err) {
@@ -161,6 +164,7 @@ export default function AdminPanel({
     setError(null);
     setLoading("clearMatches");
     setBenchNames(null);
+    setCreatedRounds(null);
     try {
       const res = await fetch(`/api/sessions/${sessionId}/matches/clear`, { method: "POST" });
       const data = await res.json();
@@ -265,7 +269,7 @@ export default function AdminPanel({
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">จับคู่ตี (รอบถัดไป)</h2>
+        <h2 className="font-semibold">จับคู่ตี — กดครั้งเดียว จัดให้ทุกคนได้เล่นครบ</h2>
 
         <div>
           <p className="text-sm text-gray-600 mb-1">สนามที่ใช้ได้รอบนี้</p>
@@ -294,7 +298,7 @@ export default function AdminPanel({
 
         <div>
           <p className="text-sm text-gray-600 mb-1">
-            คนที่มาเล่นรอบนี้ ({selectedPlayerIds.size}/{confirmedCount}) — ดีฟอลต์เลือกเฉพาะคนที่เช็คอินแล้ว
+            คนที่มาเล่น ({selectedPlayerIds.size}/{confirmedCount}) — ดีฟอลต์เลือกเฉพาะคนที่เช็คอินแล้ว
           </p>
           <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-100 rounded-md p-2">
             {confirmedSignUps.map((s) => (
@@ -318,7 +322,7 @@ export default function AdminPanel({
             disabled={isClosed || loading === "matches"}
             className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 self-start"
           >
-            {loading === "matches" ? "กำลังรัน..." : "รันรอบ"}
+            {loading === "matches" ? "กำลังรัน..." : "รันรอบ (จัดครบทุกคน)"}
           </button>
           {hasMatches && (
             <button
@@ -331,8 +335,16 @@ export default function AdminPanel({
           )}
         </div>
 
+        {createdRounds && createdRounds.length > 0 && (
+          <p className="text-xs text-brand-700">
+            สร้างรอบที่ {createdRounds.join(", ")} แล้ว — ทุกคนได้ลงเล่นครบ
+            {benchNames && benchNames.length > 0 ? " ยกเว้นสแปร์ด้านล่าง" : ""}
+          </p>
+        )}
         {benchNames && benchNames.length > 0 && (
-          <p className="text-xs text-gray-500">พักรอบนี้: {benchNames.join(", ")}</p>
+          <p className="text-xs text-amber-600">
+            สแปร์ (จับคู่ไม่ครบ 4 คน — กดชื่อในหน้าสนามเพื่อสลับลงเล่นได้): {benchNames.join(", ")}
+          </p>
         )}
       </section>
 

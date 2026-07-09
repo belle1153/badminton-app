@@ -42,32 +42,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     fixedPartnerId: s.fixedPartnerId,
   }));
 
-  const { matches, bench } = generateMatches(players, courtNumbers);
-
   const lastRound = await prisma.match.findFirst({
     where: { sessionId: id },
     orderBy: { round: "desc" },
   });
-  const round = (lastRound?.round ?? 0) + 1;
 
-  await prisma.$transaction(
-    matches.map((m) =>
-      prisma.match.create({
-        data: {
-          sessionId: id,
-          round,
-          court: m.court,
-          players: {
-            create: [
-              ...m.team1.map((p) => ({ signUpId: p.id, team: 1 })),
-              ...m.team2.map((p) => ({ signUpId: p.id, team: 2 })),
-            ],
+  // Keep generating rounds until everyone selected has played once;
+  // whoever can't fill a full court (< 4 left) stays as spare for manual swaps.
+  let roundNum = (lastRound?.round ?? 0) + 1;
+  let remaining = players;
+  const roundsCreated: number[] = [];
+  const creates = [];
+  while (remaining.length >= 4) {
+    const { matches, bench } = generateMatches(remaining, courtNumbers);
+    if (matches.length === 0) break;
+    for (const m of matches) {
+      creates.push(
+        prisma.match.create({
+          data: {
+            sessionId: id,
+            round: roundNum,
+            court: m.court,
+            players: {
+              create: [
+                ...m.team1.map((p) => ({ signUpId: p.id, team: 1 })),
+                ...m.team2.map((p) => ({ signUpId: p.id, team: 2 })),
+              ],
+            },
           },
-        },
-      })
-    ),
-    { timeout: 20000 }
-  );
+        })
+      );
+    }
+    roundsCreated.push(roundNum);
+    roundNum++;
+    remaining = bench;
+  }
 
-  return NextResponse.json({ round, bench });
+  if (creates.length === 0) {
+    return NextResponse.json({ error: "คนไม่พอจัดแมทช์ (ต้องมีอย่างน้อย 4 คน)" }, { status: 400 });
+  }
+
+  await prisma.$transaction(creates, { timeout: 20000 });
+
+  return NextResponse.json({ rounds: roundsCreated, bench: remaining });
 }
