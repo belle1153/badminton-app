@@ -15,6 +15,10 @@ export default async function AdminDashboardPage() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
+      <Link href="/" className="text-sm text-gray-500 hover:text-brand-700 self-start">
+        ← หน้าแรก
+      </Link>
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">แผงแอดมิน</h1>
         <div className="flex gap-3 text-sm">

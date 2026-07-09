@@ -44,10 +44,6 @@ export default async function Home() {
           </li>
         ))}
       </ul>
-
-      <Link href="/admin" className="text-xs text-gray-300 hover:text-gray-400 self-center mt-4">
-        แอดมิน
-      </Link>
     </main>
   );
 }
