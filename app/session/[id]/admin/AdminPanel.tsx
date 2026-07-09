@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
@@ -67,6 +67,9 @@ export default function AdminPanel({
   >(null);
   const [benchNames, setBenchNames] = useState<string[] | null>(null);
   const [createdRounds, setCreatedRounds] = useState<number[] | null>(null);
+  // Guards against double-fired clicks (e.g. mobile double-tap) landing before
+  // React re-renders with the disabled state — state alone isn't synchronous.
+  const busyRef = useRef(false);
 
   const [partnerA, setPartnerA] = useState("");
   const [partnerB, setPartnerB] = useState("");
@@ -134,6 +137,8 @@ export default function AdminPanel({
   }
 
   async function handleGenerateMatches() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setError(null);
     setLoading("matches");
     setBenchNames(null);
@@ -155,12 +160,15 @@ export default function AdminPanel({
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
+      busyRef.current = false;
       setLoading(null);
     }
   }
 
   async function handleClearMatches() {
+    if (busyRef.current) return;
     if (!confirm("ล้างการจับคู่ทั้งหมดของรอบนี้ใช่ไหมครับ? ทุกรอบที่รันไปแล้วจะหายไป")) return;
+    busyRef.current = true;
     setError(null);
     setLoading("clearMatches");
     setBenchNames(null);
@@ -173,6 +181,7 @@ export default function AdminPanel({
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
+      busyRef.current = false;
       setLoading(null);
     }
   }

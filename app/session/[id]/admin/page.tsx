@@ -46,26 +46,33 @@ export default async function SessionAdminPage({
     roundsMap.set(m.round, list);
   }
   const rounds = [...roundsMap.entries()].sort((a, b) => a[0] - b[0]);
-  const latestRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
-
-  const latestRoundMatches = latestRound
-    ? latestRound[1].map((m) => ({
-        id: m.id,
-        court: m.court,
-        team1: m.players
-          .filter((p) => p.team === 1)
-          .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
-        team2: m.players
-          .filter((p) => p.team === 2)
-          .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
-      }))
-    : [];
-  const playingIds = new Set(
-    latestRoundMatches.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
-  );
   const confirmedSignUps = session.signUps.filter((s) => s.status === "CONFIRMED");
-  const substitutes = confirmedSignUps
-    .filter((s) => !playingIds.has(s.id))
+
+  const editorRounds = rounds.map(([round, roundMatches]) => {
+    const roundMatchInfos = roundMatches.map((m) => ({
+      id: m.id,
+      court: m.court,
+      team1: m.players
+        .filter((p) => p.team === 1)
+        .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
+      team2: m.players
+        .filter((p) => p.team === 2)
+        .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
+    }));
+    const playingIds = new Set(
+      roundMatchInfos.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
+    );
+    const substitutes = confirmedSignUps
+      .filter((s) => !playingIds.has(s.id))
+      .map((s) => ({ id: s.id, name: s.name, skillLevel: s.skillLevel }));
+    return { round, matches: roundMatchInfos, substitutes };
+  });
+
+  const everPlayedIds = new Set(
+    matches.flatMap((m) => m.players.map((p) => p.signUpId))
+  );
+  const neverPlayed = confirmedSignUps
+    .filter((s) => !everPlayedIds.has(s.id))
     .map((s) => ({ id: s.id, name: s.name, skillLevel: s.skillLevel }));
 
   return (
@@ -125,16 +132,11 @@ export default async function SessionAdminPage({
         hasMatches={matches.length > 0}
       />
 
-      {latestRound && session.status === "OPEN" && (
-        <MatchEditor
-          sessionId={id}
-          round={latestRound[0]}
-          matches={latestRoundMatches}
-          substitutes={substitutes}
-        />
+      {editorRounds.length > 0 && session.status === "OPEN" && (
+        <MatchEditor sessionId={id} rounds={editorRounds} neverPlayed={neverPlayed} />
       )}
 
-      {rounds.length > 0 && (
+      {rounds.length > 0 && session.status === "CLOSED" && (
         <section>
           <h2 className="font-semibold mb-2">ประวัติรอบ</h2>
           <div className="flex flex-col gap-4">
