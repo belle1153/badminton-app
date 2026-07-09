@@ -182,7 +182,20 @@ export default function MasterDataForm({
         {preview && (
           <img src={preview} alt="PromptPay QR" className="w-40 h-40 object-contain border border-gray-200 rounded-md" />
         )}
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="self-start rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700"
+        >
+          {preview ? "เปลี่ยนรูป QR" : "อัปโหลดรูป QR"}
+        </button>
       </section>
     </div>
   );

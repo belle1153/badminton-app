@@ -23,14 +23,23 @@ export default async function AdminDashboardPage() {
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">แผงแอดมิน</h1>
-        <div className="flex gap-3 text-sm items-center">
-          <Link href="/admin/athletes" className="text-brand-700 hover:underline">
+        <div className="flex gap-2 text-sm items-center flex-wrap">
+          <Link
+            href="/admin/athletes"
+            className="rounded-md border border-brand-300 text-brand-700 px-3 py-2 font-medium hover:bg-brand-50"
+          >
             ข้อมูลผู้เล่น
           </Link>
-          <Link href="/admin/master" className="text-brand-700 hover:underline">
+          <Link
+            href="/admin/master"
+            className="rounded-md border border-brand-300 text-brand-700 px-3 py-2 font-medium hover:bg-brand-50"
+          >
             Master ข้อมูล
           </Link>
-          <Link href="/admin/history" className="text-brand-700 hover:underline">
+          <Link
+            href="/admin/history"
+            className="rounded-md border border-brand-300 text-brand-700 px-3 py-2 font-medium hover:bg-brand-50"
+          >
             ประวัติย้อนหลัง
           </Link>
           <Link
