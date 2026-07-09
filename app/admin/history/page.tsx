@@ -16,9 +16,6 @@ export default async function HistoryPage() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <Link href="/admin" className="text-sm text-gray-500 hover:underline">
-        ← กลับไปแผงแอดมิน
-      </Link>
       <h1 className="text-xl font-bold">ประวัติสนามย้อนหลัง</h1>
 
       {sessions.length === 0 && <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นที่ปิดแล้ว</p>}

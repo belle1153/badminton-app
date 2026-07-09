@@ -17,38 +17,14 @@ export default async function AdminDashboardPage() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <Link href="/" className="text-sm text-gray-500 hover:text-brand-700 self-start">
-        ← หน้าแรก
-      </Link>
-
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">แผงแอดมิน</h1>
-        <div className="flex gap-2 text-sm items-center flex-wrap">
-          <Link
-            href="/admin/athletes"
-            className="rounded-md border border-brand-300 text-brand-700 px-3 py-2 font-medium hover:bg-brand-50"
-          >
-            ข้อมูลผู้เล่น
-          </Link>
-          <Link
-            href="/admin/master"
-            className="rounded-md border border-brand-300 text-brand-700 px-3 py-2 font-medium hover:bg-brand-50"
-          >
-            Master ข้อมูล
-          </Link>
-          <Link
-            href="/admin/history"
-            className="rounded-md border border-brand-300 text-brand-700 px-3 py-2 font-medium hover:bg-brand-50"
-          >
-            ประวัติย้อนหลัง
-          </Link>
-          <Link
-            href="/session/new"
-            className="rounded-md bg-brand-600 text-white px-4 py-2 font-medium hover:bg-brand-700"
-          >
-            + สร้างรอบใหม่
-          </Link>
-        </div>
+        <Link
+          href="/session/new"
+          className="rounded-md bg-brand-600 text-white px-4 py-2 font-medium hover:bg-brand-700"
+        >
+          + สร้างรอบใหม่
+        </Link>
       </div>
 
       {sessions.length === 0 && (
