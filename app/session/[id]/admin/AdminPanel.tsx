@@ -38,6 +38,7 @@ export default function AdminPanel({
   courtRates,
   shuttlecockTypes,
   closedSummary,
+  hasMatches,
 }: {
   sessionId: string;
   status: "OPEN" | "CLOSED";
@@ -46,6 +47,7 @@ export default function AdminPanel({
   courtRates: CourtRate[];
   shuttlecockTypes: ShuttlecockType[];
   closedSummary: ClosedSummary | null;
+  hasMatches: boolean;
 }) {
   const router = useRouter();
   const isClosed = status === "CLOSED";
@@ -60,9 +62,9 @@ export default function AdminPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkedInIds.join(",")]);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"matches" | "pair" | "unpair" | "close" | "registration" | null>(
-    null
-  );
+  const [loading, setLoading] = useState<
+    "matches" | "clearMatches" | "pair" | "unpair" | "close" | "registration" | null
+  >(null);
   const [benchNames, setBenchNames] = useState<string[] | null>(null);
 
   const [partnerA, setPartnerA] = useState("");
@@ -146,6 +148,23 @@ export default function AdminPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "รันรอบไม่สำเร็จ");
       setBenchNames(data.bench.map((p: { name: string }) => p.name));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleClearMatches() {
+    if (!confirm("ล้างการจับคู่ทั้งหมดของรอบนี้ใช่ไหมครับ? ทุกรอบที่รันไปแล้วจะหายไป")) return;
+    setError(null);
+    setLoading("clearMatches");
+    setBenchNames(null);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/matches/clear`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "ล้างจับคู่ไม่สำเร็จ");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -293,13 +312,24 @@ export default function AdminPanel({
           </div>
         </div>
 
-        <button
-          onClick={handleGenerateMatches}
-          disabled={isClosed || loading === "matches"}
-          className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 self-start"
-        >
-          {loading === "matches" ? "กำลังรัน..." : "รันรอบ"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleGenerateMatches}
+            disabled={isClosed || loading === "matches"}
+            className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 self-start"
+          >
+            {loading === "matches" ? "กำลังรัน..." : "รันรอบ"}
+          </button>
+          {hasMatches && (
+            <button
+              onClick={handleClearMatches}
+              disabled={isClosed || loading === "clearMatches"}
+              className="rounded-md border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50 self-start"
+            >
+              {loading === "clearMatches" ? "กำลังล้าง..." : "ล้างจับคู่ทั้งหมด"}
+            </button>
+          )}
+        </div>
 
         {benchNames && benchNames.length > 0 && (
           <p className="text-xs text-gray-500">พักรอบนี้: {benchNames.join(", ")}</p>

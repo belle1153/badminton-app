@@ -122,6 +122,7 @@ export default async function SessionAdminPage({
               }
             : null
         }
+        hasMatches={matches.length > 0}
       />
 
       {latestRound && session.status === "OPEN" && (
