@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
 interface CourtRate {
   id: string;
@@ -15,14 +16,22 @@ interface ShuttlecockType {
   pricePerPiece: number;
 }
 
+interface Athlete {
+  id: string;
+  name: string;
+  skillLevel: SkillLevel;
+}
+
 export default function MasterDataForm({
   courtRates,
   shuttlecockTypes,
   qrImageDataUrl,
+  athletes,
 }: {
   courtRates: CourtRate[];
   shuttlecockTypes: ShuttlecockType[];
   qrImageDataUrl: string | null;
+  athletes: Athlete[];
 }) {
   const router = useRouter();
   const [rateName, setRateName] = useState("");
@@ -72,6 +81,14 @@ export default function MasterDataForm({
 
   async function deleteShuttlecock(id: string) {
     const res = await fetch(`/api/admin/shuttlecocks/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) return setError(data.error ?? "ลบไม่สำเร็จ");
+    router.refresh();
+  }
+
+  async function deleteAthlete(id: string, name: string) {
+    if (!confirm(`ลบ "${name}" ออกจากรายชื่อขาประจำใช่ไหมครับ?`)) return;
+    const res = await fetch(`/api/athletes/${id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "ลบไม่สำเร็จ");
     router.refresh();
@@ -175,6 +192,26 @@ export default function MasterDataForm({
             เพิ่ม
           </button>
         </form>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-semibold">รายชื่อขาประจำ ({athletes.length})</h2>
+        <ul className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+          {athletes.map((a) => (
+            <li key={a.id} className="flex items-center justify-between text-sm border-b border-gray-100 py-1">
+              <span>
+                {a.name} — {SKILL_LABELS[a.skillLevel]}
+              </span>
+              <button
+                onClick={() => deleteAthlete(a.id, a.name)}
+                className="text-xs text-red-600 hover:underline"
+              >
+                ลบ
+              </button>
+            </li>
+          ))}
+          {athletes.length === 0 && <li className="text-sm text-gray-400">ยังไม่มีข้อมูล</li>}
+        </ul>
       </section>
 
       <section className="flex flex-col gap-2">

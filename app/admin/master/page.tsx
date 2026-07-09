@@ -9,10 +9,11 @@ export default async function MasterDataPage() {
     redirect("/admin/login");
   }
 
-  const [courtRates, shuttlecockTypes, settings] = await Promise.all([
+  const [courtRates, shuttlecockTypes, settings, athletes] = await Promise.all([
     prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
+    prisma.athlete.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -25,6 +26,7 @@ export default async function MasterDataPage() {
         courtRates={courtRates}
         shuttlecockTypes={shuttlecockTypes}
         qrImageDataUrl={settings?.qrImageDataUrl ?? null}
+        athletes={athletes}
       />
     </main>
   );
