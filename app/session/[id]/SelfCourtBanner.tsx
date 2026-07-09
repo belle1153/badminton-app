@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 interface MatchPlayerInfo {
   id: string;
@@ -8,44 +8,91 @@ interface MatchPlayerInfo {
 }
 
 interface MatchInfo {
-  court: number;
   round: number;
+  court: number;
   team1: MatchPlayerInfo[];
   team2: MatchPlayerInfo[];
 }
 
-export default function SelfCourtBanner({
-  sessionId,
-  matches,
-}: {
-  sessionId: string;
-  matches: MatchInfo[];
-}) {
-  const [selfId, setSelfId] = useState<string | null>(null);
+export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSelfId(localStorage.getItem(`badminton_signup_${sessionId}`));
-  }, [sessionId]);
+  const players = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of matches) {
+      for (const p of [...m.team1, ...m.team2]) map.set(p.id, p.name);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [matches]);
 
-  if (!selfId) return null;
+  const suggestions =
+    query.trim() && !selectedId
+      ? players.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      : [];
 
-  const match = matches.find(
-    (m) => m.team1.some((p) => p.id === selfId) || m.team2.some((p) => p.id === selfId)
-  );
-  if (!match) return null;
-
-  const onTeam1 = match.team1.some((p) => p.id === selfId);
-  const myTeam = onTeam1 ? match.team1 : match.team2;
-  const oppTeam = onTeam1 ? match.team2 : match.team1;
+  const match = useMemo(() => {
+    if (!selectedId) return null;
+    const found = matches.filter(
+      (m) => m.team1.some((p) => p.id === selectedId) || m.team2.some((p) => p.id === selectedId)
+    );
+    if (found.length === 0) return null;
+    return found.reduce((latest, m) => (m.round > latest.round ? m : latest));
+  }, [matches, selectedId]);
 
   return (
-    <div className="rounded-md bg-brand-50 border border-brand-200 p-3 text-sm">
-      <p className="font-semibold text-brand-800">
-        คุณอยู่คอร์ท {match.court} (รอบที่ {match.round})
-      </p>
-      <p className="text-brand-700">
-        ทีมคุณ: {myTeam.map((p) => p.name).join(" + ")} · คู่แข่ง: {oppTeam.map((p) => p.name).join(" + ")}
-      </p>
+    <div className="flex flex-col gap-2">
+      <div className="relative">
+        <input
+          placeholder="ค้นหาชื่อคุณ เพื่อดูว่าอยู่คอร์ทไหน..."
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setSelectedId(null);
+          }}
+          className="input"
+          autoComplete="off"
+        />
+        {suggestions.length > 0 && (
+          <ul className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-sm mt-1 max-h-48 overflow-y-auto">
+            {suggestions.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onMouseDown={() => {
+                    setSelectedId(s.id);
+                    setQuery(s.name);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  {s.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {selectedId && !match && (
+        <p className="text-sm text-gray-400">ยังไม่มีการจับคู่สำหรับคุณครับ</p>
+      )}
+
+      {match &&
+        (() => {
+          const onTeam1 = match.team1.some((p) => p.id === selectedId);
+          const myTeam = onTeam1 ? match.team1 : match.team2;
+          const oppTeam = onTeam1 ? match.team2 : match.team1;
+          return (
+            <div className="rounded-md bg-brand-50 border border-brand-200 p-3 text-sm">
+              <p className="font-semibold text-brand-800">
+                คุณอยู่คอร์ท {match.court} (รอบที่ {match.round})
+              </p>
+              <p className="text-brand-700">
+                ทีมคุณ: {myTeam.map((p) => p.name).join(" + ")} · คู่แข่ง: {oppTeam.map((p) => p.name).join(" + ")}
+              </p>
+            </div>
+          );
+        })()}
     </div>
   );
 }
