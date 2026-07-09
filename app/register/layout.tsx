@@ -8,7 +8,7 @@ export default async function RegisterLayout({ children }: { children: React.Rea
   if (!id) {
     return (
       <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-4">
-        <h1 className="text-xl font-bold">🏸 ลงชื่อเล่นแบด</h1>
+        <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
       </main>
     );
@@ -30,7 +30,7 @@ export default async function RegisterLayout({ children }: { children: React.Rea
   if (!session) {
     return (
       <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-4">
-        <h1 className="text-xl font-bold">🏸 ลงชื่อเล่นแบด</h1>
+        <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
       </main>
     );

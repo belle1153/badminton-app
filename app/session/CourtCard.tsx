@@ -8,6 +8,7 @@ interface PlayerInfo {
   id: string;
   name: string;
   skillLevel: SkillLevel;
+  waitlist?: boolean;
 }
 
 interface TeamMatch {
@@ -90,7 +91,7 @@ export default function CourtCard({
             <option value="">แทนด้วย...</option>
             {substitutes?.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} ({SKILL_LABELS[s.skillLevel]})
+                {s.name} ({SKILL_LABELS[s.skillLevel]}){s.waitlist ? " — สำรอง" : ""}
               </option>
             ))}
           </select>

@@ -6,6 +6,7 @@ import PinGate from "@/app/admin/PinGate";
 import AdminPanel from "./AdminPanel";
 import MatchEditor from "./MatchEditor";
 import CheckInList from "./CheckInList";
+import RegistrationToggle from "./RegistrationToggle";
 
 export default async function SessionAdminPage({
   params,
@@ -48,6 +49,17 @@ export default async function SessionAdminPage({
   const rounds = [...roundsMap.entries()].sort((a, b) => a[0] - b[0]);
   const confirmedSignUps = session.signUps.filter((s) => s.status === "CONFIRMED");
 
+  // Pool eligible for placing into matches: everyone confirmed, plus
+  // waitlisted people who actually showed up (checked in).
+  const swappablePool = session.signUps
+    .filter((s) => s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null))
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel,
+      waitlist: s.status === "WAITLIST",
+    }));
+
   const editorRounds = rounds.map(([round, roundMatches]) => {
     const roundMatchInfos = roundMatches.map((m) => ({
       id: m.id,
@@ -62,18 +74,16 @@ export default async function SessionAdminPage({
     const playingIds = new Set(
       roundMatchInfos.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
     );
-    const substitutes = confirmedSignUps
-      .filter((s) => !playingIds.has(s.id))
-      .map((s) => ({ id: s.id, name: s.name, skillLevel: s.skillLevel }));
-    return { round, matches: roundMatchInfos, substitutes };
+    const substitutes = swappablePool.filter((s) => !playingIds.has(s.id));
+    const usedCourts = new Set(roundMatchInfos.map((m) => m.court));
+    const emptyCourts = [1, 2, 3, 4, 5, 6].filter((c) => !usedCourts.has(c));
+    return { round, matches: roundMatchInfos, substitutes, emptyCourts };
   });
 
   const everPlayedIds = new Set(
     matches.flatMap((m) => m.players.map((p) => p.signUpId))
   );
-  const neverPlayed = confirmedSignUps
-    .filter((s) => !everPlayedIds.has(s.id))
-    .map((s) => ({ id: s.id, name: s.name, skillLevel: s.skillLevel }));
+  const neverPlayed = swappablePool.filter((s) => !everPlayedIds.has(s.id));
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -96,6 +106,10 @@ export default async function SessionAdminPage({
           </span>
         )}
       </h1>
+      {session.status === "OPEN" && (
+        <RegistrationToggle sessionId={id} registrationClosed={session.registrationClosedAt != null} />
+      )}
+
       <CheckInList
         sessionId={id}
         signUps={session.signUps.map((s) => ({
@@ -110,7 +124,6 @@ export default async function SessionAdminPage({
       <AdminPanel
         sessionId={id}
         status={session.status}
-        registrationClosed={session.registrationClosedAt != null}
         confirmedSignUps={confirmedSignUps.map((s) => ({
           id: s.id,
           name: s.name,

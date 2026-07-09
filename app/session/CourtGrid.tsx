@@ -8,6 +8,7 @@ interface PlayerInfo {
   id: string;
   name: string;
   skillLevel: SkillLevel;
+  waitlist?: boolean;
 }
 
 interface TeamMatch {

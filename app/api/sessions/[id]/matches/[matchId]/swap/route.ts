@@ -43,8 +43,16 @@ export async function POST(
   }
 
   const inSignUp = await prisma.signUp.findUnique({ where: { id: inSignUpId } });
-  if (!inSignUp || inSignUp.sessionId !== id || inSignUp.status !== "CONFIRMED") {
-    return NextResponse.json({ error: "คนที่เลือกมาแทนไม่ถูกต้อง" }, { status: 400 });
+  const eligible =
+    inSignUp &&
+    inSignUp.sessionId === id &&
+    (inSignUp.status === "CONFIRMED" ||
+      (inSignUp.status === "WAITLIST" && inSignUp.checkedInAt != null));
+  if (!eligible) {
+    return NextResponse.json(
+      { error: "คนที่เลือกมาแทนไม่ถูกต้อง (ตัวสำรองต้องเช็คอินก่อน)" },
+      { status: 400 }
+    );
   }
 
   const alreadyInRound = await prisma.matchPlayer.findFirst({

@@ -13,7 +13,7 @@ export default async function Home() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">🏸 ลงชื่อเล่นแบด</h1>
+      <h1 className="text-2xl font-bold">🏸 TUATUENG REGISTER</h1>
 
       {sessions.length === 0 && (
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่น กดสร้างรอบใหม่ได้เลยครับ</p>

@@ -25,7 +25,7 @@ export default async function SessionCourtsPage({
           include: { players: { include: { signUp: true } } },
           orderBy: { round: "asc" },
         },
-        signUps: { where: { status: "CONFIRMED" } },
+        signUps: { where: { status: { not: "WITHDRAWN" } } },
       },
     }),
     isAdmin(),
@@ -65,10 +65,20 @@ export default async function SessionCourtsPage({
   const playingInSelectedRound = new Set(
     matchesForRound.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
   );
+  // Confirmed players plus waitlisted people who checked in can be placed into courts.
   const substitutes = isLatestRound
     ? session.signUps
-        .filter((s) => !playingInSelectedRound.has(s.id))
-        .map((s) => ({ id: s.id, name: s.name, skillLevel: s.skillLevel }))
+        .filter(
+          (s) =>
+            (s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null)) &&
+            !playingInSelectedRound.has(s.id)
+        )
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          skillLevel: s.skillLevel,
+          waitlist: s.status === "WAITLIST",
+        }))
     : [];
 
   const path = basePath ?? `/session/${id}/courts`;

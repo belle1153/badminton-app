@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
@@ -33,7 +33,6 @@ interface ClosedSummary {
 export default function AdminPanel({
   sessionId,
   status,
-  registrationClosed,
   confirmedSignUps,
   courtRates,
   shuttlecockTypes,
@@ -42,7 +41,6 @@ export default function AdminPanel({
 }: {
   sessionId: string;
   status: "OPEN" | "CLOSED";
-  registrationClosed: boolean;
   confirmedSignUps: ConfirmedSignUp[];
   courtRates: CourtRate[];
   shuttlecockTypes: ShuttlecockType[];
@@ -55,15 +53,9 @@ export default function AdminPanel({
 
   const [selectedCourts, setSelectedCourts] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
   const checkedInIds = confirmedSignUps.filter((s) => s.checkedIn).map((s) => s.id);
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set(checkedInIds));
-
-  useEffect(() => {
-    setSelectedPlayerIds(new Set(checkedInIds));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkedInIds.join(",")]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<
-    "matches" | "clearMatches" | "pair" | "unpair" | "close" | "registration" | null
+    "matches" | "clearMatches" | "pair" | "unpair" | "close" | null
   >(null);
   const [benchNames, setBenchNames] = useState<string[] | null>(null);
   const [createdRounds, setCreatedRounds] = useState<number[] | null>(null);
@@ -108,34 +100,6 @@ export default function AdminPanel({
     });
   }
 
-  function togglePlayer(id: string) {
-    setSelectedPlayerIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  async function handleToggleRegistration() {
-    setError(null);
-    setLoading("registration");
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/registration`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ closed: !registrationClosed }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "ทำรายการไม่สำเร็จ");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(null);
-    }
-  }
-
   async function handleGenerateMatches() {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -149,7 +113,7 @@ export default function AdminPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courtNumbers: [...selectedCourts],
-          signUpIds: [...selectedPlayerIds],
+          signUpIds: checkedInIds,
         }),
       });
       const data = await res.json();
@@ -251,32 +215,6 @@ export default function AdminPanel({
     <div className="flex flex-col gap-8">
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {!isClosed && (
-        <section className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3">
-          <div>
-            <h2 className="font-semibold">การรับสมัคร</h2>
-            <p className="text-xs text-gray-500">
-              {registrationClosed ? "ปิดรับสมัครแล้ว — ผู้เล่นใหม่ลงชื่อไม่ได้" : "เปิดรับสมัครอยู่"}
-            </p>
-          </div>
-          <button
-            onClick={handleToggleRegistration}
-            disabled={loading === "registration"}
-            className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 whitespace-nowrap ${
-              registrationClosed
-                ? "bg-brand-600 text-white hover:bg-brand-700"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            {loading === "registration"
-              ? "กำลังทำรายการ..."
-              : registrationClosed
-                ? "เปิดรับสมัครอีกครั้ง"
-                : "ปิดรับสมัคร"}
-          </button>
-        </section>
-      )}
-
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">จับคู่ตี — กดครั้งเดียว จัดให้ทุกคนได้เล่นครบ</h2>
 
@@ -305,30 +243,18 @@ export default function AdminPanel({
           </div>
         </div>
 
-        <div>
-          <p className="text-sm text-gray-600 mb-1">
-            คนที่มาเล่น ({selectedPlayerIds.size}/{confirmedCount}) — ดีฟอลต์เลือกเฉพาะคนที่เช็คอินแล้ว
-          </p>
-          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-gray-100 rounded-md p-2">
-            {confirmedSignUps.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selectedPlayerIds.has(s.id)}
-                  onChange={() => togglePlayer(s.id)}
-                  disabled={isClosed}
-                />
-                {s.name} <span className="text-xs text-gray-400">{SKILL_LABELS[s.skillLevel as SkillLevel]}</span>
-                {!s.checkedIn && <span className="text-xs text-amber-600">ยังไม่เช็คอิน</span>}
-              </label>
-            ))}
-          </div>
-        </div>
+        <p className="text-sm text-gray-600">
+          จะจัดจากคนที่เช็คอินแล้ว{" "}
+          <span className="font-semibold text-brand-700">
+            {checkedInIds.length}/{confirmedCount}
+          </span>{" "}
+          คน — ติ๊กเช็คอินด้านบนก่อนกดรัน
+        </p>
 
         <div className="flex gap-2">
           <button
             onClick={handleGenerateMatches}
-            disabled={isClosed || loading === "matches"}
+            disabled={isClosed || loading === "matches" || checkedInIds.length === 0}
             className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 self-start"
           >
             {loading === "matches" ? "กำลังรัน..." : "รันรอบ (จัดครบทุกคน)"}
