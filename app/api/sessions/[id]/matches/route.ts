@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   const round = (lastRound?.round ?? 0) + 1;
 
-  const created = await prisma.$transaction(
+  await prisma.$transaction(
     matches.map((m) =>
       prisma.match.create({
         data: {
@@ -64,10 +64,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             ],
           },
         },
-        include: { players: { include: { signUp: true } } },
       })
-    )
+    ),
+    { timeout: 20000 }
   );
 
-  return NextResponse.json({ round, matches: created, bench });
+  return NextResponse.json({ round, bench });
 }

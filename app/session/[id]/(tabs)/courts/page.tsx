@@ -37,8 +37,12 @@ export default async function SessionCourtsPage({
     id: m.id,
     round: m.round,
     court: m.court,
-    team1: m.players.filter((p) => p.team === 1).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
-    team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
+    team1: m.players
+      .filter((p) => p.team === 1)
+      .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
+    team2: m.players
+      .filter((p) => p.team === 2)
+      .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
   });
 
   const allMatches = session.matches.map(toTeamMatch);
@@ -62,7 +66,9 @@ export default async function SessionCourtsPage({
     matchesForRound.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
   );
   const substitutes = isLatestRound
-    ? session.signUps.filter((s) => !playingInSelectedRound.has(s.id)).map((s) => ({ id: s.id, name: s.name }))
+    ? session.signUps
+        .filter((s) => !playingInSelectedRound.has(s.id))
+        .map((s) => ({ id: s.id, name: s.name, skillLevel: s.skillLevel }))
     : [];
 
   const path = basePath ?? `/session/${id}/courts`;

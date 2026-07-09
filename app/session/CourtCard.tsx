@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
 interface PlayerInfo {
   id: string;
   name: string;
+  skillLevel: SkillLevel;
 }
 
 interface TeamMatch {
@@ -69,7 +71,7 @@ export default function CourtCard({
           key={p.id}
           className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1"
         >
-          {p.name}
+          {p.name} <span className="text-gray-400">: {SKILL_LABELS[p.skillLevel]}</span>
         </span>
       );
     }
@@ -88,7 +90,7 @@ export default function CourtCard({
             <option value="">แทนด้วย...</option>
             {substitutes?.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name}
+                {s.name} ({SKILL_LABELS[s.skillLevel]})
               </option>
             ))}
           </select>
@@ -112,7 +114,7 @@ export default function CourtCard({
         onClick={() => startEdit(p.id)}
         className="bg-white/95 text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 underline decoration-dotted decoration-gray-400"
       >
-        {p.name}
+        {p.name} <span className="text-gray-400">: {SKILL_LABELS[p.skillLevel]}</span>
       </button>
     );
   }

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import CourtCard from "./CourtCard";
+import type { SkillLevel } from "@/lib/matching";
 
 interface PlayerInfo {
   id: string;
   name: string;
+  skillLevel: SkillLevel;
 }
 
 interface TeamMatch {
