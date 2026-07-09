@@ -1,5 +1,5 @@
 import { isAdmin } from "@/lib/adminAuth";
-import AdminSidebar from "./AdminSidebar";
+import AdminNav from "./AdminNav";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await isAdmin();
@@ -8,9 +8,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex flex-col sm:flex-row min-h-screen">
-      <AdminSidebar />
-      <div className="flex-1">{children}</div>
+    <div className="flex flex-col min-h-screen">
+      <AdminNav />
+      {children}
     </div>
   );
 }
