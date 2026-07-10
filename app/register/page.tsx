@@ -34,9 +34,15 @@ export default async function RegisterPage() {
       day: "numeric",
       month: "long",
     });
+    const shortLabel = new Date(s.date).toLocaleDateString("th-TH", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+    });
     return {
       id: s.id,
       dayLabel,
+      shortLabel,
       venue: s.venue,
       earlyCount,
       earlyCapacity,
@@ -55,9 +61,7 @@ export default async function RegisterPage() {
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
       </p>
 
-      <MultiSignUpForm
-        days={days.map((d) => ({ id: d.id, label: `${d.dayLabel} — ${d.venue}` }))}
-      />
+      <MultiSignUpForm days={days.map((d) => ({ id: d.id, label: d.shortLabel }))} />
 
       <p className="text-xs text-gray-400">
         ถอนชื่อเองได้จากเครื่องที่ใช้ลงชื่อ ภายในเที่ยงวันตีเท่านั้น — หลังจากนั้นแจ้งแอดมิน

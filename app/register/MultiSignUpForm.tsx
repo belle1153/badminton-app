@@ -21,11 +21,12 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [athleteId, setAthleteId] = useState<string | null>(null);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [slots, setSlots] = useState<Record<string, Slot>>({});
+  const [selectedDay, setSelectedDay] = useState(days[0]?.id ?? "");
+  const [timeSlot, setTimeSlot] = useState<Slot>("EARLY");
+  const [doneDays, setDoneDays] = useState<Set<string>>(new Set());
   const [suggestions, setSuggestions] = useState<AthleteSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,51 +45,53 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
     };
   }, [name]);
 
-  async function signUpDay(day: DayOption, slot: Slot, confirmMove: boolean): Promise<string> {
+  async function signUp(confirmMove: boolean): Promise<{ text: string; ok: boolean } | null> {
+    const day = days.find((d) => d.id === selectedDay);
+    if (!day) return { text: "เลือกวันก่อนครับ", ok: false };
     const res = await fetch(`/api/sessions/${day.id}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ athleteId, name, timeSlot: slot, confirmMove }),
+      body: JSON.stringify({ athleteId, name, timeSlot, confirmMove }),
     });
     const data = await res.json();
     if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
-      const label = slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
+      const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
       if (confirm(`${day.label}: ${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
-        return signUpDay(day, slot, true);
+        return signUp(true);
       }
-      return `${day.label}: คงรอบเดิมไว้`;
+      return { text: `${day.label}: คงรอบเดิมไว้`, ok: true };
     }
-    if (!res.ok) return `${day.label}: ${data.error ?? "ลงชื่อไม่สำเร็จ"}`;
+    if (!res.ok) return { text: `${day.label}: ${data.error ?? "ลงชื่อไม่สำเร็จ"}`, ok: false };
     localStorage.setItem(`badminton_signup_${day.id}`, data.id);
-    return `${day.label}: ลงชื่อสำเร็จ${data.status === "WAITLIST" ? " (สำรอง)" : ""}`;
+    setDoneDays((prev) => new Set(prev).add(day.id));
+    return {
+      text: `${day.label}: ลงชื่อสำเร็จ${data.status === "WAITLIST" ? " (สำรอง)" : ""}`,
+      ok: true,
+    };
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const chosen = days.filter((d) => checked[d.id]);
-    if (chosen.length === 0) {
-      setMessages(["เลือกอย่างน้อย 1 วันครับ"]);
-      return;
-    }
-    setMessages([]);
+    setMessage(null);
     setLoading(true);
     try {
-      const results: string[] = [];
-      for (const day of chosen) {
-        results.push(await signUpDay(day, slots[day.id] ?? "EARLY", false));
+      const result = await signUp(false);
+      setMessage(result);
+      if (result?.ok) {
+        // Keep the name so signing up for the other day is one tap away;
+        // auto-jump to a day not yet signed up, if any.
+        const remaining = days.find((d) => d.id !== selectedDay && !doneDays.has(d.id));
+        if (remaining) setSelectedDay(remaining.id);
+        setSuggestions([]);
+        router.refresh();
       }
-      setMessages(results);
-      setName("");
-      setAthleteId(null);
-      setSuggestions([]);
-      router.refresh();
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-lg border border-gray-200 p-4">
       <div className="relative">
         <input
           required
@@ -127,38 +130,46 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
         )}
       </div>
 
-      {days.map((d) => (
-        <div key={d.id} className="flex items-center justify-between gap-2 text-sm">
-          <label className="flex items-center gap-2 flex-1 min-w-0">
-            <input
-              type="checkbox"
-              checked={checked[d.id] ?? false}
-              onChange={(e) => setChecked({ ...checked, [d.id]: e.target.checked })}
-            />
-            <span className="truncate">{d.label}</span>
-          </label>
-          <div
-            className={`flex rounded-md border border-gray-300 overflow-hidden text-xs shrink-0 ${
-              checked[d.id] ? "" : "opacity-40 pointer-events-none"
-            }`}
-          >
-            {(["EARLY", "LATE"] as const).map((slot) => (
-              <button
-                key={slot}
-                type="button"
-                onClick={() => setSlots({ ...slots, [d.id]: slot })}
-                className={`px-2.5 py-1.5 font-medium ${
-                  (slots[d.id] ?? "EARLY") === slot
-                    ? "bg-brand-600 text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
-              </button>
-            ))}
-          </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-gray-700">เลือกวัน</span>
+        <div className="flex flex-wrap gap-2">
+          {days.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => setSelectedDay(d.id)}
+              className={`rounded-md border px-3 py-2 text-sm font-medium ${
+                selectedDay === d.id
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {doneDays.has(d.id) ? "✓ " : ""}
+              {d.label}
+            </button>
+          ))}
         </div>
-      ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-gray-700">เลือกเวลา</span>
+        <div className="flex gap-2">
+          {(["EARLY", "LATE"] as const).map((slot) => (
+            <button
+              key={slot}
+              type="button"
+              onClick={() => setTimeSlot(slot)}
+              className={`rounded-md border px-4 py-2 text-sm font-medium ${
+                timeSlot === slot
+                  ? "bg-brand-600 text-white border-brand-600"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <button
         type="submit"
@@ -168,14 +179,13 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
         {loading ? "กำลังลง..." : "ลงชื่อ"}
       </button>
 
-      {messages.length > 0 && (
-        <ul className="text-sm flex flex-col gap-0.5">
-          {messages.map((m, i) => (
-            <li key={i} className={m.includes("สำเร็จ") ? "text-brand-700" : "text-amber-600"}>
-              {m}
-            </li>
-          ))}
-        </ul>
+      {message && (
+        <p className={`text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
+      )}
+      {doneDays.size > 0 && days.some((d) => !doneDays.has(d.id)) && (
+        <p className="text-xs text-gray-400">
+          มาอีกวันด้วยใช่ไหมครับ? เลือกวันที่เหลือแล้วกด &quot;ลงชื่อ&quot; ได้เลย (ไม่ต้องพิมพ์ชื่อใหม่)
+        </p>
       )}
     </form>
   );
