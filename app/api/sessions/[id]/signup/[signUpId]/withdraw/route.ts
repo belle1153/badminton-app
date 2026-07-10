@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { promoteAfterWithdrawal } from "@/lib/signup";
+import { isAdmin } from "@/lib/adminAuth";
+import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 
 export async function POST(
   req: NextRequest,
@@ -14,6 +16,12 @@ export async function POST(
   }
   if (session.status === "CLOSED") {
     return NextResponse.json({ error: "รอบนี้ปิดแล้ว ไม่สามารถถอนชื่อได้" }, { status: 400 });
+  }
+  if (!(await isAdmin()) && !selfWithdrawAllowed(session.date)) {
+    return NextResponse.json(
+      { error: "เลยเวลาถอนชื่อด้วยตัวเอง (เที่ยงวันตี) แล้ว — แจ้งแอดมินให้ถอนให้ครับ" },
+      { status: 400 }
+    );
   }
 
   const target = await prisma.signUp.findUnique({ where: { id: signUpId } });

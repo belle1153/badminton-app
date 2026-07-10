@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { SKILL_LABELS } from "@/lib/matching";
+import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 import SignUpForm from "../SignUpForm";
 import WithdrawButton from "../WithdrawButton";
 
@@ -19,6 +20,7 @@ export default async function SessionSignUpPage({
 
   const isClosed = session.status === "CLOSED";
   const registrationClosed = session.registrationClosedAt != null;
+  const deadlinePassed = !selfWithdrawAllowed(session.date);
 
   const confirmed = session.signUps
     .filter((s) => s.status === "CONFIRMED")
@@ -42,6 +44,10 @@ export default async function SessionSignUpPage({
             </p>
           )}
           <SignUpForm sessionId={id} />
+          <p className="text-xs text-gray-400">
+            ถอนชื่อเองได้จากเครื่องที่ใช้ลงชื่อ ภายในเที่ยงวันตีเท่านั้น — หลังจากนั้นแจ้งแอดมิน
+            (มีค่าธรรมเนียม 100 บาท ยกเว้นหาคนมาแทนได้)
+          </p>
         </>
       )}
 
@@ -63,7 +69,9 @@ export default async function SessionSignUpPage({
                   </span>
                 )}
               </span>
-              {s && !isClosed && <WithdrawButton sessionId={id} signUpId={s.id} />}
+              {s && !isClosed && (
+                <WithdrawButton sessionId={id} signUpId={s.id} deadlinePassed={deadlinePassed} />
+              )}
             </li>
           ))}
         </ol>
@@ -84,7 +92,9 @@ export default async function SessionSignUpPage({
                     {SKILL_LABELS[s.skillLevel as keyof typeof SKILL_LABELS]}
                   </span>
                 </span>
-                {!isClosed && <WithdrawButton sessionId={id} signUpId={s.id} />}
+                {!isClosed && (
+                  <WithdrawButton sessionId={id} signUpId={s.id} deadlinePassed={deadlinePassed} />
+                )}
               </li>
             ))}
           </ol>

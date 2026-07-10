@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
-const SKILLS = Object.keys(SKILL_LABELS) as SkillLevel[];
-
 interface AthleteSuggestion {
   id: string;
   name: string;
@@ -15,7 +13,6 @@ interface AthleteSuggestion {
 export default function SignUpForm({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [skillLevel, setSkillLevel] = useState<SkillLevel>("RK");
   const [athleteId, setAthleteId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<AthleteSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -46,7 +43,6 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
 
   function handleSelectSuggestion(s: AthleteSuggestion) {
     setName(s.name);
-    setSkillLevel(s.skillLevel);
     setAthleteId(s.id);
     setSuggestions([]);
     setShowSuggestions(false);
@@ -60,7 +56,7 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
       const res = await fetch(`/api/sessions/${sessionId}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ athleteId, name, skillLevel }),
+        body: JSON.stringify({ athleteId, name }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "ลงชื่อไม่สำเร็จ");
@@ -106,17 +102,6 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
           </ul>
         )}
       </div>
-      <select
-        value={skillLevel}
-        onChange={(e) => setSkillLevel(e.target.value as SkillLevel)}
-        className="input sm:w-32"
-      >
-        {SKILLS.map((s) => (
-          <option key={s} value={s}>
-            {SKILL_LABELS[s]}
-          </option>
-        ))}
-      </select>
       <button
         type="submit"
         disabled={loading}
