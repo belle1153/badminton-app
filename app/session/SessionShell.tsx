@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TabBar from "./TabBar";
+import AutoRefresh from "./AutoRefresh";
 
 interface SessionInfo {
   venue: string;
@@ -26,6 +27,7 @@ export default function SessionShell({
 
   return (
     <div className="flex flex-col min-h-full">
+      <AutoRefresh />
       <main className="max-w-2xl mx-auto w-full p-6 pb-24 flex flex-col gap-6 flex-1">
         <Link href={backHref} className="text-sm text-gray-500 hover:underline">
           ← กลับ

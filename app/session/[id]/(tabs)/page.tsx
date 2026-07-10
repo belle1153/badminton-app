@@ -7,6 +7,8 @@ import { WAITLIST_LIMIT } from "@/lib/signup";
 import SignUpForm from "../SignUpForm";
 import WithdrawButton from "../WithdrawButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function SessionSignUpPage({
   params,
 }: {

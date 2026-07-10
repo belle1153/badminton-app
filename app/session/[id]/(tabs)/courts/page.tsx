@@ -4,6 +4,8 @@ import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
 import RoundTabs from "../../../RoundTabs";
 
+export const dynamic = "force-dynamic";
+
 export default async function SessionCourtsPage({
   params,
   searchParams,

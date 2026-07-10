@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 
+// Always read fresh data — without this the page is frozen at build time.
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const sessions = await prisma.session.findMany({
     orderBy: { date: "desc" },

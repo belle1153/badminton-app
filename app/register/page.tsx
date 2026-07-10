@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
 import MultiSignUpForm from "./MultiSignUpForm";
+import AutoRefresh from "../session/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export default async function RegisterPage() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
+      <AutoRefresh />
       <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
       <p className="text-sm text-gray-600">
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
