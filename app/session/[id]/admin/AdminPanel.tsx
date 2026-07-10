@@ -278,7 +278,7 @@ export default function AdminPanel({
         )}
         {benchNames && benchNames.length > 0 && (
           <p className="text-xs text-amber-600">
-            สแปร์ (จับคู่ไม่ครบ 4 คน — กดชื่อในหน้าสนามเพื่อสลับลงเล่นได้): {benchNames.join(", ")}
+            สแปร์ (จับคู่ไม่ครบ 4 คน — สลับลงเล่นได้ในส่วน &quot;แก้ไขการจับคู่&quot; ด้านล่าง): {benchNames.join(", ")}
           </p>
         )}
       </section>

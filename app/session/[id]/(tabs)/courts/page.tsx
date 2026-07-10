@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { isAdmin } from "@/lib/adminAuth";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
 import RoundTabs from "../../../RoundTabs";
@@ -17,19 +16,15 @@ export default async function SessionCourtsPage({
   const { id } = await params;
   const { round: roundParam } = await searchParams;
 
-  const [session, admin] = await Promise.all([
-    prisma.session.findUnique({
-      where: { id },
-      include: {
-        matches: {
-          include: { players: { include: { signUp: true } } },
-          orderBy: { round: "asc" },
-        },
-        signUps: { where: { status: { not: "WITHDRAWN" } } },
+  const session = await prisma.session.findUnique({
+    where: { id },
+    include: {
+      matches: {
+        include: { players: { include: { signUp: true } } },
+        orderBy: { round: "asc" },
       },
-    }),
-    isAdmin(),
-  ]);
+    },
+  });
 
   if (!session) notFound();
 
@@ -61,26 +56,6 @@ export default async function SessionCourtsPage({
     return { court, match: matchByCourt.get(court) ?? null };
   });
 
-  const isLatestRound = selectedRound != null && selectedRound === latestRound && session.status === "OPEN";
-  const playingInSelectedRound = new Set(
-    matchesForRound.flatMap((m) => [...m.team1, ...m.team2].map((p) => p.id))
-  );
-  // Confirmed players plus waitlisted people who checked in can be placed into courts.
-  const substitutes = isLatestRound
-    ? session.signUps
-        .filter(
-          (s) =>
-            (s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null)) &&
-            !playingInSelectedRound.has(s.id)
-        )
-        .map((s) => ({
-          id: s.id,
-          name: s.name,
-          skillLevel: s.skillLevel,
-          waitlist: s.status === "WAITLIST",
-        }))
-    : [];
-
   const path = basePath ?? `/session/${id}/courts`;
 
   return (
@@ -98,13 +73,7 @@ export default async function SessionCourtsPage({
         {roundNumbers.length === 0 ? (
           <p className="text-gray-500 text-sm">ยังไม่มีการจับคู่</p>
         ) : (
-          <CourtGrid
-            sessionId={id}
-            isAdmin={admin}
-            editable={isLatestRound}
-            courts={courts}
-            substitutes={substitutes}
-          />
+          <CourtGrid sessionId={id} courts={courts} />
         )}
       </section>
     </>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import CourtCard from "../../CourtCard";
 
 interface PlayerInfo {
   id: string;
@@ -39,41 +40,12 @@ export default function MatchEditor({
   neverPlayed: PlayerInfo[];
 }) {
   const router = useRouter();
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [replacement, setReplacement] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [addingRound, setAddingRound] = useState<number | null>(null);
   const [addCourt, setAddCourt] = useState("");
   const [addPlayers, setAddPlayers] = useState<string[]>(["", "", "", ""]);
-
-  function startEdit(matchId: string, playerId: string) {
-    setEditingKey(`${matchId}:${playerId}`);
-    setReplacement("");
-    setError(null);
-  }
-
-  async function handleSwap(matchId: string, outSignUpId: string) {
-    if (!replacement) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/matches/${matchId}/swap`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outSignUpId, inSignUpId: replacement }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "สลับไม่สำเร็จ");
-      setEditingKey(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function startAdd(round: number, defaultCourt: number | undefined) {
     setAddingRound(round);
@@ -107,57 +79,11 @@ export default function MatchEditor({
     }
   }
 
-  function renderPlayer(matchId: string, p: PlayerInfo, substitutes: PlayerInfo[]) {
-    const isEditing = editingKey === `${matchId}:${p.id}`;
-    return (
-      <div key={p.id} className="flex items-center justify-between gap-2">
-        <span>
-          {p.name} <span className="text-xs text-gray-400">{SKILL_LABELS[p.skillLevel as SkillLevel]}</span>
-        </span>
-        {isEditing ? (
-          <div className="flex items-center gap-1">
-            <select
-              value={replacement}
-              onChange={(e) => setReplacement(e.target.value)}
-              className="input py-0.5 text-xs w-36"
-              autoFocus
-            >
-              <option value="">แทนด้วย...</option>
-              {substitutes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {playerLabel(s)}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => handleSwap(matchId, p.id)}
-              disabled={!replacement || loading}
-              className="text-xs text-brand-700 hover:underline disabled:opacity-50"
-            >
-              ยืนยัน
-            </button>
-            <button onClick={() => setEditingKey(null)} className="text-xs text-gray-400 hover:underline">
-              ยกเลิก
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => startEdit(matchId, p.id)}
-            className="text-xs text-gray-400 hover:text-brand-700"
-          >
-            🔁 เปลี่ยน
-          </button>
-        )}
-      </div>
-    );
-  }
-
   function renderAddForm(r: RoundInfo) {
     const chosen = new Set(addPlayers.filter(Boolean));
-    const ready =
-      addCourt !== "" && addPlayers.every(Boolean) && chosen.size === 4;
+    const ready = addCourt !== "" && addPlayers.every(Boolean) && chosen.size === 4;
     return (
-      <div className="rounded-md border border-dashed border-brand-300 p-3 text-sm flex flex-col gap-2">
+      <div className="rounded-xl border-2 border-dashed border-brand-300 p-3 text-sm flex flex-col gap-2 min-h-[200px]">
         <div className="flex items-center gap-2">
           <span className="text-gray-600">สนาม</span>
           <select value={addCourt} onChange={(e) => setAddCourt(e.target.value)} className="input py-1 w-24">
@@ -191,7 +117,7 @@ export default function MatchEditor({
             </select>
           </div>
         ))}
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-auto">
           <button
             onClick={() => handleAddMatch(r.round)}
             disabled={!ready || loading}
@@ -213,6 +139,7 @@ export default function MatchEditor({
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-semibold">แก้ไขการจับคู่</h2>
+      <p className="text-xs text-gray-400">กดที่ชื่อ (✎) เพื่อสลับตัวผู้เล่น</p>
       {neverPlayed.length > 0 ? (
         <p className="text-sm text-amber-600">
           ยังไม่ได้ลงเล่น ({neverPlayed.length} คน): {neverPlayed.map(playerLabel).join(", ")}
@@ -224,7 +151,7 @@ export default function MatchEditor({
       <div className="flex flex-col gap-4">
         {rounds.map((r) => (
           <div key={r.round}>
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-3 mb-2">
               <h3 className="text-sm font-medium text-gray-600">รอบที่ {r.round}</h3>
               {r.emptyCourts.length > 0 && r.substitutes.length >= 4 && addingRound !== r.round && (
                 <button
@@ -235,14 +162,16 @@ export default function MatchEditor({
                 </button>
               )}
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {r.matches.map((m) => (
-                <div key={m.id} className="rounded-md border border-gray-200 p-2 text-sm flex flex-col gap-1">
-                  <div className="text-xs text-gray-400 mb-1">สนาม {m.court}</div>
-                  {m.team1.map((p) => renderPlayer(m.id, p, r.substitutes))}
-                  <div className="text-gray-400 text-xs my-0.5 text-center">vs</div>
-                  {m.team2.map((p) => renderPlayer(m.id, p, r.substitutes))}
-                </div>
+                <CourtCard
+                  key={m.id}
+                  sessionId={sessionId}
+                  court={m.court}
+                  match={m}
+                  substitutes={r.substitutes}
+                  editable
+                />
               ))}
               {addingRound === r.round && renderAddForm(r)}
             </div>

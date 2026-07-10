@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import CourtCard from "./CourtCard";
-import type { SkillLevel } from "@/lib/matching";
 
 interface PlayerInfo {
   id: string;
   name: string;
-  skillLevel: SkillLevel;
-  waitlist?: boolean;
+  skillLevel: string;
 }
 
 interface TeamMatch {
@@ -22,19 +20,7 @@ interface CourtEntry {
   match: TeamMatch | null;
 }
 
-export default function CourtGrid({
-  sessionId,
-  isAdmin,
-  editable,
-  courts,
-  substitutes,
-}: {
-  sessionId: string;
-  isAdmin: boolean;
-  editable: boolean;
-  courts: CourtEntry[];
-  substitutes: PlayerInfo[];
-}) {
+export default function CourtGrid({ sessionId, courts }: { sessionId: string; courts: CourtEntry[] }) {
   const [selfId, setSelfId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,15 +35,7 @@ export default function CourtGrid({
           !!c.match &&
           (c.match.team1.some((p) => p.id === selfId) || c.match.team2.some((p) => p.id === selfId));
         return (
-          <CourtCard
-            key={c.court}
-            sessionId={sessionId}
-            court={c.court}
-            match={c.match}
-            substitutes={substitutes}
-            isSelf={isSelf}
-            editable={isAdmin && editable}
-          />
+          <CourtCard key={c.court} sessionId={sessionId} court={c.court} match={c.match} isSelf={isSelf} />
         );
       })}
     </div>

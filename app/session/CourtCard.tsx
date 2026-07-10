@@ -7,7 +7,7 @@ import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 interface PlayerInfo {
   id: string;
   name: string;
-  skillLevel: SkillLevel;
+  skillLevel: string;
   waitlist?: boolean;
 }
 
@@ -72,7 +72,7 @@ export default function CourtCard({
           key={p.id}
           className="bg-white text-gray-900 text-sm font-medium rounded-full px-4 py-1.5 shadow-sm whitespace-nowrap"
         >
-          {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel]}</span>
+          {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel as SkillLevel]}</span>
         </span>
       );
     }
@@ -91,7 +91,7 @@ export default function CourtCard({
             <option value="">แทนด้วย...</option>
             {substitutes?.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} ({SKILL_LABELS[s.skillLevel]}){s.waitlist ? " — สำรอง" : ""}
+                {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]}){s.waitlist ? " — สำรอง" : ""}
               </option>
             ))}
           </select>
@@ -115,7 +115,7 @@ export default function CourtCard({
         onClick={() => startEdit(p.id)}
         className="bg-white text-gray-900 text-sm font-medium rounded-full px-4 py-1.5 shadow-sm whitespace-nowrap inline-flex items-center gap-1.5"
       >
-        {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel]}</span>
+        {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel as SkillLevel]}</span>
         <span className="text-brand-500 text-xs">✎</span>
       </button>
     );
