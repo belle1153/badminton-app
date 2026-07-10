@@ -35,12 +35,19 @@ enum SessionStatus {
   CLOSED
 }
 
+enum TimeSlot {
+  EARLY // 1 ทุ่ม
+  LATE // 2 ทุ่ม
+}
+
 model Session {
   id                   String           @id @default(cuid())
   date                 DateTime
   venue                String
   startTime            String
   maxPlayers           Int
+  courtsEarly          Int              @default(3)
+  courtsLate           Int              @default(3)
   courtConfigNote      String?
   remark               String?
   status               SessionStatus    @default(OPEN)
@@ -67,6 +74,7 @@ model SignUp {
   name           String
   skillLevel     SkillLevel
   status         SignUpStatus  @default(CONFIRMED)
+  timeSlot       TimeSlot      @default(EARLY)
   slotNumber     Int?
   checkedInAt    DateTime?
   createdAt      DateTime      @default(now())

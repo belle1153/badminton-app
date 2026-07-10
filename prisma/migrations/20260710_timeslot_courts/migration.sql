@@ -1,0 +1,9 @@
+-- CreateEnum
+CREATE TYPE "TimeSlot" AS ENUM ('EARLY', 'LATE');
+
+-- AlterTable
+ALTER TABLE "Session" ADD COLUMN "courtsEarly" INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE "Session" ADD COLUMN "courtsLate" INTEGER NOT NULL DEFAULT 3;
+
+-- AlterTable
+ALTER TABLE "SignUp" ADD COLUMN "timeSlot" "TimeSlot" NOT NULL DEFAULT 'EARLY';

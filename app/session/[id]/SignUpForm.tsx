@@ -13,6 +13,7 @@ interface AthleteSuggestion {
 export default function SignUpForm({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [timeSlot, setTimeSlot] = useState<"EARLY" | "LATE">("EARLY");
   const [athleteId, setAthleteId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<AthleteSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -48,23 +49,37 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
     setShowSuggestions(false);
   }
 
+  async function submit(confirmMove: boolean) {
+    const res = await fetch(`/api/sessions/${sessionId}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ athleteId, name, timeSlot, confirmMove }),
+    });
+    const data = await res.json();
+    if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
+      const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
+      if (confirm(`${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
+        return submit(true);
+      }
+      return null;
+    }
+    if (!res.ok) throw new Error(data.error ?? "ลงชื่อไม่สำเร็จ");
+    return data;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ athleteId, name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "ลงชื่อไม่สำเร็จ");
-      localStorage.setItem(`badminton_signup_${sessionId}`, data.id);
-      setName("");
-      setAthleteId(null);
-      setSuggestions([]);
-      router.refresh();
+      const data = await submit(false);
+      if (data) {
+        localStorage.setItem(`badminton_signup_${sessionId}`, data.id);
+        setName("");
+        setAthleteId(null);
+        setSuggestions([]);
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -101,6 +116,20 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
             ))}
           </ul>
         )}
+      </div>
+      <div className="flex rounded-md border border-gray-300 overflow-hidden text-sm shrink-0">
+        {(["EARLY", "LATE"] as const).map((slot) => (
+          <button
+            key={slot}
+            type="button"
+            onClick={() => setTimeSlot(slot)}
+            className={`px-3 py-2 font-medium ${
+              timeSlot === slot ? "bg-brand-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            {slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+          </button>
+        ))}
       </div>
       <button
         type="submit"

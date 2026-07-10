@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { promoteAfterWithdrawal } from "@/lib/signup";
+import { promoteAfterWithdrawal, type TimeSlot } from "@/lib/signup";
+import { blockCapacities } from "@/lib/capacity";
 import { isAdmin } from "@/lib/adminAuth";
 import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 
@@ -45,7 +46,13 @@ export async function POST(
     where: { sessionId: id, status: { not: "WITHDRAWN" } },
   });
 
-  const promotion = promoteAfterWithdrawal(remaining);
+  const { earlyCapacity, totalCapacity } = blockCapacities(session);
+  const promotion = promoteAfterWithdrawal(
+    remaining.map((s) => ({ ...s, timeSlot: s.timeSlot as TimeSlot })),
+    target.timeSlot as TimeSlot,
+    earlyCapacity,
+    totalCapacity
+  );
   if (promotion) {
     await prisma.signUp.update({
       where: { id: promotion.promoteId },

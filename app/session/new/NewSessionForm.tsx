@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { COURT_OPTIONS, capacityFor } from "@/lib/capacity";
 
 export default function NewSessionForm() {
   const router = useRouter();
   const [date, setDate] = useState("");
   const [venue, setVenue] = useState("");
   const [startTime, setStartTime] = useState("19:00");
-  const [maxPlayers, setMaxPlayers] = useState("22");
+  const [courtsEarly, setCourtsEarly] = useState("3");
+  const [courtsLate, setCourtsLate] = useState("5");
   const [courtConfigNote, setCourtConfigNote] = useState("");
   const [remark, setRemark] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const earlyCapacity = capacityFor(Number(courtsEarly));
+  const totalCapacity = capacityFor(Number(courtsLate));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +27,7 @@ export default function NewSessionForm() {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, venue, startTime, maxPlayers, courtConfigNote, remark }),
+        body: JSON.stringify({ date, venue, startTime, courtsEarly, courtsLate, courtConfigNote, remark }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "สร้างรอบไม่สำเร็จ");
@@ -65,17 +70,31 @@ export default function NewSessionForm() {
             className="input"
           />
         </Field>
-        <Field label="จำนวนคนสูงสุด">
-          <input
-            type="number"
-            min={1}
-            required
-            value={maxPlayers}
-            onChange={(e) => setMaxPlayers(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            className="input"
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="คอร์ทช่วง 1 ทุ่ม">
+            <select value={courtsEarly} onChange={(e) => setCourtsEarly(e.target.value)} className="input">
+              {COURT_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c} คอร์ท ({capacityFor(c)} คน)
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="คอร์ทช่วง 2 ทุ่ม">
+            <select value={courtsLate} onChange={(e) => setCourtsLate(e.target.value)} className="input">
+              {COURT_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c} คอร์ท ({capacityFor(c)} คน)
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        <p className="text-xs text-gray-500 -mt-2">
+          รับรวม <span className="font-semibold text-brand-700">{totalCapacity} คน</span> — รอบ 1 ทุ่ม{" "}
+          {Math.min(earlyCapacity, totalCapacity)} คน / รอบ 2 ทุ่ม เพิ่มอีก{" "}
+          {Math.max(0, totalCapacity - earlyCapacity)} คน + สำรอง 5 คน
+        </p>
         <Field label="หมายเหตุคอร์ท (ไม่บังคับ)">
           <input
             placeholder="เช่น 1 ทุ่ม 2 คอร์ท / 2 ทุ่ม 3 คอร์ท"

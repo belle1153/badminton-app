@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { SKILL_LABELS } from "@/lib/matching";
 import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
+import { blockCapacities } from "@/lib/capacity";
+import { WAITLIST_LIMIT } from "@/lib/signup";
 import SignUpForm from "../SignUpForm";
 import WithdrawButton from "../WithdrawButton";
 
@@ -29,10 +31,13 @@ export default async function SessionSignUpPage({
     .filter((s) => s.status === "WAITLIST")
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-  const slots = Array.from({ length: session.maxPlayers }, (_, i) => {
-    const slotNumber = i + 1;
-    return confirmed.find((s) => s.slotNumber === slotNumber) ?? null;
-  });
+  const { earlyCapacity, totalCapacity } = blockCapacities(session);
+  const slotAt = (slotNumber: number) =>
+    confirmed.find((s) => s.slotNumber === slotNumber) ?? null;
+  const earlySlots = Array.from({ length: earlyCapacity }, (_, i) => slotAt(i + 1));
+  const lateSlots = Array.from({ length: Math.max(0, totalCapacity - earlyCapacity) }, (_, i) =>
+    slotAt(earlyCapacity + i + 1)
+  );
 
   return (
     <>
@@ -53,10 +58,10 @@ export default async function SessionSignUpPage({
 
       <section>
         <h2 className="font-semibold mb-2">
-          รายชื่อ ({confirmed.length}/{session.maxPlayers})
+          รอบ 1 ทุ่ม ({earlySlots.filter(Boolean).length}/{earlyCapacity})
         </h2>
         <ol className="flex flex-col gap-1">
-          {slots.map((s, i) => (
+          {earlySlots.map((s, i) => (
             <li
               key={i}
               className="flex items-center justify-between text-sm border-b border-gray-100 py-1"
@@ -77,9 +82,39 @@ export default async function SessionSignUpPage({
         </ol>
       </section>
 
+      {lateSlots.length > 0 && (
+        <section>
+          <h2 className="font-semibold mb-2">
+            รอบ 2 ทุ่ม ({lateSlots.filter(Boolean).length}/{lateSlots.length})
+          </h2>
+          <ol className="flex flex-col gap-1">
+            {lateSlots.map((s, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between text-sm border-b border-gray-100 py-1"
+              >
+                <span>
+                  {earlyCapacity + i + 1}. {s ? s.name : <span className="text-gray-300">—</span>}
+                  {s && (
+                    <span className="text-xs text-gray-400 ml-2">
+                      {SKILL_LABELS[s.skillLevel as keyof typeof SKILL_LABELS]}
+                    </span>
+                  )}
+                </span>
+                {s && !isClosed && (
+                  <WithdrawButton sessionId={id} signUpId={s.id} deadlinePassed={deadlinePassed} />
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {waitlist.length > 0 && (
         <section>
-          <h2 className="font-semibold mb-2">รายชื่อสำรอง ({waitlist.length})</h2>
+          <h2 className="font-semibold mb-2">
+            รายชื่อสำรอง ({waitlist.length}/{WAITLIST_LIMIT})
+          </h2>
           <ol className="flex flex-col gap-1">
             {waitlist.map((s, i) => (
               <li
@@ -90,6 +125,9 @@ export default async function SessionSignUpPage({
                   {i + 1}. {s.name}
                   <span className="text-xs text-gray-400 ml-2">
                     {SKILL_LABELS[s.skillLevel as keyof typeof SKILL_LABELS]}
+                  </span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    (รอรอบ {s.timeSlot === "LATE" ? "2 ทุ่ม" : "1 ทุ่ม"})
                   </span>
                 </span>
                 {!isClosed && (
