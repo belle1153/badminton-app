@@ -1,26 +1,28 @@
 export type SkillLevel = "RK" | "N_MINUS" | "N" | "N_PLUS" | "S" | "S_PLUS" | "BG" | "BG_PLUS" | "P";
 
+// Club skill progression, weakest → strongest: RK, BG, BG+, N-, N, N+, S, S+, P.
 export const SKILL_RANK: Record<SkillLevel, number> = {
   RK: 0,
-  N_MINUS: 1,
-  N: 2,
-  N_PLUS: 3,
-  S: 4,
-  S_PLUS: 5,
-  BG: 6,
-  BG_PLUS: 7,
+  BG: 1,
+  BG_PLUS: 2,
+  N_MINUS: 3,
+  N: 4,
+  N_PLUS: 5,
+  S: 6,
+  S_PLUS: 7,
   P: 8,
 };
 
+// Key order here drives the dropdown order (via Object.keys).
 export const SKILL_LABELS: Record<SkillLevel, string> = {
   RK: "RK",
+  BG: "BG",
+  BG_PLUS: "BG+",
   N_MINUS: "N-",
   N: "N",
   N_PLUS: "N+",
   S: "S",
   S_PLUS: "S+",
-  BG: "BG",
-  BG_PLUS: "BG+",
   P: "P",
 };
 

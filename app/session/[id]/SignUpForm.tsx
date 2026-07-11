@@ -89,8 +89,8 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 items-stretch">
-      <div className="relative flex-1">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <div className="relative">
         <input
           required
           placeholder="ชื่อของคุณ (พิมพ์เพื่อค้นหา)"
@@ -117,28 +117,32 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
           </ul>
         )}
       </div>
-      <div className="flex rounded-md border border-gray-300 overflow-hidden text-sm shrink-0">
+
+      <div className="grid grid-cols-2 gap-2">
         {(["EARLY", "LATE"] as const).map((slot) => (
           <button
             key={slot}
             type="button"
             onClick={() => setTimeSlot(slot)}
-            className={`px-3 py-2 font-medium ${
-              timeSlot === slot ? "bg-brand-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+            className={`rounded-md border py-2.5 text-sm font-medium ${
+              timeSlot === slot
+                ? "bg-brand-600 text-white border-brand-600"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
             }`}
           >
-            {slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+            {slot === "EARLY" ? "🕖 1 ทุ่ม" : "🕗 2 ทุ่ม"}
           </button>
         ))}
       </div>
+
       <button
         type="submit"
         disabled={loading}
-        className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 whitespace-nowrap"
+        className="rounded-md bg-brand-600 text-white py-2.5 text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
       >
         {loading ? "กำลังลง..." : "ลงชื่อ"}
       </button>
-      {error && <p className="text-red-600 text-sm sm:ml-2 self-center">{error}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
     </form>
   );
 }

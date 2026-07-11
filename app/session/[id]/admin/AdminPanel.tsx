@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import ManualMatchForm from "./ManualMatchForm";
 
 interface ConfirmedSignUp {
   id: string;
@@ -282,6 +283,15 @@ export default function AdminPanel({
           </p>
         )}
       </section>
+
+      {!isClosed && (
+        <ManualMatchForm
+          sessionId={sessionId}
+          players={confirmedSignUps
+            .filter((s) => s.checkedIn)
+            .map((s) => ({ id: s.id, name: s.name }))}
+        />
+      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">คู่ซ้อมแข่ง (จับคู่ตายตัว)</h2>

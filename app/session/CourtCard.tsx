@@ -138,9 +138,9 @@ export default function CourtCard({
           </div>
         ) : (
           <div className="flex-1 rounded-lg border-2 border-white/25 px-3 py-4 flex flex-col justify-around gap-3">
-            <div className="flex flex-wrap justify-center items-center gap-2">{match.team1.map(renderPlayer)}</div>
+            <div className="flex flex-col items-center gap-1.5">{match.team1.map(renderPlayer)}</div>
             <div className="border-t-2 border-dashed border-white/60" />
-            <div className="flex flex-wrap justify-center items-center gap-2">{match.team2.map(renderPlayer)}</div>
+            <div className="flex flex-col items-center gap-1.5">{match.team2.map(renderPlayer)}</div>
           </div>
         )}
       </div>

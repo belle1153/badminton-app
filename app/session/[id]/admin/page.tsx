@@ -7,6 +7,7 @@ import AdminPanel from "./AdminPanel";
 import MatchEditor from "./MatchEditor";
 import CheckInList from "./CheckInList";
 import RegistrationToggle from "./RegistrationToggle";
+import CourtCountEditor from "./CourtCountEditor";
 
 export default async function SessionAdminPage({
   params,
@@ -108,6 +109,14 @@ export default async function SessionAdminPage({
       </h1>
       {session.status === "OPEN" && (
         <RegistrationToggle sessionId={id} registrationClosed={session.registrationClosedAt != null} />
+      )}
+
+      {session.status === "OPEN" && (
+        <CourtCountEditor
+          sessionId={id}
+          courtsEarly={session.courtsEarly}
+          courtsLate={session.courtsLate}
+        />
       )}
 
       <CheckInList

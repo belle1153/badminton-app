@@ -9,13 +9,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const round = Number(body.round);
+  const explicitRound = body.round != null ? Number(body.round) : null;
   const court = Number(body.court);
   const team1: string[] = Array.isArray(body.team1) ? body.team1 : [];
   const team2: string[] = Array.isArray(body.team2) ? body.team2 : [];
   const playerIds = [...team1, ...team2];
 
-  if (!Number.isInteger(round) || round < 1) {
+  if (explicitRound != null && (!Number.isInteger(explicitRound) || explicitRound < 1)) {
     return NextResponse.json({ error: "รอบไม่ถูกต้อง" }, { status: 400 });
   }
   if (!Number.isInteger(court) || court < 1 || court > 6) {
@@ -33,13 +33,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "รอบนี้ปิดแล้ว" }, { status: 400 });
   }
 
-  const roundMatches = await prisma.match.findMany({
-    where: { sessionId: id, round },
+  // Resolve which round to place the match in.
+  const allMatches = await prisma.match.findMany({
+    where: { sessionId: id },
     include: { players: true },
   });
-  if (roundMatches.length === 0) {
-    return NextResponse.json({ error: "ยังไม่มีรอบนี้ ให้รันรอบก่อน" }, { status: 400 });
+  const latestRound = allMatches.reduce((max, m) => Math.max(max, m.round), 0);
+
+  let round: number;
+  if (explicitRound != null) {
+    round = explicitRound;
+  } else if (latestRound === 0) {
+    round = 1; // no rounds yet → start round 1
+  } else {
+    const latestUsesCourt = allMatches.some((m) => m.round === latestRound && m.court === court);
+    round = latestUsesCourt ? latestRound + 1 : latestRound; // court taken → new round
   }
+
+  const roundMatches = allMatches.filter((m) => m.round === round);
   if (roundMatches.some((m) => m.court === court)) {
     return NextResponse.json({ error: `สนาม ${court} มีแมทช์ในรอบนี้แล้ว` }, { status: 400 });
   }
@@ -74,5 +85,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
-  return NextResponse.json({ ok: true, matchId: created.id });
+  return NextResponse.json({ ok: true, matchId: created.id, round, court });
 }
