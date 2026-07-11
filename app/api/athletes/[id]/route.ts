@@ -37,6 +37,22 @@ export async function PATCH(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: data as any,
     });
+
+    // Keep this athlete's sign-ups in currently-open sessions in sync so the
+    // check-in list / courts board reflect the edit (they read the per-sign-up
+    // snapshot). Closed sessions stay as historical record.
+    const active = await prisma.signUp.findMany({
+      where: { athleteId: id, status: { not: "WITHDRAWN" }, session: { status: "OPEN" } },
+      select: { id: true },
+    });
+    if (active.length > 0) {
+      await prisma.signUp.updateMany({
+        where: { id: { in: active.map((s) => s.id) } },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: data as any,
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (err) {
     // Unique constraint on name
