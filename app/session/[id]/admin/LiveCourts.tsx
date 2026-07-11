@@ -50,6 +50,7 @@ export default function LiveCourts({
 
   const byCourt = new Map(activeMatches.map((m) => [m.court, m]));
   const courtList = Array.from({ length: courts }, (_, i) => i + 1);
+  const emptyCourts = courtList.filter((c) => !byCourt.has(c));
   const canFill = queue.length >= 4;
 
   async function handleFill(court: number) {
@@ -59,6 +60,23 @@ export default function LiveCourts({
       const res = await fetch(`/api/sessions/${sessionId}/courts/${court}/fill`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "ดึงคิวไม่สำเร็จ");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  // Start a game on every empty court, in order, until the queue runs dry.
+  async function handleFillAll() {
+    setError(null);
+    setLoading("fill-all");
+    try {
+      for (const c of emptyCourts) {
+        const res = await fetch(`/api/sessions/${sessionId}/courts/${c}/fill`, { method: "POST" });
+        if (!res.ok) break; // queue exhausted
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -116,6 +134,18 @@ export default function LiveCourts({
         <h2 className="font-semibold">🏸 สนามสด — จบเกม / ดึงคิว</h2>
         <span className="text-xs text-gray-500">คิว {queue.length} คน</span>
       </div>
+
+      {emptyCourts.length > 0 && (
+        <button
+          onClick={handleFillAll}
+          disabled={!canFill || loading === "fill-all"}
+          className="rounded-md bg-brand-600 text-white text-sm font-medium py-2 hover:bg-brand-700 disabled:opacity-50"
+        >
+          {loading === "fill-all"
+            ? "กำลังเริ่ม..."
+            : `▶ เริ่มเกมในสนามว่าง (${emptyCourts.length} สนาม)`}
+        </button>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

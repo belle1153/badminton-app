@@ -112,6 +112,7 @@ export default async function SessionAdminPage({
       skillLevel: s.skillLevel as SkillLevel,
       fixedPartnerId: s.fixedPartnerId,
       checkedInAt: s.checkedInAt,
+      createdAt: s.createdAt,
       status: s.status,
     })),
     matches.map((m) => ({

@@ -23,6 +23,7 @@ interface SignUpRow {
   skillLevel: SkillLevel;
   fixedPartnerId: string | null;
   checkedInAt: Date | null;
+  createdAt: Date;
   status: string;
 }
 
@@ -44,27 +45,34 @@ interface MatchRow {
  * drops to the back.
  */
 export function deriveCourtState(signups: SignUpRow[], matches: MatchRow[]): CourtState {
-  // Present pool = checked-in, not withdrawn.
-  const pool = signups.filter((s) => s.checkedInAt != null && s.status !== "WITHDRAWN");
+  // Present pool = anyone checked in, plus anyone already in a match (being in
+  // a game means they showed up, even if the admin never ticked check-in).
+  const inAnyMatch = new Set(matches.flatMap((m) => m.players.map((p) => p.signUpId)));
+  const pool = signups.filter(
+    (s) => s.status !== "WITHDRAWN" && (s.checkedInAt != null || inAnyMatch.has(s.id))
+  );
 
-  // Latest unfinished match per court is the one "on court" now.
-  const activeByCourt = new Map<number, { id: string; round: number; playerIds: string[] }>();
+  // A court's current game is its highest-round match; the court is occupied
+  // only while that game is unfinished. Older unfinished matches left over from
+  // an earlier batched round are superseded — ignore them so finishing the
+  // latest game actually frees the court.
+  const latestByCourt = new Map<number, MatchRow>();
   for (const m of matches) {
-    if (m.finishedAt != null) continue;
-    const cur = activeByCourt.get(m.court);
-    if (!cur || m.round > cur.round) {
-      activeByCourt.set(m.court, {
-        id: m.id,
-        round: m.round,
-        playerIds: m.players.map((p) => p.signUpId),
-      });
+    const cur = latestByCourt.get(m.court);
+    if (!cur || m.round > cur.round) latestByCourt.set(m.court, m);
+  }
+  const activeByCourt = new Map<number, { id: string; round: number; playerIds: string[] }>();
+  for (const [court, m] of latestByCourt) {
+    if (m.finishedAt == null) {
+      activeByCourt.set(court, { id: m.id, round: m.round, playerIds: m.players.map((p) => p.signUpId) });
     }
   }
 
   const playingIds = new Set<string>();
   for (const a of activeByCourt.values()) for (const id of a.playerIds) playingIds.add(id);
 
-  // Each player's "waiting since" = latest finished-match time, else check-in.
+  // Each player's "waiting since" = latest finished-match time, else check-in
+  // (falling back to sign-up time when they were never formally checked in).
   const lastFinished = new Map<string, number>();
   for (const m of matches) {
     if (m.finishedAt == null) continue;
@@ -80,7 +88,7 @@ export function deriveCourtState(signups: SignUpRow[], matches: MatchRow[]): Cou
       id: s.id,
       name: s.name,
       skillLevel: s.skillLevel,
-      waitingSince: lastFinished.get(s.id) ?? s.checkedInAt!.getTime(),
+      waitingSince: lastFinished.get(s.id) ?? s.checkedInAt?.getTime() ?? s.createdAt.getTime(),
     }))
     .sort((a, b) => a.waitingSince - b.waitingSince || a.name.localeCompare(b.name));
 
@@ -101,6 +109,7 @@ const SIGNUP_SELECT = {
   skillLevel: true,
   fixedPartnerId: true,
   checkedInAt: true,
+  createdAt: true,
   status: true,
 } as const;
 
