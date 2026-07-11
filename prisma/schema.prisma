@@ -74,7 +74,8 @@ model SignUp {
   name           String
   skillLevel     SkillLevel
   status         SignUpStatus  @default(CONFIRMED)
-  timeSlot       TimeSlot      @default(EARLY)
+  timeSlot       TimeSlot      @default(EARLY) // where they actually play (block they're seated in)
+  preferredSlot  TimeSlot      @default(EARLY) // which block they wanted (for queue-jump when 1 ทุ่ม opens)
   slotNumber     Int?
   checkedInAt    DateTime?
   createdAt      DateTime      @default(now())

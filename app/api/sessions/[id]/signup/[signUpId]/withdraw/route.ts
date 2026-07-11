@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { promoteAfterWithdrawal, type TimeSlot } from "@/lib/signup";
-import { blockCapacities } from "@/lib/capacity";
+import { rebalanceSession } from "@/lib/seating";
 import { isAdmin } from "@/lib/adminAuth";
 import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 
@@ -42,23 +41,12 @@ export async function POST(
     data: { status: "WITHDRAWN", slotNumber: null, fixedPartnerId: null },
   });
 
-  const remaining = await prisma.signUp.findMany({
-    where: { sessionId: id, status: { not: "WITHDRAWN" } },
-  });
-
-  const { earlyCapacity, totalCapacity } = blockCapacities(session);
-  const promotion = promoteAfterWithdrawal(
-    remaining.map((s) => ({ ...s, timeSlot: s.timeSlot as TimeSlot })),
-    target.timeSlot as TimeSlot,
-    earlyCapacity,
-    totalCapacity
-  );
-  if (promotion) {
-    await prisma.signUp.update({
-      where: { id: promotion.promoteId },
-      data: { status: "CONFIRMED", slotNumber: promotion.slotNumber },
-    });
+  // Recompute seats so a vacated 1 ทุ่ม pulls up the earliest person who wanted
+  // it (possibly moving them out of 2 ทุ่ม), cascading the freed 2 ทุ่ม seat to
+  // the next reserve. Frozen once registration is soft-closed.
+  if (session.registrationClosedAt == null) {
+    await rebalanceSession(session);
   }
 
-  return NextResponse.json({ ok: true, promoted: promotion });
+  return NextResponse.json({ ok: true });
 }

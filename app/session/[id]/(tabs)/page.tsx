@@ -95,6 +95,9 @@ export default async function SessionSignUpPage({
               >
                 <span>
                   {earlyCapacity + i + 1}. {s ? s.name : <span className="text-gray-300">—</span>}
+                  {s && s.preferredSlot === "EARLY" && (
+                    <span className="text-xs text-amber-600 ml-2">(จองคิว 1 ทุ่ม)</span>
+                  )}
                 </span>
               </li>
             ))}

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { nextSlotAssignment, promoteAfterWithdrawal, type TimeSlot } from "@/lib/signup";
+import { assignSeats, WAITLIST_LIMIT, type SeatInput, type TimeSlot } from "@/lib/signup";
 import { blockCapacities } from "@/lib/capacity";
+import { rebalanceSession } from "@/lib/seating";
 
 const SLOT_LABEL: Record<TimeSlot, string> = { EARLY: "1 ทุ่ม", LATE: "2 ทุ่ม" };
 
@@ -42,82 +43,75 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const skillLevel = athlete.skillLevel;
 
+  const registrationClosed = session.registrationClosedAt != null;
   const existing = await prisma.signUp.findMany({
     where: { sessionId: id, status: { not: "WITHDRAWN" } },
   });
   const { earlyCapacity, totalCapacity } = blockCapacities(session);
+  const lateCap = Math.max(0, totalCapacity - earlyCapacity);
 
-  // Same person signing again: warn first; with confirmation it's a request
-  // to move to the other block, allowed only if that block has a free seat.
+  // Same person signing again → this is a request to switch their preferred
+  // block. Warn first; on confirm, update the preference and let rebalancing
+  // re-seat everyone (they'll play the new block if there's room, otherwise
+  // sit in the other block / waitlist and keep the queue for their choice).
   const already = existing.find((s) => s.athleteId === athlete.id || s.name === name);
   if (already) {
     if (!confirmMove) {
       return NextResponse.json(
         {
-          error: `"${name}" ลงชื่อไว้แล้ว (รอบ ${SLOT_LABEL[already.timeSlot as TimeSlot]}${already.status === "WAITLIST" ? " — สำรอง" : ""})`,
+          error: `"${name}" ลงชื่อไว้แล้ว (รอบ ${SLOT_LABEL[already.preferredSlot as TimeSlot]}${already.status === "WAITLIST" ? " — สำรอง" : ""})`,
           alreadySignedUp: true,
-          currentTimeSlot: already.timeSlot,
+          currentTimeSlot: already.preferredSlot,
         },
         { status: 409 }
       );
     }
-    if (already.timeSlot === timeSlot) {
-      return NextResponse.json(
-        { error: `ลงรอบ ${SLOT_LABEL[timeSlot]} อยู่แล้วครับ` },
-        { status: 400 }
-      );
+    if (already.preferredSlot === timeSlot) {
+      return NextResponse.json({ error: `เลือกรอบ ${SLOT_LABEL[timeSlot]} ไว้อยู่แล้วครับ` }, { status: 400 });
     }
-    const others = existing.filter((s) => s.id !== already.id);
-    const target = nextSlotAssignment(
-      others.map((s) => ({ ...s, timeSlot: s.timeSlot as TimeSlot })),
-      timeSlot,
-      earlyCapacity,
-      totalCapacity
-    );
-    if (!target || target.status !== "CONFIRMED") {
-      return NextResponse.json(
-        { error: `รอบ ${SLOT_LABEL[timeSlot]} เต็มแล้ว ย้ายไม่ได้ครับ` },
-        { status: 400 }
-      );
-    }
-    const wasConfirmed = already.status === "CONFIRMED";
-    const vacatedSlot = already.timeSlot as TimeSlot;
-    const moved = await prisma.signUp.update({
-      where: { id: already.id },
-      data: { timeSlot, slotNumber: target.slotNumber, status: "CONFIRMED" },
-    });
-    if (wasConfirmed) {
-      const remaining = await prisma.signUp.findMany({
-        where: { sessionId: id, status: { not: "WITHDRAWN" } },
-      });
-      const promotion = promoteAfterWithdrawal(
-        remaining.map((s) => ({ ...s, timeSlot: s.timeSlot as TimeSlot })),
-        vacatedSlot,
-        earlyCapacity,
-        totalCapacity
-      );
-      if (promotion) {
-        await prisma.signUp.update({
-          where: { id: promotion.promoteId },
-          data: { status: "CONFIRMED", slotNumber: promotion.slotNumber },
-        });
-      }
-    }
+    await prisma.signUp.update({ where: { id: already.id }, data: { preferredSlot: timeSlot } });
+    if (!registrationClosed) await rebalanceSession(session);
+    const moved = await prisma.signUp.findUnique({ where: { id: already.id } });
     return NextResponse.json(moved);
   }
 
-  const assignment = nextSlotAssignment(
-    existing.map((s) => ({ ...s, timeSlot: s.timeSlot as TimeSlot })),
-    timeSlot,
-    earlyCapacity,
-    totalCapacity,
-    { forceWaitlist: session.registrationClosedAt != null }
-  );
-  if (!assignment) {
-    return NextResponse.json(
-      { error: "เต็มแล้วครับ (รวมรายชื่อสำรอง 5 คน)" },
-      { status: 400 }
-    );
+  // Registration soft-closed: new people can only queue as reserves.
+  if (registrationClosed) {
+    const waitCount = existing.filter((s) => s.status === "WAITLIST").length;
+    if (waitCount >= WAITLIST_LIMIT) {
+      return NextResponse.json({ error: "เต็มแล้วครับ (รวมรายชื่อสำรอง 5 คน)" }, { status: 400 });
+    }
+    const signUp = await prisma.signUp.create({
+      data: {
+        sessionId: id,
+        name,
+        skillLevel,
+        timeSlot,
+        preferredSlot: timeSlot,
+        status: "WAITLIST",
+        slotNumber: null,
+        athleteId: athlete.id,
+      },
+    });
+    return NextResponse.json(signUp);
+  }
+
+  // Registration open: work out where the newcomer lands (and reject only if
+  // even the waitlist is full). Existing sign-ups keep their seats since the
+  // newcomer sorts last, so no rebalance of others is needed here.
+  const hypothetical: SeatInput[] = [
+    ...existing.map((s) => ({
+      id: s.id,
+      preferredSlot: s.preferredSlot as TimeSlot,
+      createdAt: s.createdAt,
+    })),
+    { id: "NEW", preferredSlot: timeSlot, createdAt: new Date() },
+  ];
+  const seat = assignSeats(hypothetical, earlyCapacity, lateCap, WAITLIST_LIMIT).find(
+    (r) => r.id === "NEW"
+  )!;
+  if (!seat.placed) {
+    return NextResponse.json({ error: "เต็มแล้วครับ (รวมรายชื่อสำรอง 5 คน)" }, { status: 400 });
   }
 
   const signUp = await prisma.signUp.create({
@@ -125,9 +119,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sessionId: id,
       name,
       skillLevel,
-      timeSlot,
-      status: assignment.status,
-      slotNumber: assignment.slotNumber,
+      timeSlot: seat.timeSlot,
+      preferredSlot: timeSlot,
+      status: seat.status,
+      slotNumber: seat.slotNumber,
       athleteId: athlete.id,
     },
   });
