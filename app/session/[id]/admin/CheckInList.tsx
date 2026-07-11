@@ -97,66 +97,84 @@ export default function CheckInList({
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">
-          เช็คอิน ({checkedInCount}/{signUps.length})
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => toggleAll(true)}
-            disabled={bulkLoading || signUps.length === 0}
-            className="text-xs text-brand-700 hover:underline disabled:opacity-50"
-          >
-            เลือกทั้งหมด
-          </button>
-          <button
-            onClick={() => toggleAll(false)}
-            disabled={bulkLoading || signUps.length === 0}
-            className="text-xs text-gray-400 hover:underline disabled:opacity-50"
-          >
-            ไม่เลือกเลย
-          </button>
-        </div>
+        <h2 className="font-semibold">เช็คอิน</h2>
+        <span className="text-sm">
+          มาแล้ว{" "}
+          <span className="font-semibold text-brand-700">
+            {checkedInCount}/{signUps.length}
+          </span>{" "}
+          คน
+        </span>
       </div>
-      <p className="text-xs text-gray-400">แอดมินประเมินระดับมือของแต่ละคนได้จาก dropdown ท้ายชื่อ</p>
-      <div className="flex flex-col gap-1 max-h-64 overflow-y-auto border border-gray-100 rounded-md p-2">
-        {signUps.map((s) => (
-          <div key={s.id} className="flex items-center gap-2 text-sm py-0.5">
-            <label className="flex items-center gap-2 flex-1 min-w-0">
-              <input
-                type="checkbox"
-                checked={s.checkedInAt != null}
-                disabled={pendingId === s.id}
-                onChange={(e) => toggle(s.id, e.target.checked)}
-              />
-              <span className="truncate">{s.name}</span>
+      <div className="flex gap-2">
+        <button
+          onClick={() => toggleAll(true)}
+          disabled={bulkLoading || signUps.length === 0}
+          className="text-xs text-brand-700 hover:underline disabled:opacity-50"
+        >
+          มาครบทุกคน
+        </button>
+        <span className="text-gray-300">·</span>
+        <button
+          onClick={() => toggleAll(false)}
+          disabled={bulkLoading || signUps.length === 0}
+          className="text-xs text-gray-400 hover:underline disabled:opacity-50"
+        >
+          ล้างทั้งหมด
+        </button>
+      </div>
+      <p className="text-xs text-gray-400">
+        กดปุ่มสถานะเพื่อสลับ &quot;ยังไม่มา / มาแล้ว&quot; · ปรับระดับมือได้จาก dropdown
+      </p>
+      <div className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
+        {signUps.map((s) => {
+          const here = s.checkedInAt != null;
+          const busy = pendingId === s.id;
+          return (
+            <div key={s.id} className="flex items-center gap-2 text-sm px-2 py-2">
+              <button
+                onClick={() => toggle(s.id, !here)}
+                disabled={busy}
+                aria-pressed={here}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors disabled:opacity-50 ${
+                  here
+                    ? "bg-brand-600 text-white border-brand-600"
+                    : "bg-white text-gray-400 border-gray-300"
+                }`}
+              >
+                {here ? "✓ มาแล้ว" : "ยังไม่มา"}
+              </button>
+              <span className={`flex-1 min-w-0 truncate ${here ? "font-medium" : "text-gray-500"}`}>
+                {s.name}
+              </span>
               {s.status === "WAITLIST" && (
                 <span className="text-xs rounded-full bg-gray-200 text-gray-600 px-1.5 py-0.5 shrink-0">
                   สำรอง
                 </span>
               )}
-            </label>
-            <select
-              value={s.skillLevel}
-              disabled={pendingId === s.id}
-              onChange={(e) => setSkill(s.id, e.target.value)}
-              className="text-xs border border-gray-200 rounded px-1 py-0.5 text-gray-600 shrink-0"
-            >
-              {SKILLS.map((k) => (
-                <option key={k} value={k}>
-                  {SKILL_LABELS[k]}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => withdraw(s.id, s.name)}
-              disabled={pendingId === s.id}
-              className="text-xs text-red-600 hover:underline disabled:opacity-50 shrink-0"
-            >
-              ถอน
-            </button>
-          </div>
-        ))}
-        {signUps.length === 0 && <p className="text-sm text-gray-400">ยังไม่มีคนลงชื่อ</p>}
+              <select
+                value={s.skillLevel}
+                disabled={busy}
+                onChange={(e) => setSkill(s.id, e.target.value)}
+                className="text-xs border border-gray-200 rounded px-1 py-1 text-gray-600 shrink-0"
+              >
+                {SKILLS.map((k) => (
+                  <option key={k} value={k}>
+                    {SKILL_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => withdraw(s.id, s.name)}
+                disabled={busy}
+                className="text-xs text-red-500 hover:underline disabled:opacity-50 shrink-0"
+              >
+                ถอน
+              </button>
+            </div>
+          );
+        })}
+        {signUps.length === 0 && <p className="text-sm text-gray-400 p-3">ยังไม่มีคนลงชื่อ</p>}
       </div>
     </section>
   );
