@@ -152,6 +152,7 @@ export default async function SessionAdminPage({
             : null
         }
         hasMatches={matches.length > 0}
+        sessionCourts={session.courtsLate}
       />
 
       {editorRounds.length > 0 && session.status === "OPEN" && (

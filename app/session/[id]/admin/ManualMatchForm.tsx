@@ -17,11 +17,14 @@ interface Player {
 export default function ManualMatchForm({
   sessionId,
   players,
+  sessionCourts,
 }: {
   sessionId: string;
   players: Player[];
+  sessionCourts: number;
 }) {
   const router = useRouter();
+  const courtOptions = Array.from({ length: sessionCourts }, (_, i) => i + 1);
   const [court, setCourt] = useState("1");
   const [picks, setPicks] = useState<string[]>(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -93,7 +96,7 @@ export default function ManualMatchForm({
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-600">สนาม</span>
             <div className="flex flex-wrap gap-1.5">
-              {[1, 2, 3, 4, 5, 6].map((c) => (
+              {courtOptions.map((c) => (
                 <button
                   key={c}
                   type="button"

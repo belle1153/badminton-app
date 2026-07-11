@@ -39,6 +39,7 @@ export default function AdminPanel({
   shuttlecockTypes,
   closedSummary,
   hasMatches,
+  sessionCourts,
 }: {
   sessionId: string;
   status: "OPEN" | "CLOSED";
@@ -47,12 +48,17 @@ export default function AdminPanel({
   shuttlecockTypes: ShuttlecockType[];
   closedSummary: ClosedSummary | null;
   hasMatches: boolean;
+  sessionCourts: number;
 }) {
   const router = useRouter();
   const isClosed = status === "CLOSED";
   const confirmedCount = confirmedSignUps.length;
 
-  const [selectedCourts, setSelectedCourts] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
+  // Courts this session actually uses (from its court config), numbered 1..N.
+  const courtOptions = Array.from({ length: sessionCourts }, (_, i) => i + 1);
+  // Default to every configured court selected; admin unticks for an early-block
+  // round that opens fewer courts than the late block.
+  const [selectedCourts, setSelectedCourts] = useState<Set<number>>(new Set(courtOptions));
   const checkedInIds = confirmedSignUps.filter((s) => s.checkedIn).map((s) => s.id);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<
@@ -113,7 +119,9 @@ export default function AdminPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          courtNumbers: [...selectedCourts],
+          // Guard against a stale selection lingering above the configured
+          // court count (e.g. after the court count was lowered mid-session).
+          courtNumbers: [...selectedCourts].filter((c) => c <= sessionCourts),
           signUpIds: checkedInIds,
         }),
       });
@@ -222,7 +230,7 @@ export default function AdminPanel({
         <div>
           <p className="text-sm text-gray-600 mb-1">สนามที่ใช้ได้รอบนี้</p>
           <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6].map((court) => (
+            {courtOptions.map((court) => (
               <label
                 key={court}
                 className={`text-sm rounded-md border px-3 py-1.5 cursor-pointer select-none ${
@@ -287,6 +295,7 @@ export default function AdminPanel({
       {!isClosed && (
         <ManualMatchForm
           sessionId={sessionId}
+          sessionCourts={sessionCourts}
           players={confirmedSignUps
             .filter((s) => s.checkedIn)
             .map((s) => ({ id: s.id, name: s.name }))}
