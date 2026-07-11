@@ -21,34 +21,35 @@ export default function AdminNav() {
   }
 
   return (
-    <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex items-center justify-end gap-2">
+    <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
+      <div className="max-w-2xl mx-auto w-full px-4 py-2 flex items-center gap-2">
+        <nav className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {NAV.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition ${
+                  active
+                    ? "bg-brand-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700"
+                }`}
+              >
+                <span>{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 rounded-md border border-red-200 text-red-600 px-2.5 py-1 text-xs font-medium hover:bg-red-50"
+          title="ออกจากระบบ"
+          className="shrink-0 flex items-center gap-1.5 rounded-full border border-red-200 text-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-50"
         >
-          🚪 ออกจากระบบ
+          🚪<span className="hidden sm:inline">ออกจากระบบ</span>
         </button>
       </div>
-      <nav className="max-w-2xl mx-auto w-full px-4 pb-2.5 pt-1.5 flex items-center gap-2 flex-wrap">
-        {NAV.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition ${
-                active
-                  ? "bg-brand-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700"
-              }`}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
     </div>
   );
 }
