@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { addMySignup } from "@/lib/mySignups";
 
 interface AthleteSuggestion {
   id: string;
@@ -64,6 +65,7 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
       return null;
     }
     if (!res.ok) throw new Error(data.error ?? "ลงชื่อไม่สำเร็จ");
+    addMySignup(sessionId, data.id);
     return data;
   }
 
@@ -74,7 +76,6 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
     try {
       const data = await submit(false);
       if (data) {
-        localStorage.setItem(`badminton_signup_${sessionId}`, data.id);
         setName("");
         setAthleteId(null);
         setSuggestions([]);

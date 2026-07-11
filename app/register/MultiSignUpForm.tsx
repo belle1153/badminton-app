@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { addMySignup } from "@/lib/mySignups";
 
 interface DayOption {
   id: string;
@@ -62,7 +63,7 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
       return { text: `${day.label}: คงรอบเดิมไว้`, ok: true };
     }
     if (!res.ok) return { text: `${day.label}: ${data.error ?? "ลงชื่อไม่สำเร็จ"}`, ok: false };
-    localStorage.setItem(`badminton_signup_${day.id}`, data.id);
+    addMySignup(day.id, data.id);
     setDoneDays((prev) => new Set(prev).add(day.id));
     return {
       text: `${day.label}: ลงชื่อสำเร็จ${data.status === "WAITLIST" ? " (สำรอง)" : ""}`,

@@ -5,7 +5,7 @@ import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
 import SignUpForm from "../SignUpForm";
-import WithdrawButton from "../WithdrawButton";
+import WithdrawForm from "../WithdrawForm";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +51,6 @@ export default async function SessionSignUpPage({
             </p>
           )}
           <SignUpForm sessionId={id} />
-          <p className="text-xs text-gray-400">
-            ถอนชื่อเองได้จากเครื่องที่ใช้ลงชื่อ ภายในเที่ยงวันตีเท่านั้น — หลังจากนั้นแจ้งแอดมิน
-            (มีค่าธรรมเนียม 100 บาท ยกเว้นหาคนมาแทนได้)
-          </p>
         </>
       )}
 
@@ -76,9 +72,6 @@ export default async function SessionSignUpPage({
                   </span>
                 )}
               </span>
-              {s && !isClosed && (
-                <WithdrawButton sessionId={id} signUpId={s.id} deadlinePassed={deadlinePassed} />
-              )}
             </li>
           ))}
         </ol>
@@ -103,9 +96,6 @@ export default async function SessionSignUpPage({
                     </span>
                   )}
                 </span>
-                {s && !isClosed && (
-                  <WithdrawButton sessionId={id} signUpId={s.id} deadlinePassed={deadlinePassed} />
-                )}
               </li>
             ))}
           </ol>
@@ -132,14 +122,24 @@ export default async function SessionSignUpPage({
                     (รอรอบ {s.timeSlot === "LATE" ? "2 ทุ่ม" : "1 ทุ่ม"})
                   </span>
                 </span>
-                {!isClosed && (
-                  <WithdrawButton sessionId={id} signUpId={s.id} deadlinePassed={deadlinePassed} />
-                )}
               </li>
             ))}
           </ol>
         </section>
       )}
+
+      {!isClosed &&
+        (deadlinePassed ? (
+          <p className="text-xs text-gray-400">
+            เลยเวลาถอนชื่อด้วยตัวเอง (เที่ยงวันตี) แล้ว — ถ้าต้องการถอนแจ้งแอดมินครับ
+            (มีค่าธรรมเนียม 100 บาท ยกเว้นหาคนมาแทนได้)
+          </p>
+        ) : (
+          <WithdrawForm
+            sessionId={id}
+            signUps={session.signUps.map((s) => ({ id: s.id, name: s.name }))}
+          />
+        ))}
     </>
   );
 }
