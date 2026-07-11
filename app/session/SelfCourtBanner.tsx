@@ -10,6 +10,7 @@ interface MatchPlayerInfo {
 interface MatchInfo {
   round: number;
   court: number;
+  active?: boolean;
   team1: MatchPlayerInfo[];
   team2: MatchPlayerInfo[];
 }
@@ -31,14 +32,25 @@ export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
       ? players.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
       : [];
 
+  // Only a currently-on-court (active) game counts — if the player just
+  // finished and is waiting in the queue, they're not "on a court" now.
+  const mine = useMemo(
+    () =>
+      selectedId
+        ? matches.filter(
+            (m) => m.team1.some((p) => p.id === selectedId) || m.team2.some((p) => p.id === selectedId)
+          )
+        : [],
+    [matches, selectedId]
+  );
+
+  // Only a currently-on-court (active) game counts — if the player just
+  // finished and is waiting in the queue, they're not "on a court" now.
   const match = useMemo(() => {
-    if (!selectedId) return null;
-    const found = matches.filter(
-      (m) => m.team1.some((p) => p.id === selectedId) || m.team2.some((p) => p.id === selectedId)
-    );
-    if (found.length === 0) return null;
-    return found.reduce((latest, m) => (m.round > latest.round ? m : latest));
-  }, [matches, selectedId]);
+    const active = mine.filter((m) => m.active);
+    if (active.length === 0) return null;
+    return active.reduce((latest, m) => (m.round > latest.round ? m : latest));
+  }, [mine]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -74,7 +86,9 @@ export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
       </div>
 
       {selectedId && !match && (
-        <p className="text-sm text-gray-400">ยังไม่มีการจับคู่สำหรับคุณครับ</p>
+        <p className="text-sm text-gray-400">
+          {mine.length > 0 ? "ตอนนี้คุณกำลังรอคิวลงสนามครับ" : "ยังไม่มีการจับคู่สำหรับคุณครับ"}
+        </p>
       )}
 
       {match &&

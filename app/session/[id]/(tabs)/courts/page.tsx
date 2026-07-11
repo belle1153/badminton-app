@@ -2,21 +2,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
-import RoundTabs from "../../../RoundTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function SessionCourtsPage({
   params,
-  searchParams,
-  basePath,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ round?: string }>;
-  basePath?: string;
 }) {
   const { id } = await params;
-  const { round: roundParam } = await searchParams;
 
   const session = await prisma.session.findUnique({
     where: { id },
@@ -30,10 +24,20 @@ export default async function SessionCourtsPage({
 
   if (!session) notFound();
 
+  // The game "on court now" is each court's latest match that hasn't finished.
+  const activeByCourt = new Map<number, (typeof session.matches)[number]>();
+  for (const m of session.matches) {
+    if (m.finishedAt != null) continue;
+    const cur = activeByCourt.get(m.court);
+    if (!cur || m.round > cur.round) activeByCourt.set(m.court, m);
+  }
+  const activeIds = new Set([...activeByCourt.values()].map((m) => m.id));
+
   const toTeamMatch = (m: (typeof session.matches)[number]) => ({
     id: m.id,
     round: m.round,
     court: m.court,
+    active: activeIds.has(m.id),
     team1: m.players
       .filter((p) => p.team === 1)
       .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
@@ -42,23 +46,14 @@ export default async function SessionCourtsPage({
       .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
   });
 
+  // All matches feed the "which court am I on?" search; the board shows only
+  // each court's current game.
   const allMatches = session.matches.map(toTeamMatch);
-  const roundNumbers = [...new Set(allMatches.map((m) => m.round))].sort((a, b) => a - b);
-  const latestRound = roundNumbers.length > 0 ? roundNumbers[roundNumbers.length - 1] : null;
-
-  const requestedRound = roundParam ? Number(roundParam) : null;
-  const selectedRound =
-    requestedRound != null && roundNumbers.includes(requestedRound) ? requestedRound : latestRound;
-
-  const matchesForRound = selectedRound != null ? allMatches.filter((m) => m.round === selectedRound) : [];
-  const matchByCourt = new Map(matchesForRound.map((m) => [m.court, m]));
-
-  const courts = Array.from({ length: 6 }, (_, i) => {
+  const courts = Array.from({ length: session.courtsLate }, (_, i) => {
     const court = i + 1;
-    return { court, match: matchByCourt.get(court) ?? null };
+    const m = activeByCourt.get(court);
+    return { court, match: m ? toTeamMatch(m) : null };
   });
-
-  const path = basePath ?? `/session/${id}/courts`;
 
   return (
     <>
@@ -67,12 +62,10 @@ export default async function SessionCourtsPage({
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold">สนามทั้งหมด</h2>
-          {selectedRound != null && <span className="text-sm text-gray-400">รอบที่ {selectedRound}</span>}
+          <span className="text-sm text-gray-400">กำลังเล่นตอนนี้</span>
         </div>
 
-        {roundNumbers.length > 0 && <RoundTabs base={path} rounds={roundNumbers} selected={selectedRound!} />}
-
-        {roundNumbers.length === 0 ? (
+        {session.matches.length === 0 ? (
           <p className="text-gray-500 text-sm">ยังไม่มีการจับคู่</p>
         ) : (
           <CourtGrid sessionId={id} courts={courts} />

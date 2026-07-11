@@ -118,13 +118,17 @@ model AppSettings {
 }
 
 model Match {
-  id        String        @id @default(cuid())
-  sessionId String
-  session   Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  round     Int
-  court     Int
-  createdAt DateTime      @default(now())
-  players   MatchPlayer[]
+  id         String        @id @default(cuid())
+  sessionId  String
+  session    Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  round      Int
+  court      Int
+  createdAt  DateTime      @default(now())
+  // Live court flow: set when the admin ends the game. winnerTeam is 1 or 2
+  // (recorded for stats; both teams rotate out regardless of who won).
+  finishedAt DateTime?
+  winnerTeam Int?
+  players    MatchPlayer[]
 }
 
 model MatchPlayer {

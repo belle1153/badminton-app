@@ -8,6 +8,9 @@ import MatchEditor from "./MatchEditor";
 import CheckInList from "./CheckInList";
 import RegistrationToggle from "./RegistrationToggle";
 import CourtCountEditor from "./CourtCountEditor";
+import LiveCourts, { type LiveMatch, type FinishedGame } from "./LiveCourts";
+import { deriveCourtState } from "@/lib/queue";
+import { type SkillLevel } from "@/lib/matching";
 
 export default async function SessionAdminPage({
   params,
@@ -86,6 +89,56 @@ export default async function SessionAdminPage({
   );
   const neverPlayed = swappablePool.filter((s) => !everPlayedIds.has(s.id));
 
+  // Live board: current game per court (latest unfinished), waiting queue, and
+  // the most recently finished games with their recorded winners.
+  const activeByCourt = new Map<number, (typeof matches)[number]>();
+  for (const m of matches) {
+    if (m.finishedAt != null) continue;
+    const cur = activeByCourt.get(m.court);
+    if (!cur || m.round > cur.round) activeByCourt.set(m.court, m);
+  }
+  const liveMatches: LiveMatch[] = [...activeByCourt.values()].map((m) => ({
+    id: m.id,
+    court: m.court,
+    round: m.round,
+    team1: m.players.filter((p) => p.team === 1).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
+    team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
+  }));
+
+  const liveState = deriveCourtState(
+    session.signUps.map((s) => ({
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel as SkillLevel,
+      fixedPartnerId: s.fixedPartnerId,
+      checkedInAt: s.checkedInAt,
+      status: s.status,
+    })),
+    matches.map((m) => ({
+      id: m.id,
+      round: m.round,
+      court: m.court,
+      finishedAt: m.finishedAt,
+      players: m.players.map((p) => ({ signUpId: p.signUpId })),
+    }))
+  );
+  const liveQueue = liveState.queue.map((q) => ({ id: q.id, name: q.name }));
+
+  const recentFinished: FinishedGame[] = matches
+    .filter((m) => m.finishedAt != null)
+    .sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
+    .slice(0, 6)
+    .map((m) => {
+      const t1 = m.players.filter((p) => p.team === 1).map((p) => p.signUp.name);
+      const t2 = m.players.filter((p) => p.team === 2).map((p) => p.signUp.name);
+      return {
+        id: m.id,
+        court: m.court,
+        winnerNames: m.winnerTeam === 1 ? t1 : t2,
+        loserNames: m.winnerTeam === 1 ? t2 : t1,
+      };
+    });
+
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -154,6 +207,16 @@ export default async function SessionAdminPage({
         hasMatches={matches.length > 0}
         sessionCourts={session.courtsLate}
       />
+
+      {session.status === "OPEN" && (
+        <LiveCourts
+          sessionId={id}
+          courts={session.courtsLate}
+          activeMatches={liveMatches}
+          queue={liveQueue}
+          recentFinished={recentFinished}
+        />
+      )}
 
       {editorRounds.length > 0 && session.status === "OPEN" && (
         <MatchEditor sessionId={id} rounds={editorRounds} neverPlayed={neverPlayed} />
