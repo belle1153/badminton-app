@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { deriveCourtState } from "@/lib/queue";
+import { type SkillLevel } from "@/lib/matching";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
+import QueueList from "../../../QueueList";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +18,7 @@ export default async function SessionCourtsPage({
   const session = await prisma.session.findUnique({
     where: { id },
     include: {
+      signUps: { where: { status: { not: "WITHDRAWN" } } },
       matches: {
         include: { players: { include: { signUp: true } } },
         orderBy: { round: "asc" },
@@ -55,6 +59,27 @@ export default async function SessionCourtsPage({
     return { court, match: m ? toTeamMatch(m) : null };
   });
 
+  // Waiting queue (longest-waiting first) so players can see who's up next.
+  const liveState = deriveCourtState(
+    session.signUps.map((s) => ({
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel as SkillLevel,
+      fixedPartnerId: s.fixedPartnerId,
+      checkedInAt: s.checkedInAt,
+      createdAt: s.createdAt,
+      status: s.status,
+    })),
+    session.matches.map((m) => ({
+      id: m.id,
+      round: m.round,
+      court: m.court,
+      finishedAt: m.finishedAt,
+      players: m.players.map((p) => ({ signUpId: p.signUpId })),
+    }))
+  );
+  const queue = liveState.queue.map((q) => ({ id: q.id, name: q.name }));
+
   return (
     <>
       <SelfCourtBanner matches={allMatches} />
@@ -70,6 +95,14 @@ export default async function SessionCourtsPage({
         ) : (
           <CourtGrid sessionId={id} courts={courts} />
         )}
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-semibold">คิวรอลงสนาม</h2>
+          <span className="text-sm text-gray-400">พักนานสุดได้ลงก่อน</span>
+        </div>
+        <QueueList sessionId={id} queue={queue} />
       </section>
     </>
   );
