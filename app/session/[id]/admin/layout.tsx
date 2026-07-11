@@ -27,7 +27,7 @@ export default async function SessionAdminLayout({
   if (!session) notFound();
 
   return (
-    <AdminShell base={`/session/${id}/admin`} sessionId={id} session={session}>
+    <AdminShell base={`/session/${id}/admin`} session={session}>
       {children}
     </AdminShell>
   );

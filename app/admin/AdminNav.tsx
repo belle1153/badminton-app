@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV = [
-  { href: "/admin", label: "แผงแอดมิน", icon: "📋" },
+  { href: "/admin", label: "จัดการการลงทะเบียน", icon: "📋" },
   { href: "/admin/athletes", label: "ข้อมูลผู้เล่น", icon: "🏸" },
   { href: "/admin/master", label: "Master ข้อมูล", icon: "💰" },
   { href: "/admin/history", label: "ประวัติย้อนหลัง", icon: "🗂️" },
@@ -22,13 +22,7 @@ export default function AdminNav() {
 
   return (
     <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex items-center justify-between gap-2">
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 rounded-md border border-gray-300 text-gray-600 px-2.5 py-1 text-xs font-medium hover:bg-gray-50 hover:text-brand-700"
-        >
-          🧑 ดูหน้า User
-        </Link>
+      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex items-center justify-end gap-2">
         <button
           onClick={handleLogout}
           className="flex items-center gap-1.5 rounded-md border border-red-200 text-red-600 px-2.5 py-1 text-xs font-medium hover:bg-red-50"
