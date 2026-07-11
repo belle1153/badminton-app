@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
 
 interface AthleteSuggestion {
@@ -108,10 +108,9 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
                 <button
                   type="button"
                   onMouseDown={() => handleSelectSuggestion(s)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                 >
-                  <span>{s.name}</span>
-                  <span className="text-xs text-gray-400">{SKILL_LABELS[s.skillLevel]}</span>
+                  {s.name}
                 </button>
               </li>
             ))}

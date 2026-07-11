@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { SKILL_LABELS } from "@/lib/matching";
 import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
@@ -77,11 +76,6 @@ export default async function SessionSignUpPage({
             >
               <span>
                 {i + 1}. {s ? s.name : <span className="text-gray-300">—</span>}
-                {s && (
-                  <span className="text-xs text-gray-400 ml-2">
-                    {SKILL_LABELS[s.skillLevel as keyof typeof SKILL_LABELS]}
-                  </span>
-                )}
               </span>
             </li>
           ))}
@@ -101,11 +95,6 @@ export default async function SessionSignUpPage({
               >
                 <span>
                   {earlyCapacity + i + 1}. {s ? s.name : <span className="text-gray-300">—</span>}
-                  {s && (
-                    <span className="text-xs text-gray-400 ml-2">
-                      {SKILL_LABELS[s.skillLevel as keyof typeof SKILL_LABELS]}
-                    </span>
-                  )}
                 </span>
               </li>
             ))}
@@ -126,9 +115,6 @@ export default async function SessionSignUpPage({
               >
                 <span>
                   {i + 1}. {s.name}
-                  <span className="text-xs text-gray-400 ml-2">
-                    {SKILL_LABELS[s.skillLevel as keyof typeof SKILL_LABELS]}
-                  </span>
                   <span className="text-xs text-gray-400 ml-2">
                     (รอรอบ {s.timeSlot === "LATE" ? "2 ทุ่ม" : "1 ทุ่ม"})
                   </span>

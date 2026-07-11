@@ -72,7 +72,7 @@ export default function CourtCard({
           key={p.id}
           className="bg-white text-gray-900 text-sm font-medium rounded-full px-4 py-1.5 shadow-sm whitespace-nowrap"
         >
-          {p.name} <span className="text-gray-400 text-xs">: {SKILL_LABELS[p.skillLevel as SkillLevel]}</span>
+          {p.name}
         </span>
       );
     }
