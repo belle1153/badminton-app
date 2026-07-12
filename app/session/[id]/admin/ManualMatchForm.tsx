@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Player {
@@ -10,28 +10,36 @@ interface Player {
 
 /**
  * Place a match on a chosen court by hand: pick a court and four checked-in
- * players (two per team). The API works out the round — starting round 1 if
- * none exists, adding to the latest round if the court is free there, or
- * opening a new round if that court is taken.
+ * players (two per team). The court choices are the same open courts ticked in
+ * "สนามที่ใช้ได้รอบนี้" above, so you can't place onto a court that isn't open.
+ * The API works out the round — starting round 1 if none exists, adding to the
+ * latest round if the court is free there, or opening a new round if taken.
  */
 export default function ManualMatchForm({
   sessionId,
   players,
-  sessionCourts,
+  courtOptions,
 }: {
   sessionId: string;
   players: Player[];
-  sessionCourts: number;
+  courtOptions: number[];
 }) {
   const router = useRouter();
-  const courtOptions = Array.from({ length: sessionCourts }, (_, i) => i + 1);
-  const [court, setCourt] = useState("1");
+  const [court, setCourt] = useState(String(courtOptions[0] ?? 1));
+
+  // Keep the picked court within the currently-open set (the chips above can
+  // change while this form is open).
+  useEffect(() => {
+    if (courtOptions.length > 0 && !courtOptions.includes(Number(court))) {
+      setCourt(String(courtOptions[0]));
+    }
+  }, [courtOptions, court]);
   const [picks, setPicks] = useState<string[]>(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
   const chosen = new Set(picks.filter(Boolean));
-  const ready = picks.every(Boolean) && chosen.size === 4;
+  const ready = picks.every(Boolean) && chosen.size === 4 && courtOptions.includes(Number(court));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +97,11 @@ export default function ManualMatchForm({
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-semibold">จัดลงสนามเอง</h2>
-      {players.length < 4 ? (
+      {courtOptions.length === 0 ? (
+        <p className="text-sm text-gray-400">
+          ยังไม่ได้เลือกสนามที่เปิดใช้ — ติ๊กสนามใน &quot;สนามที่ใช้ได้รอบนี้&quot; ด้านบนก่อนครับ
+        </p>
+      ) : players.length < 4 ? (
         <p className="text-sm text-gray-400">ต้องมีคนเช็คอินอย่างน้อย 4 คนก่อนครับ</p>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">

@@ -229,7 +229,7 @@ export default function MatchControls({
       {!isClosed && (
         <ManualMatchForm
           sessionId={sessionId}
-          sessionCourts={sessionCourts}
+          courtOptions={[...selectedCourts].filter((c) => c <= sessionCourts).sort((a, b) => a - b)}
           players={confirmedSignUps.filter((s) => s.checkedIn).map((s) => ({ id: s.id, name: s.name }))}
         />
       )}
