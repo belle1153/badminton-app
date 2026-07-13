@@ -213,48 +213,48 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <label
-                    className="shrink-0 cursor-pointer"
-                    title="เพิ่ม/เปลี่ยนรูป"
-                  >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={uploadingId === a.id}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setCropTarget({ id: a.id, file });
-                        e.target.value = "";
-                      }}
-                    />
-                    {a.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={a.photoUrl}
-                        alt={a.name}
-                        className="w-9 h-9 rounded-full object-cover border border-gray-200"
+                  <div className="relative shrink-0">
+                    <label className="cursor-pointer block" title="เพิ่ม/เปลี่ยนรูป">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingId === a.id}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) setCropTarget({ id: a.id, file });
+                          e.target.value = "";
+                        }}
                       />
-                    ) : (
-                      <span className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                        {uploadingId === a.id ? "…" : "📷"}
-                      </span>
+                      {a.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={a.photoUrl}
+                          alt={a.name}
+                          className="w-9 h-9 rounded-full object-cover border border-gray-200"
+                        />
+                      ) : (
+                        <span className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                          {uploadingId === a.id ? "…" : "📷"}
+                        </span>
+                      )}
+                    </label>
+                    {a.photoUrl && (
+                      <button
+                        onClick={() => removePhoto(a.id)}
+                        disabled={uploadingId === a.id}
+                        title="ลบรูป"
+                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none flex items-center justify-center shadow disabled:opacity-50"
+                      >
+                        ✕
+                      </button>
                     )}
-                  </label>
+                  </div>
                   <span className="truncate">
                     {a.name} <span className="text-gray-400">— {SKILL_LABELS[a.skillLevel]}</span>
                   </span>
                 </div>
                 <span className="flex gap-2 shrink-0">
-                  {a.photoUrl && (
-                    <button
-                      onClick={() => removePhoto(a.id)}
-                      disabled={uploadingId === a.id}
-                      className="text-xs text-gray-500 hover:underline disabled:opacity-50"
-                    >
-                      ลบรูป
-                    </button>
-                  )}
                   <button onClick={() => startEdit(a)} className="text-xs text-brand-700 hover:underline">
                     แก้ไข
                   </button>

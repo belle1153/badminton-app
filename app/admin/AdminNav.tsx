@@ -23,7 +23,7 @@ export default function AdminNav() {
 
   return (
     <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
-      <div className="max-w-2xl mx-auto w-full px-4 py-2 flex items-center gap-2">
+      <div className="max-w-5xl mx-auto w-full px-4 py-2 flex items-center gap-2">
         <nav className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
           {NAV.map((item) => {
             const active = pathname === item.href;
