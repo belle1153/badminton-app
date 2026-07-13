@@ -56,6 +56,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // sit in the other block / waitlist and keep the queue for their choice).
   const already = existing.find((s) => s.athleteId === athlete.id || s.name === name);
   if (already) {
+    // Same slot as before = plain duplicate; just tell them, don't offer a move.
+    if (already.preferredSlot === timeSlot) {
+      return NextResponse.json(
+        {
+          error: `"${name}" ลงชื่อรอบ ${SLOT_LABEL[timeSlot]} ไว้แล้วครับ${already.status === "WAITLIST" ? " (สำรอง)" : ""}`,
+          duplicate: true,
+        },
+        { status: 400 }
+      );
+    }
     if (!confirmMove) {
       return NextResponse.json(
         {
@@ -65,9 +75,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         },
         { status: 409 }
       );
-    }
-    if (already.preferredSlot === timeSlot) {
-      return NextResponse.json({ error: `เลือกรอบ ${SLOT_LABEL[timeSlot]} ไว้อยู่แล้วครับ` }, { status: 400 });
     }
     await prisma.signUp.update({ where: { id: already.id }, data: { preferredSlot: timeSlot } });
     if (!registrationClosed) await rebalanceSession(session);

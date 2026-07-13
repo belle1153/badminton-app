@@ -50,17 +50,11 @@ export default async function SessionSignUpPage({
             </p>
           )}
           <SignUpForm sessionId={id} />
-          {deadlinePassed ? (
-            <p className="text-xs text-gray-400">
-              เลยเวลาถอนชื่อด้วยตัวเอง (เที่ยงวันตี) แล้ว — ถ้าต้องการถอนแจ้งแอดมินครับ
-              (มีค่าธรรมเนียม 100 บาท ยกเว้นหาคนมาแทนได้)
-            </p>
-          ) : (
-            <WithdrawForm
-              sessionId={id}
-              signUps={session.signUps.map((s) => ({ id: s.id, name: s.name }))}
-            />
-          )}
+          <WithdrawForm
+            sessionId={id}
+            signUps={session.signUps.map((s) => ({ id: s.id, name: s.name }))}
+            deadlinePassed={deadlinePassed}
+          />
         </>
       )}
 
