@@ -96,6 +96,15 @@ model Athlete {
   signUps    SignUp[]
 }
 
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String   @default("")
+  imageUrl  String? // resized image stored as a data URL
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 model CourtRate {
   id           String    @id @default(cuid())
   name         String
