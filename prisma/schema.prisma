@@ -91,6 +91,7 @@ model Athlete {
   id         String     @id @default(cuid())
   name       String     @unique
   skillLevel SkillLevel
+  photoUrl   String? // small resized avatar stored as a data URL
   createdAt  DateTime   @default(now())
   signUps    SignUp[]
 }

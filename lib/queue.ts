@@ -45,12 +45,10 @@ interface MatchRow {
  * drops to the back.
  */
 export function deriveCourtState(signups: SignUpRow[], matches: MatchRow[]): CourtState {
-  // Present pool = anyone checked in, plus anyone already in a match (being in
-  // a game means they showed up, even if the admin never ticked check-in).
-  const inAnyMatch = new Set(matches.flatMap((m) => m.players.map((p) => p.signUpId)));
-  const pool = signups.filter(
-    (s) => s.status !== "WITHDRAWN" && (s.checkedInAt != null || inAnyMatch.has(s.id))
-  );
+  // Present pool = whoever is checked in. Check-in is the single source of
+  // truth for "here", so un-checking a waiting player removes them from the
+  // queue (that's how the admin's "เคลียร์คิว" clears people out).
+  const pool = signups.filter((s) => s.status !== "WITHDRAWN" && s.checkedInAt != null);
 
   // A court's current game is its highest-round match; the court is occupied
   // only while that game is unfinished. Older unfinished matches left over from

@@ -14,7 +14,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const data: { name?: string; skillLevel?: string } = {};
+  const data: { name?: string; skillLevel?: string; photoUrl?: string | null } = {};
 
   if (body.name !== undefined) {
     const name = String(body.name).trim();
@@ -26,6 +26,17 @@ export async function PATCH(
       return NextResponse.json({ error: "ระดับฝีมือไม่ถูกต้อง" }, { status: 400 });
     }
     data.skillLevel = body.skillLevel;
+  }
+  if (body.photoUrl !== undefined) {
+    if (body.photoUrl === null) {
+      data.photoUrl = null;
+    } else {
+      const url = String(body.photoUrl);
+      if (!url.startsWith("data:image/") || url.length > 300_000) {
+        return NextResponse.json({ error: "รูปไม่ถูกต้องหรือใหญ่เกินไป" }, { status: 400 });
+      }
+      data.photoUrl = url;
+    }
   }
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "ไม่มีข้อมูลให้แก้ไข" }, { status: 400 });
@@ -40,17 +51,23 @@ export async function PATCH(
 
     // Keep this athlete's sign-ups in currently-open sessions in sync so the
     // check-in list / courts board reflect the edit (they read the per-sign-up
-    // snapshot). Closed sessions stay as historical record.
-    const active = await prisma.signUp.findMany({
-      where: { athleteId: id, status: { not: "WITHDRAWN" }, session: { status: "OPEN" } },
-      select: { id: true },
-    });
-    if (active.length > 0) {
-      await prisma.signUp.updateMany({
-        where: { id: { in: active.map((s) => s.id) } },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: data as any,
+    // snapshot). Closed sessions stay as historical record. Only name/skill
+    // live on the sign-up — the photo is athlete-only.
+    const signupData: { name?: string; skillLevel?: string } = {};
+    if (data.name !== undefined) signupData.name = data.name;
+    if (data.skillLevel !== undefined) signupData.skillLevel = data.skillLevel;
+    if (Object.keys(signupData).length > 0) {
+      const active = await prisma.signUp.findMany({
+        where: { athleteId: id, status: { not: "WITHDRAWN" }, session: { status: "OPEN" } },
+        select: { id: true },
       });
+      if (active.length > 0) {
+        await prisma.signUp.updateMany({
+          where: { id: { in: active.map((s) => s.id) } },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: signupData as any,
+        });
+      }
     }
 
     return NextResponse.json(updated);

@@ -3,7 +3,6 @@ import { isAdmin } from "@/lib/adminAuth";
 import { deriveCourtState } from "@/lib/queue";
 import { type SkillLevel } from "@/lib/matching";
 import CourtCountEditor from "../CourtCountEditor";
-import AddPlayerForm from "../AddPlayerForm";
 import MatchControls from "../MatchControls";
 import LiveCourts, { type LiveMatch, type FinishedGame } from "../LiveCourts";
 import MatchEditor from "../MatchEditor";
@@ -129,8 +128,6 @@ export default async function SessionMatchPage({
       {session.status === "OPEN" && (
         <CourtCountEditor sessionId={id} courtsEarly={session.courtsEarly} courtsLate={session.courtsLate} />
       )}
-
-      {session.status === "OPEN" && <AddPlayerForm sessionId={id} />}
 
       <MatchControls
         sessionId={id}

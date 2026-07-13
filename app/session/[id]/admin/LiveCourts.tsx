@@ -85,6 +85,26 @@ export default function LiveCourts({
     }
   }
 
+  async function handleClearQueue() {
+    if (!confirm(`เอาคนที่รอคิว ${queue.length} คนออกทั้งหมด? (คนที่กำลังเล่นอยู่ไม่โดน — เช็คอินกลับได้ทีหลัง)`)) {
+      return;
+    }
+    setError(null);
+    setLoading("clearQueue");
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/queue/clear`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "เคลียร์คิวไม่สำเร็จ");
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
+
   function openFinish(m: LiveMatch) {
     setWinner(null);
     setError(null);
@@ -191,7 +211,18 @@ export default function LiveCourts({
       </div>
 
       <div>
-        <p className="text-sm font-medium text-gray-600 mb-1">คิวรอลงสนาม (พักนานสุดอยู่หน้า)</p>
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <p className="text-sm font-medium text-gray-600">คิวรอลงสนาม (พักนานสุดอยู่หน้า)</p>
+          {queue.length > 0 && (
+            <button
+              onClick={handleClearQueue}
+              disabled={loading === "clearQueue"}
+              className="text-xs text-red-600 hover:underline disabled:opacity-50 shrink-0"
+            >
+              {loading === "clearQueue" ? "กำลังเคลียร์..." : `เคลียร์คิว (${queue.length})`}
+            </button>
+          )}
+        </div>
         {queue.length === 0 ? (
           <p className="text-sm text-gray-400">ยังไม่มีคนรอคิว</p>
         ) : (

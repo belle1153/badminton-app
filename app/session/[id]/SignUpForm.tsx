@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
+import Toast from "../Toast";
 
 interface AthleteSuggestion {
   id: string;
@@ -20,6 +21,8 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const clearMessage = useCallback(() => setMessage(null), []);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -79,7 +82,10 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
         setName("");
         setAthleteId(null);
         setSuggestions([]);
+        setMessage({ text: `ลงชื่อสำเร็จ${data.status === "WAITLIST" ? " (สำรอง)" : ""}`, ok: true });
         router.refresh();
+      } else {
+        setMessage({ text: "คงรอบเดิมไว้", ok: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -143,6 +149,7 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
         {loading ? "กำลังลง..." : "ลงชื่อ"}
       </button>
       {error && <p className="text-red-600 text-sm">{error}</p>}
+      <Toast message={message} onDone={clearMessage} />
     </form>
   );
 }

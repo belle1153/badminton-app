@@ -63,10 +63,17 @@ export default async function RegisterPage() {
 
       <MultiSignUpForm days={days.map((d) => ({ id: d.id, label: d.shortLabel }))} />
 
-      <p className="text-xs text-gray-400">
-        ถอนชื่อเองได้จากเครื่องที่ใช้ลงชื่อ ภายในเที่ยงวันตีเท่านั้น — หลังจากนั้นแจ้งแอดมิน
-        (มีค่าธรรมเนียม 100 บาท ยกเว้นหาคนมาแทนได้)
-      </p>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex flex-col gap-1.5">
+        <p className="font-semibold text-sm">📌 การถอนชื่อ</p>
+        <p>
+          • ถอนชื่อเองได้ถึง <strong>12.00 น. ของวันที่ตี</strong> — พิมพ์ชื่อให้เหมือนตอนลงชื่อ
+          จากเครื่องที่ใช้ลงชื่อได้เลย
+        </p>
+        <p>
+          • ถอนหลัง 12.00 น. <strong>ขออนุญาตหารค่าคอร์ท 100 บาท</strong> (ยกเว้นหาคนมาแทนได้) —
+          ติดต่อแอดมินเพื่อกด accept การถอนชื่อครับ
+        </p>
+      </div>
 
       <section className="flex flex-col gap-3">
         {days.map((d) => (

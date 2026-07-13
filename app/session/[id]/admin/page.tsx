@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import CheckInList from "./CheckInList";
 import RegistrationToggle from "./RegistrationToggle";
+import AddPlayerForm from "./AddPlayerForm";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ export default async function SessionCheckInPage({
       {session.status === "OPEN" && (
         <RegistrationToggle sessionId={id} registrationClosed={session.registrationClosedAt != null} />
       )}
+
+      {session.status === "OPEN" && <AddPlayerForm sessionId={id} />}
 
       <CheckInList
         sessionId={id}

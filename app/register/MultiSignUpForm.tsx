@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
+import Toast from "../session/Toast";
 
 interface DayOption {
   id: string;
@@ -30,6 +31,7 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearMessage = useCallback(() => setMessage(null), []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -179,9 +181,7 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
         {loading ? "กำลังลง..." : "ลงชื่อ"}
       </button>
 
-      {message && (
-        <p className={`text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
-      )}
+      <Toast message={message} onDone={clearMessage} />
       {doneDays.size > 0 && days.some((d) => !doneDays.has(d.id)) && (
         <p className="text-xs text-gray-400">
           มาอีกวันด้วยใช่ไหมครับ? เลือกวันที่เหลือแล้วกด &quot;ลงชื่อ&quot; ได้เลย (ไม่ต้องพิมพ์ชื่อใหม่)
