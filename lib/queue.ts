@@ -8,13 +8,21 @@ export interface QueuePlayer {
   waitingSince: number; // ms — smaller = waited longer = nearer the front
 }
 
+export interface CourtGame {
+  id: string;
+  round: number; // per-court game number (เกมที่ N ของสนามนั้น)
+  playerIds: string[];
+}
+
 export interface CourtState {
-  /** Active (unfinished) match per court, keyed by court number. */
-  activeByCourt: Map<number, { id: string; round: number; playerIds: string[] }>;
+  /** Game being played right now per court = its lowest-numbered unfinished match. */
+  currentByCourt: Map<number, CourtGame>;
+  /** Pre-queued games per court (unfinished, after the current one), in order. */
+  upcomingByCourt: Map<number, CourtGame[]>;
   /** Free checked-in players, front of the queue first (waited longest). */
   queue: QueuePlayer[];
-  /** signUp ids currently on a court. */
-  playingIds: Set<string>;
+  /** signUp ids booked in ANY unfinished game (current or upcoming). */
+  reservedIds: Set<string>;
 }
 
 interface SignUpRow {
@@ -36,41 +44,41 @@ interface MatchRow {
 }
 
 /**
- * Reconstructs the live picture of a session from its sign-ups and matches:
- * who is on court right now, and who is waiting (in order). A player is on the
- * queue when they have checked in and are not in any active match; the queue is
- * ordered by how long they have been waiting — a player's clock is the finish
- * time of their most recent game, or their check-in time if they haven't played
- * yet. So people who never played sit at the front, and whoever just finished
- * drops to the back.
+ * Live picture of a session under the per-court game flow: each court runs its
+ * own numbered sequence (สนาม 1 เกม 1, 2, 3...). The current game on a court is
+ * its lowest-numbered unfinished match; later unfinished matches are the
+ * pre-queued "upcoming" games that slide up when the current one finishes.
+ * Anyone booked in an unfinished game is off the waiting queue. Queue order is
+ * how long you've waited: last finish time, else check-in time (never played).
  */
 export function deriveCourtState(signups: SignUpRow[], matches: MatchRow[]): CourtState {
-  // Present pool = whoever is checked in. Check-in is the single source of
-  // truth for "here", so un-checking a waiting player removes them from the
-  // queue (that's how the admin's "เคลียร์คิว" clears people out).
+  // Present pool = whoever is checked in (check-in is the source of truth).
   const pool = signups.filter((s) => s.status !== "WITHDRAWN" && s.checkedInAt != null);
 
-  // A court's current game is its highest-round match; the court is occupied
-  // only while that game is unfinished. Older unfinished matches left over from
-  // an earlier batched round are superseded — ignore them so finishing the
-  // latest game actually frees the court.
-  const latestByCourt = new Map<number, MatchRow>();
+  const unfinishedByCourt = new Map<number, MatchRow[]>();
   for (const m of matches) {
-    const cur = latestByCourt.get(m.court);
-    if (!cur || m.round > cur.round) latestByCourt.set(m.court, m);
-  }
-  const activeByCourt = new Map<number, { id: string; round: number; playerIds: string[] }>();
-  for (const [court, m] of latestByCourt) {
-    if (m.finishedAt == null) {
-      activeByCourt.set(court, { id: m.id, round: m.round, playerIds: m.players.map((p) => p.signUpId) });
-    }
+    if (m.finishedAt != null) continue;
+    const list = unfinishedByCourt.get(m.court) ?? [];
+    list.push(m);
+    unfinishedByCourt.set(m.court, list);
   }
 
-  const playingIds = new Set<string>();
-  for (const a of activeByCourt.values()) for (const id of a.playerIds) playingIds.add(id);
+  const currentByCourt = new Map<number, CourtGame>();
+  const upcomingByCourt = new Map<number, CourtGame[]>();
+  const reservedIds = new Set<string>();
+  for (const [court, list] of unfinishedByCourt) {
+    list.sort((a, b) => a.round - b.round);
+    const toGame = (m: MatchRow): CourtGame => ({
+      id: m.id,
+      round: m.round,
+      playerIds: m.players.map((p) => p.signUpId),
+    });
+    currentByCourt.set(court, toGame(list[0]));
+    upcomingByCourt.set(court, list.slice(1).map(toGame));
+    for (const m of list) for (const p of m.players) reservedIds.add(p.signUpId);
+  }
 
-  // Each player's "waiting since" = latest finished-match time, else check-in
-  // (falling back to sign-up time when they were never formally checked in).
+  // Waiting clock: latest finished-match time, else check-in time.
   const lastFinished = new Map<string, number>();
   for (const m of matches) {
     if (m.finishedAt == null) continue;
@@ -81,7 +89,7 @@ export function deriveCourtState(signups: SignUpRow[], matches: MatchRow[]): Cou
   }
 
   const queue: QueuePlayer[] = pool
-    .filter((s) => !playingIds.has(s.id))
+    .filter((s) => !reservedIds.has(s.id))
     .map((s) => ({
       id: s.id,
       name: s.name,
@@ -90,7 +98,7 @@ export function deriveCourtState(signups: SignUpRow[], matches: MatchRow[]): Cou
     }))
     .sort((a, b) => a.waitingSince - b.waitingSince || a.name.localeCompare(b.name));
 
-  return { activeByCourt, queue, playingIds };
+  return { currentByCourt, upcomingByCourt, queue, reservedIds };
 }
 
 const MATCH_SELECT = {
@@ -125,9 +133,9 @@ export type FillResult =
   | { ok: false; reason: "court_taken" | "not_enough" };
 
 /**
- * Pull the next four from the queue onto a court and start a game with
- * skill-balanced teams. The new game's round is one past that court's highest
- * round, so it becomes the court's current match.
+ * Pull the next four from the queue onto a completely idle court (no current
+ * game and nothing pre-queued) and start that court's next-numbered game with
+ * skill-balanced teams.
  */
 export async function fillCourt(sessionId: string, court: number): Promise<FillResult> {
   const [signups, matches] = await Promise.all([
@@ -136,7 +144,7 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
   ]);
   const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 
-  if (state.activeByCourt.has(court)) return { ok: false, reason: "court_taken" };
+  if (state.currentByCourt.has(court)) return { ok: false, reason: "court_taken" };
   if (state.queue.length < 4) return { ok: false, reason: "not_enough" };
 
   const nextFour = state.queue.slice(0, 4);
@@ -148,7 +156,6 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
 
   const { matches: built } = generateMatches(players, [court]);
   const match = built[0];
-  // Fallback (shouldn't happen with 4 players): straight split.
   const team1 = match ? match.team1 : players.slice(0, 2);
   const team2 = match ? match.team2 : players.slice(2, 4);
 

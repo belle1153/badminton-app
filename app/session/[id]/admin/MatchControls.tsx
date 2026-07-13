@@ -28,16 +28,9 @@ export default function MatchControls({
 }) {
   const router = useRouter();
   const isClosed = status === "CLOSED";
-  const confirmedCount = confirmedSignUps.length;
-
-  const courtOptions = Array.from({ length: sessionCourts }, (_, i) => i + 1);
-  const [selectedCourts, setSelectedCourts] = useState<Set<number>>(new Set(courtOptions));
-  const checkedInIds = confirmedSignUps.filter((s) => s.checkedIn).map((s) => s.id);
 
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"matches" | "clearMatches" | "pair" | "unpair" | null>(null);
-  const [benchNames, setBenchNames] = useState<string[] | null>(null);
-  const [createdRounds, setCreatedRounds] = useState<number[] | null>(null);
+  const [loading, setLoading] = useState<"clearMatches" | "pair" | "unpair" | null>(null);
   const busyRef = useRef(false);
 
   const [partnerA, setPartnerA] = useState("");
@@ -58,56 +51,16 @@ export default function MatchControls({
     return result;
   }, [confirmedSignUps]);
 
-  function toggleCourt(court: number) {
-    setSelectedCourts((prev) => {
-      const next = new Set(prev);
-      if (next.has(court)) next.delete(court);
-      else next.add(court);
-      return next;
-    });
-  }
-
-  async function handleGenerateMatches() {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setError(null);
-    setLoading("matches");
-    setBenchNames(null);
-    setCreatedRounds(null);
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/matches`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courtNumbers: [...selectedCourts].filter((c) => c <= sessionCourts),
-          signUpIds: checkedInIds,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "รันรอบไม่สำเร็จ");
-      setCreatedRounds(data.rounds);
-      setBenchNames(data.bench.map((p: { name: string }) => p.name));
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      busyRef.current = false;
-      setLoading(null);
-    }
-  }
-
   async function handleClearMatches() {
     if (busyRef.current) return;
-    if (!confirm("ล้างการจับคู่ทั้งหมดของรอบนี้ใช่ไหมครับ? ทุกรอบที่รันไปแล้วจะหายไป")) return;
+    if (!confirm("ล้างแมทช์ทั้งหมดของวันนี้ใช่ไหมครับ? ทุกเกมที่บันทึกไว้จะหายไป")) return;
     busyRef.current = true;
     setError(null);
     setLoading("clearMatches");
-    setBenchNames(null);
-    setCreatedRounds(null);
     try {
       const res = await fetch(`/api/sessions/${sessionId}/matches/clear`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "ล้างจับคู่ไม่สำเร็จ");
+      if (!res.ok) throw new Error(data.error ?? "ล้างแมทช์ไม่สำเร็จ");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -158,78 +111,10 @@ export default function MatchControls({
     <div className="flex flex-col gap-8">
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">จับคู่ตี — กดครั้งเดียว จัดให้ทุกคนได้เล่นครบ</h2>
-
-        <div>
-          <p className="text-sm text-gray-600 mb-1">สนามที่ใช้ได้รอบนี้</p>
-          <div className="flex flex-wrap gap-2">
-            {courtOptions.map((court) => (
-              <label
-                key={court}
-                className={`text-sm rounded-md border px-3 py-1.5 cursor-pointer select-none ${
-                  selectedCourts.has(court)
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-white text-gray-700 border-gray-300"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedCourts.has(court)}
-                  onChange={() => toggleCourt(court)}
-                  disabled={isClosed}
-                  className="sr-only"
-                />
-                สนาม {court}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-sm text-gray-600">
-          จะจัดจากคนที่เช็คอินแล้ว{" "}
-          <span className="font-semibold text-brand-700">
-            {checkedInIds.length}/{confirmedCount}
-          </span>{" "}
-          คน — ติ๊กเช็คอินในหน้า &quot;เช็คอิน&quot; ก่อนกดรัน
-        </p>
-
-        <div className="flex gap-2">
-          <button
-            onClick={handleGenerateMatches}
-            disabled={isClosed || loading === "matches" || checkedInIds.length === 0}
-            className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 self-start"
-          >
-            {loading === "matches" ? "กำลังรัน..." : "รันรอบ (จัดครบทุกคน)"}
-          </button>
-          {hasMatches && (
-            <button
-              onClick={handleClearMatches}
-              disabled={isClosed || loading === "clearMatches"}
-              className="rounded-md border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50 self-start"
-            >
-              {loading === "clearMatches" ? "กำลังล้าง..." : "ล้างจับคู่ทั้งหมด"}
-            </button>
-          )}
-        </div>
-
-        {createdRounds && createdRounds.length > 0 && (
-          <p className="text-xs text-brand-700">
-            สร้างรอบที่ {createdRounds.join(", ")} แล้ว — ทุกคนได้ลงเล่นครบ
-            {benchNames && benchNames.length > 0 ? " ยกเว้นสแปร์ด้านล่าง" : ""}
-          </p>
-        )}
-        {benchNames && benchNames.length > 0 && (
-          <p className="text-xs text-amber-600">
-            สแปร์ (จับคู่ไม่ครบ 4 คน — สลับลงเล่นได้ในส่วน &quot;แก้ไขการจับคู่&quot; ด้านล่าง): {benchNames.join(", ")}
-          </p>
-        )}
-      </section>
-
       {!isClosed && (
         <ManualMatchForm
           sessionId={sessionId}
-          courtOptions={[...selectedCourts].filter((c) => c <= sessionCourts).sort((a, b) => a - b)}
+          courtOptions={Array.from({ length: sessionCourts }, (_, i) => i + 1)}
           players={confirmedSignUps.filter((s) => s.checkedIn).map((s) => ({ id: s.id, name: s.name }))}
         />
       )}
@@ -286,6 +171,16 @@ export default function MatchControls({
           </form>
         )}
       </section>
+
+      {hasMatches && !isClosed && (
+        <button
+          onClick={handleClearMatches}
+          disabled={loading === "clearMatches"}
+          className="rounded-md border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50 self-start"
+        >
+          {loading === "clearMatches" ? "กำลังล้าง..." : "ล้างแมทช์ทั้งหมด"}
+        </button>
+      )}
     </div>
   );
 }

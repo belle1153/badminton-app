@@ -55,11 +55,13 @@ export async function POST(
     );
   }
 
-  const alreadyInRound = await prisma.matchPlayer.findFirst({
-    where: { signUpId: inSignUpId, match: { sessionId: id, round: match.round } },
+  // Game numbers repeat across courts, so "same round" means nothing now.
+  // Block only if the incoming player is already booked in an unfinished game.
+  const alreadyBooked = await prisma.matchPlayer.findFirst({
+    where: { signUpId: inSignUpId, match: { sessionId: id, finishedAt: null } },
   });
-  if (alreadyInRound) {
-    return NextResponse.json({ error: "คนนี้เล่นอยู่ในรอบนี้แล้ว" }, { status: 400 });
+  if (alreadyBooked && match.finishedAt == null) {
+    return NextResponse.json({ error: "คนนี้มีเกมค้างอยู่แล้ว (กำลังเล่นหรือถูกจองคิวไว้)" }, { status: 400 });
   }
 
   const updated = await prisma.matchPlayer.update({

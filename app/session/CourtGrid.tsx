@@ -13,6 +13,7 @@ interface PlayerInfo {
 
 interface TeamMatch {
   id: string;
+  round?: number;
   team1: PlayerInfo[];
   team2: PlayerInfo[];
 }
@@ -20,6 +21,7 @@ interface TeamMatch {
 interface CourtEntry {
   court: number;
   match: TeamMatch | null;
+  upcoming?: TeamMatch[];
 }
 
 export default function CourtGrid({ sessionId, courts }: { sessionId: string; courts: CourtEntry[] }) {
@@ -36,7 +38,14 @@ export default function CourtGrid({ sessionId, courts }: { sessionId: string; co
           !!c.match &&
           (c.match.team1.some((p) => myIds.has(p.id)) || c.match.team2.some((p) => myIds.has(p.id)));
         return (
-          <CourtCard key={c.court} sessionId={sessionId} court={c.court} match={c.match} isSelf={isSelf} />
+          <CourtCard
+            key={c.court}
+            sessionId={sessionId}
+            court={c.court}
+            match={c.match}
+            upcoming={c.upcoming}
+            isSelf={isSelf}
+          />
         );
       })}
     </div>

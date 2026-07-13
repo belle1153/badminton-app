@@ -32,14 +32,27 @@ export default async function SessionCourtsPage({
 
   if (!session) notFound();
 
-  // The game "on court now" is each court's latest match that hasn't finished.
-  const activeByCourt = new Map<number, (typeof session.matches)[number]>();
-  for (const m of session.matches) {
-    if (m.finishedAt != null) continue;
-    const cur = activeByCourt.get(m.court);
-    if (!cur || m.round > cur.round) activeByCourt.set(m.court, m);
-  }
-  const activeIds = new Set([...activeByCourt.values()].map((m) => m.id));
+  // Per-court flow: current game = lowest-numbered unfinished match on that
+  // court; the rest are pre-queued upcoming games.
+  const liveState = deriveCourtState(
+    session.signUps.map((s) => ({
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel as SkillLevel,
+      fixedPartnerId: s.fixedPartnerId,
+      checkedInAt: s.checkedInAt,
+      createdAt: s.createdAt,
+      status: s.status,
+    })),
+    session.matches.map((m) => ({
+      id: m.id,
+      round: m.round,
+      court: m.court,
+      finishedAt: m.finishedAt,
+      players: m.players.map((p) => ({ signUpId: p.signUpId })),
+    }))
+  );
+  const activeIds = new Set([...liveState.currentByCourt.values()].map((g) => g.id));
 
   const toTeamMatch = (m: (typeof session.matches)[number]) => ({
     id: m.id,
@@ -64,34 +77,21 @@ export default async function SessionCourtsPage({
       })),
   });
 
-  // All matches feed the "which court am I on?" search; the board shows only
-  // each court's current game.
+  // All matches feed the "which court am I on?" search; the board shows each
+  // court's current game plus up to two pre-queued next games.
   const allMatches = session.matches.map(toTeamMatch);
+  const matchById = new Map(session.matches.map((m) => [m.id, m]));
   const courts = Array.from({ length: session.courtsLate }, (_, i) => {
     const court = i + 1;
-    const m = activeByCourt.get(court);
-    return { court, match: m ? toTeamMatch(m) : null };
+    const cur = liveState.currentByCourt.get(court);
+    const ups = (liveState.upcomingByCourt.get(court) ?? []).slice(0, 2);
+    return {
+      court,
+      match: cur ? toTeamMatch(matchById.get(cur.id)!) : null,
+      upcoming: ups.map((g) => toTeamMatch(matchById.get(g.id)!)),
+    };
   });
 
-  // Waiting queue (longest-waiting first) so players can see who's up next.
-  const liveState = deriveCourtState(
-    session.signUps.map((s) => ({
-      id: s.id,
-      name: s.name,
-      skillLevel: s.skillLevel as SkillLevel,
-      fixedPartnerId: s.fixedPartnerId,
-      checkedInAt: s.checkedInAt,
-      createdAt: s.createdAt,
-      status: s.status,
-    })),
-    session.matches.map((m) => ({
-      id: m.id,
-      round: m.round,
-      court: m.court,
-      finishedAt: m.finishedAt,
-      players: m.players.map((p) => ({ signUpId: p.signUpId })),
-    }))
-  );
   const queue = liveState.queue.map((q) => ({ id: q.id, name: q.name }));
 
   return (

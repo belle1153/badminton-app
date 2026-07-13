@@ -32,7 +32,16 @@ export async function POST(
     data: { finishedAt: new Date(), winnerTeam },
   });
 
-  // Both teams rotate out; pull the next four from the queue onto this court.
+  // A pre-queued game slides up to become the court's current game by itself;
+  // only auto-fill from the waiting queue when nothing is queued on this court.
+  const hasUpcoming = await prisma.match.findFirst({
+    where: { sessionId: id, court: match.court, finishedAt: null },
+    select: { id: true },
+  });
+  if (hasUpcoming) {
+    return NextResponse.json({ ok: true, court: match.court, filled: false, nextQueued: true });
+  }
+
   const fill = await fillCourt(id, match.court);
 
   return NextResponse.json({

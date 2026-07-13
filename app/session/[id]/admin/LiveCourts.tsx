@@ -33,12 +33,14 @@ export default function LiveCourts({
   sessionId,
   courts,
   activeMatches,
+  upcomingMatches = [],
   queue,
   recentFinished,
 }: {
   sessionId: string;
   courts: number;
   activeMatches: LiveMatch[];
+  upcomingMatches?: LiveMatch[];
   queue: P[];
   recentFinished: FinishedGame[];
 }) {
@@ -49,6 +51,12 @@ export default function LiveCourts({
   const [error, setError] = useState<string | null>(null);
 
   const byCourt = new Map(activeMatches.map((m) => [m.court, m]));
+  const upcomingByCourt = new Map<number, LiveMatch[]>();
+  for (const m of [...upcomingMatches].sort((a, b) => a.round - b.round)) {
+    const list = upcomingByCourt.get(m.court) ?? [];
+    list.push(m);
+    upcomingByCourt.set(m.court, list);
+  }
   const courtList = Array.from({ length: courts }, (_, i) => i + 1);
   const emptyCourts = courtList.filter((c) => !byCourt.has(c));
   const canFill = queue.length >= 4;
@@ -172,10 +180,12 @@ export default function LiveCourts({
       <div className="grid grid-cols-2 gap-3">
         {courtList.map((court) => {
           const m = byCourt.get(court);
+          const nexts = upcomingByCourt.get(court) ?? [];
           return (
             <div key={court} className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
               <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
                 สนาม {court}
+                {m && <span className="text-white/60 font-normal"> — เกมที่ {m.round}</span>}
               </div>
               <div className="bg-gradient-to-b from-slate-600 to-slate-800 p-3 flex flex-col gap-2 min-h-[150px]">
                 {m ? (
@@ -204,6 +214,11 @@ export default function LiveCourts({
                     </button>
                   </div>
                 )}
+                {nexts.slice(0, 2).map((n) => (
+                  <p key={n.id} className="text-[11px] text-white/70 text-center truncate">
+                    ⏭ เกมที่ {n.round}: {[...n.team1, ...n.team2].map((p) => p.name).join(", ")}
+                  </p>
+                ))}
               </div>
             </div>
           );

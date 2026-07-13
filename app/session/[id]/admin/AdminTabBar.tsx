@@ -9,6 +9,7 @@ export default function AdminTabBar({ base }: { base: string }) {
   const tabs = [
     { href: base, label: "เช็คอิน", icon: "✅" },
     { href: `${base}/match`, label: "จัดการแมท", icon: "🏸" },
+    { href: `${base}/history`, label: "ประวัติแมท", icon: "📜" },
     { href: `${base}/cost`, label: "คำนวณเงิน", icon: "💰" },
   ];
 

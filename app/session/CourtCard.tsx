@@ -14,6 +14,7 @@ interface PlayerInfo {
 
 interface TeamMatch {
   id: string;
+  round?: number;
   team1: PlayerInfo[];
   team2: PlayerInfo[];
 }
@@ -22,6 +23,7 @@ export default function CourtCard({
   sessionId,
   court,
   match,
+  upcoming = [],
   substitutes,
   isSelf,
   editable,
@@ -29,6 +31,7 @@ export default function CourtCard({
   sessionId: string;
   court: number;
   match: TeamMatch | null;
+  upcoming?: TeamMatch[];
   substitutes?: PlayerInfo[];
   isSelf?: boolean;
   editable?: boolean;
@@ -38,6 +41,11 @@ export default function CourtCard({
   const [replacement, setReplacement] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which game the card is showing: 0 = playing now, 1-2 = pre-queued next games.
+  const [viewIdx, setViewIdx] = useState(0);
+
+  const slots: (TeamMatch | null)[] = [match, ...upcoming.slice(0, 2)];
+  const shown = slots[Math.min(viewIdx, slots.length - 1)] ?? match;
 
   function startEdit(playerId: string) {
     setEditingPlayerId(playerId);
@@ -142,14 +150,36 @@ export default function CourtCard({
     >
       <div className="bg-slate-800 text-white text-center text-sm font-semibold py-2">
         สนาม {court}
+        {!editable && shown?.round != null && (
+          <span className="text-white/60 font-normal"> — เกมที่ {shown.round}</span>
+        )}
       </div>
+      {!editable && match && upcoming.length > 0 && (
+        <div className="bg-slate-700 flex">
+          {slots.map((s, i) =>
+            s ? (
+              <button
+                key={s.id}
+                onClick={() => setViewIdx(i)}
+                className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
+                  Math.min(viewIdx, slots.length - 1) === i
+                    ? "bg-brand-600 text-white"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                {i === 0 ? `▶ เกม ${s.round ?? "-"}` : `ถัดไป: เกม ${s.round ?? "-"}`}
+              </button>
+            ) : null
+          )}
+        </div>
+      )}
       <div
         className={`bg-gradient-to-b from-slate-600 to-slate-800 p-4 flex flex-col flex-1 ${
           editable ? "min-h-[200px]" : "min-h-[280px]"
         }`}
       >
         {error && <p className="text-red-300 text-xs text-center mb-1">{error}</p>}
-        {!match ? (
+        {!(editable ? match : shown) ? (
           <div className="flex-1 rounded-lg border-2 border-white/20 flex items-center justify-center">
             <p className="text-white/50 text-sm font-medium">ว่าง</p>
           </div>
@@ -162,7 +192,7 @@ export default function CourtCard({
                   : "flex justify-center items-start gap-4"
               }
             >
-              {match.team1.map(renderPlayer)}
+              {(editable ? match! : shown!).team1.map(renderPlayer)}
             </div>
             <div className="border-t-2 border-dashed border-white/60" />
             <div
@@ -172,7 +202,7 @@ export default function CourtCard({
                   : "flex justify-center items-start gap-4"
               }
             >
-              {match.team2.map(renderPlayer)}
+              {(editable ? match! : shown!).team2.map(renderPlayer)}
             </div>
           </div>
         )}
