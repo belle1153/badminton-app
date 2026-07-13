@@ -29,6 +29,25 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [cropTarget, setCropTarget] = useState<{ id: string; file: File } | null>(null);
 
+  async function removePhoto(id: string) {
+    setError(null);
+    setUploadingId(id);
+    try {
+      const res = await fetch(`/api/athletes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoUrl: null }),
+      });
+      if (!res.ok) {
+        setError((await res.json().catch(() => ({}))).error ?? "ลบรูปไม่สำเร็จ");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setUploadingId(null);
+    }
+  }
+
   async function savePhoto(id: string, photoUrl: string) {
     setCropTarget(null);
     setError(null);
@@ -227,6 +246,15 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
                   </span>
                 </div>
                 <span className="flex gap-2 shrink-0">
+                  {a.photoUrl && (
+                    <button
+                      onClick={() => removePhoto(a.id)}
+                      disabled={uploadingId === a.id}
+                      className="text-xs text-gray-500 hover:underline disabled:opacity-50"
+                    >
+                      ลบรูป
+                    </button>
+                  )}
                   <button onClick={() => startEdit(a)} className="text-xs text-brand-700 hover:underline">
                     แก้ไข
                   </button>
