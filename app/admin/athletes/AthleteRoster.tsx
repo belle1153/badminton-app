@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import PhotoCropModal from "./PhotoCropModal";
 
 const SKILLS = Object.keys(SKILL_LABELS) as SkillLevel[];
 
@@ -11,31 +12,6 @@ interface Athlete {
   name: string;
   skillLevel: SkillLevel;
   photoUrl: string | null;
-}
-
-// Shrink an image file to a small square-ish avatar (max 160px) as a JPEG data
-// URL so it stays a few KB when stored on the athlete.
-async function resizeImage(file: File, max = 160): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = dataUrl;
-  });
-  const scale = Math.min(1, max / Math.max(img.width, img.height));
-  const w = Math.max(1, Math.round(img.width * scale));
-  const h = Math.max(1, Math.round(img.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-  return canvas.toDataURL("image/jpeg", 0.7);
 }
 
 export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
@@ -51,13 +27,13 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
   const [newSkill, setNewSkill] = useState<SkillLevel>("RK");
   const [adding, setAdding] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [cropTarget, setCropTarget] = useState<{ id: string; file: File } | null>(null);
 
-  async function uploadPhoto(id: string, file: File | null | undefined) {
-    if (!file) return;
+  async function savePhoto(id: string, photoUrl: string) {
+    setCropTarget(null);
     setError(null);
     setUploadingId(id);
     try {
-      const photoUrl = await resizeImage(file);
       const res = await fetch(`/api/athletes/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -70,7 +46,7 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
       }
       router.refresh();
     } catch {
-      setError("อ่านรูปไม่สำเร็จ");
+      setError("บันทึกรูปไม่สำเร็จ");
     } finally {
       setUploadingId(null);
     }
@@ -227,7 +203,11 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
                       accept="image/*"
                       className="hidden"
                       disabled={uploadingId === a.id}
-                      onChange={(e) => uploadPhoto(a.id, e.target.files?.[0])}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setCropTarget({ id: a.id, file });
+                        e.target.value = "";
+                      }}
                     />
                     {a.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -261,6 +241,14 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
         {filtered.length === 0 && <li className="text-sm text-gray-400">ไม่พบข้อมูล</li>}
       </ul>
       <p className="text-xs text-gray-400">ทั้งหมด {athletes.length} คน</p>
+
+      {cropTarget && (
+        <PhotoCropModal
+          file={cropTarget.file}
+          onCancel={() => setCropTarget(null)}
+          onCropped={(dataUrl) => savePhoto(cropTarget.id, dataUrl)}
+        />
+      )}
     </div>
   );
 }
