@@ -19,6 +19,13 @@ export async function PATCH(
   if (body.name !== undefined) {
     const name = String(body.name).trim();
     if (!name) return NextResponse.json({ error: "กรุณาใส่ชื่อ" }, { status: 400 });
+    // Case-insensitive duplicate check against everyone else.
+    const dup = await prisma.athlete.findFirst({
+      where: { name: { equals: name, mode: "insensitive" }, NOT: { id } },
+    });
+    if (dup) {
+      return NextResponse.json({ error: `มีชื่อ "${dup.name}" อยู่แล้วในรายชื่อ` }, { status: 409 });
+    }
     data.name = name;
   }
   if (body.skillLevel !== undefined) {

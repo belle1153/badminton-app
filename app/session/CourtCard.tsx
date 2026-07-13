@@ -9,6 +9,7 @@ interface PlayerInfo {
   name: string;
   skillLevel: string;
   waitlist?: boolean;
+  photoUrl?: string | null;
 }
 
 interface TeamMatch {
@@ -67,13 +68,25 @@ export default function CourtCard({
 
   function renderPlayer(p: PlayerInfo) {
     if (!editable) {
+      // User view: photo above name so the board doubles as a face board.
       return (
-        <span
-          key={p.id}
-          className="bg-white text-gray-900 text-sm font-medium rounded-full px-4 py-1.5 shadow-sm whitespace-nowrap"
-        >
-          {p.name}
-        </span>
+        <div key={p.id} className="flex flex-col items-center gap-1 w-20">
+          {p.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={p.photoUrl}
+              alt={p.name}
+              className="w-14 h-14 rounded-full object-cover border-2 border-white shadow"
+            />
+          ) : (
+            <span className="w-14 h-14 rounded-full bg-white/15 border-2 border-white/40 flex items-center justify-center text-white/70 text-xl">
+              👤
+            </span>
+          )}
+          <span className="bg-white text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 shadow-sm max-w-full truncate">
+            {p.name}
+          </span>
+        </div>
       );
     }
     if (editingPlayerId === p.id) {
@@ -130,7 +143,11 @@ export default function CourtCard({
       <div className="bg-slate-800 text-white text-center text-sm font-semibold py-2">
         สนาม {court}
       </div>
-      <div className="bg-gradient-to-b from-slate-600 to-slate-800 p-4 flex flex-col flex-1 min-h-[200px]">
+      <div
+        className={`bg-gradient-to-b from-slate-600 to-slate-800 p-4 flex flex-col flex-1 ${
+          editable ? "min-h-[200px]" : "min-h-[280px]"
+        }`}
+      >
         {error && <p className="text-red-300 text-xs text-center mb-1">{error}</p>}
         {!match ? (
           <div className="flex-1 rounded-lg border-2 border-white/20 flex items-center justify-center">
@@ -138,9 +155,25 @@ export default function CourtCard({
           </div>
         ) : (
           <div className="flex-1 rounded-lg border-2 border-white/25 px-3 py-4 flex flex-col justify-around gap-3">
-            <div className="flex flex-col items-center gap-1.5">{match.team1.map(renderPlayer)}</div>
+            <div
+              className={
+                editable
+                  ? "flex flex-col items-center gap-1.5"
+                  : "flex justify-center items-start gap-4"
+              }
+            >
+              {match.team1.map(renderPlayer)}
+            </div>
             <div className="border-t-2 border-dashed border-white/60" />
-            <div className="flex flex-col items-center gap-1.5">{match.team2.map(renderPlayer)}</div>
+            <div
+              className={
+                editable
+                  ? "flex flex-col items-center gap-1.5"
+                  : "flex justify-center items-start gap-4"
+              }
+            >
+              {match.team2.map(renderPlayer)}
+            </div>
           </div>
         )}
       </div>

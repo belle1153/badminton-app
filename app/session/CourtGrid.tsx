@@ -8,6 +8,7 @@ interface PlayerInfo {
   id: string;
   name: string;
   skillLevel: string;
+  photoUrl?: string | null;
 }
 
 interface TeamMatch {

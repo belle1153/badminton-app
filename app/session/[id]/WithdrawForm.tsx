@@ -44,7 +44,9 @@ export default function WithdrawForm({
     }
 
     const mine = new Set(getMySignups(sessionId));
-    const match = signUps.find((s) => s.name === typed && mine.has(s.id));
+    const match = signUps.find(
+      (s) => s.name.toLowerCase() === typed.toLowerCase() && mine.has(s.id)
+    );
     if (!match) {
       setMessage({
         text: "ไม่พบชื่อนี้ในรายชื่อที่ลงจากเครื่องนี้ — ถอนได้เฉพาะชื่อที่คุณลงเองจากเครื่องนี้ครับ",

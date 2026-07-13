@@ -20,7 +20,11 @@ export default async function SessionCourtsPage({
     include: {
       signUps: { where: { status: { not: "WITHDRAWN" } } },
       matches: {
-        include: { players: { include: { signUp: true } } },
+        include: {
+          players: {
+            include: { signUp: { include: { athlete: { select: { photoUrl: true } } } } },
+          },
+        },
         orderBy: { round: "asc" },
       },
     },
@@ -44,10 +48,20 @@ export default async function SessionCourtsPage({
     active: activeIds.has(m.id),
     team1: m.players
       .filter((p) => p.team === 1)
-      .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
+      .map((p) => ({
+        id: p.signUp.id,
+        name: p.signUp.name,
+        skillLevel: p.signUp.skillLevel,
+        photoUrl: p.signUp.athlete?.photoUrl ?? null,
+      })),
     team2: m.players
       .filter((p) => p.team === 2)
-      .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel })),
+      .map((p) => ({
+        id: p.signUp.id,
+        name: p.signUp.name,
+        skillLevel: p.signUp.skillLevel,
+        photoUrl: p.signUp.athlete?.photoUrl ?? null,
+      })),
   });
 
   // All matches feed the "which court am I on?" search; the board shows only

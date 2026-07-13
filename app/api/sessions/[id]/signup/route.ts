@@ -35,11 +35,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "กรุณาใส่ชื่อ" }, { status: 400 });
     }
     name = name.trim();
-    athlete = await prisma.athlete.upsert({
-      where: { name },
-      create: { name, skillLevel: "RK" },
-      update: {},
+    // Case-insensitive: "NW", "nw", "Nw" are the same person — reuse the
+    // existing athlete (and their canonical spelling) instead of creating dups.
+    athlete = await prisma.athlete.findFirst({
+      where: { name: { equals: name, mode: "insensitive" } },
     });
+    if (athlete) {
+      name = athlete.name;
+    } else {
+      athlete = await prisma.athlete.create({ data: { name, skillLevel: "RK" } });
+    }
   }
   const skillLevel = athlete.skillLevel;
 
@@ -54,7 +59,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // block. Warn first; on confirm, update the preference and let rebalancing
   // re-seat everyone (they'll play the new block if there's room, otherwise
   // sit in the other block / waitlist and keep the queue for their choice).
-  const already = existing.find((s) => s.athleteId === athlete.id || s.name === name);
+  const already = existing.find(
+    (s) => s.athleteId === athlete.id || s.name.toLowerCase() === name.toLowerCase()
+  );
   if (already) {
     // Same slot as before = plain duplicate; just tell them, don't offer a move.
     if (already.preferredSlot === timeSlot) {

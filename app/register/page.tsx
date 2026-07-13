@@ -4,6 +4,7 @@ import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
 import MultiSignUpForm from "./MultiSignUpForm";
 import AutoRefresh from "../session/AutoRefresh";
+import AnnouncementCarousel from "../AnnouncementCarousel";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +22,7 @@ export default async function RegisterPage() {
     return (
       <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-4">
         <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
-        {announcements.map((a) => (
-          <div key={a.id} className="rounded-lg border border-brand-200 bg-brand-50/60 p-3 flex flex-col gap-2">
-            <p className="font-semibold text-brand-800">📣 {a.title}</p>
-            {a.body && <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.body}</p>}
-            {a.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={a.imageUrl} alt={a.title} className="rounded-md w-full object-contain" />
-            )}
-          </div>
-        ))}
+        <AnnouncementCarousel items={announcements} />
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
       </main>
     );
@@ -71,20 +63,7 @@ export default async function RegisterPage() {
       <AutoRefresh />
       <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
 
-      {announcements.length > 0 && (
-        <section className="flex flex-col gap-3">
-          {announcements.map((a) => (
-            <div key={a.id} className="rounded-lg border border-brand-200 bg-brand-50/60 p-3 flex flex-col gap-2">
-              <p className="font-semibold text-brand-800">📣 {a.title}</p>
-              {a.body && <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.body}</p>}
-              {a.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.imageUrl} alt={a.title} className="rounded-md w-full object-contain" />
-              )}
-            </div>
-          ))}
-        </section>
-      )}
+      <AnnouncementCarousel items={announcements} />
 
       <p className="text-sm text-gray-600">
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)

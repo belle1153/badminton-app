@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   const athletes = await prisma.athlete.findMany({
-    where: { name: { contains: q } },
+    where: { name: { contains: q, mode: "insensitive" } },
     orderBy: { name: "asc" },
     take: 10,
   });
@@ -33,6 +33,14 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "กรุณาใส่ชื่อ" }, { status: 400 });
   if (!VALID_SKILLS.has(skillLevel)) {
     return NextResponse.json({ error: "ระดับมือไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  // Case-insensitive duplicate check ("NW" vs "nw" is the same person).
+  const dup = await prisma.athlete.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+  if (dup) {
+    return NextResponse.json({ error: `"${dup.name}" มีอยู่แล้ว` }, { status: 409 });
   }
 
   try {

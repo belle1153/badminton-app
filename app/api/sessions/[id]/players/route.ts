@@ -32,15 +32,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "รอบนี้ปิดแล้ว" }, { status: 400 });
   }
 
-  const athlete = await prisma.athlete.upsert({
-    where: { name },
-    create: { name, skillLevel },
-    update: { skillLevel },
+  // Case-insensitive match so "NW"/"nw" don't become two athletes.
+  const found = await prisma.athlete.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
   });
+  const athlete = found
+    ? await prisma.athlete.update({ where: { id: found.id }, data: { skillLevel } })
+    : await prisma.athlete.create({ data: { name, skillLevel } });
 
   // Already in this session → just make sure they're checked in with this skill.
   const existing = await prisma.signUp.findFirst({
-    where: { sessionId: id, status: { not: "WITHDRAWN" }, OR: [{ athleteId: athlete.id }, { name }] },
+    where: {
+      sessionId: id,
+      status: { not: "WITHDRAWN" },
+      OR: [{ athleteId: athlete.id }, { name: { equals: name, mode: "insensitive" } }],
+    },
   });
   if (existing) {
     await prisma.signUp.update({
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const created = await prisma.signUp.create({
     data: {
       sessionId: id,
-      name,
+      name: athlete.name, // canonical spelling
       skillLevel,
       timeSlot: "LATE",
       preferredSlot: "LATE",
