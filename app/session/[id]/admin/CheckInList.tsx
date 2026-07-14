@@ -206,9 +206,13 @@ export default function CheckInList({
                 <button
                   onClick={() => toggleOut(s.id, true)}
                   disabled={busy}
-                  className="shrink-0 text-[11px] text-gray-500 hover:underline disabled:opacity-50"
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors disabled:opacity-50 ${
+                    busy
+                      ? "bg-red-500 text-white border-red-500"
+                      : "bg-white text-amber-600 border-amber-400 hover:bg-amber-50"
+                  }`}
                 >
-                  เช็คเอาท์
+                  {busy ? "..." : "เช็คเอาท์"}
                 </button>
               )}
               <span className={`flex-1 min-w-0 truncate ${here ? "font-medium" : "text-gray-500"}`}>

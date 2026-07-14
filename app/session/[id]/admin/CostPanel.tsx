@@ -73,16 +73,39 @@ export default function CostPanel({
     }
   }
 
+  async function handleReopen() {
+    if (!confirm("เปิดวันนี้อีกครั้ง? ยอดที่คำนวณไว้จะถูกล้าง")) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/reopen`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "เปิดวันไม่สำเร็จ");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <section className="flex flex-col gap-2">
       <h2 className="font-semibold">ค่าใช้จ่าย{isClosed ? " (ปิดวันแล้ว)" : " & ปิดวัน"}</h2>
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {isClosed ? (
-        <div className="text-sm flex flex-col gap-1">
+        <div className="text-sm flex flex-col gap-2">
           <p>ค่าคอร์ท: {closedSummary?.courtCost} บาท</p>
           <p>ค่าลูกแบด: {closedSummary?.shuttlecockCost} บาท</p>
           <p className="font-semibold">รวม: {closedSummary?.totalCost} บาท</p>
+          <button
+            onClick={handleReopen}
+            disabled={loading}
+            className="rounded-md border border-brand-400 text-brand-700 px-4 py-2 text-sm font-medium hover:bg-brand-50 disabled:opacity-50 self-start"
+          >
+            {loading ? "กำลังเปิด..." : "เปิดวันอีกครั้ง"}
+          </button>
         </div>
       ) : courtRates.length === 0 || shuttlecockTypes.length === 0 ? (
         <p className="text-sm text-gray-500">

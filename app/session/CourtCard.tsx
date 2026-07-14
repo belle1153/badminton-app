@@ -174,7 +174,7 @@ export default function CourtCard({
         </div>
       )}
       <div
-        className={`bg-gradient-to-b from-slate-600 to-slate-800 p-4 flex flex-col flex-1 ${
+        className={`bg-gradient-to-b from-blue-500 to-blue-700 p-4 flex flex-col flex-1 ${
           editable ? "min-h-[200px]" : "min-h-[280px]"
         }`}
       >
@@ -184,7 +184,7 @@ export default function CourtCard({
             <p className="text-white/50 text-sm font-medium">ว่าง</p>
           </div>
         ) : (
-          <div className="flex-1 rounded-lg border-2 border-white/25 px-3 py-4 flex flex-col justify-around gap-3">
+          <div className="flex-1 rounded-lg border-2 border-white/25 px-3 py-4 flex flex-col justify-around gap-2">
             <div
               className={
                 editable
@@ -194,7 +194,11 @@ export default function CourtCard({
             >
               {(editable ? match! : shown!).team1.map(renderPlayer)}
             </div>
-            <div className="border-t-2 border-dashed border-white/60" />
+            <div className="flex items-center gap-2">
+              <div className="flex-1 border-t-2 border-dashed border-white/50" />
+              <span className="text-white font-bold text-xs bg-white/15 rounded-full px-2 py-0.5">VS</span>
+              <div className="flex-1 border-t-2 border-dashed border-white/50" />
+            </div>
             <div
               className={
                 editable

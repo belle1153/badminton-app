@@ -4,25 +4,23 @@ import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
 import MultiSignUpForm from "./MultiSignUpForm";
 import AutoRefresh from "../session/AutoRefresh";
-import AnnouncementCarousel from "../AnnouncementCarousel";
 
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
-  const [sessions, announcements] = await Promise.all([
-    prisma.session.findMany({
-      where: { status: "OPEN" },
-      orderBy: { date: "asc" },
-      include: { signUps: { where: { status: { not: "WITHDRAWN" } } } },
-    }),
-    prisma.announcement.findMany({ where: { active: true, kind: "announcement" }, orderBy: { createdAt: "desc" } }),
-  ]);
+  const sessions = await prisma.session.findMany({
+    where: { status: "OPEN" },
+    orderBy: { date: "asc" },
+    include: { signUps: { where: { status: { not: "WITHDRAWN" } } } },
+  });
 
   if (sessions.length === 0) {
     return (
       <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-4">
+        <Link href="/" className="text-sm text-gray-500 hover:underline">
+          ← กลับหน้าแรก
+        </Link>
         <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
-        <AnnouncementCarousel items={announcements} />
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
       </main>
     );
@@ -49,6 +47,7 @@ export default async function RegisterPage() {
       dayLabel,
       shortLabel,
       venue: s.venue,
+      startTime: s.startTime,
       earlyCount,
       earlyCapacity,
       lateCount,
@@ -61,6 +60,9 @@ export default async function RegisterPage() {
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
       <AutoRefresh />
+      <Link href="/" className="text-sm text-gray-500 hover:underline">
+        ← กลับหน้าแรก
+      </Link>
       <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
 
       <p className="text-sm text-gray-600">
@@ -79,6 +81,7 @@ export default async function RegisterPage() {
           • ถอนหลัง 12.00 น. <strong>ขออนุญาตหารค่าคอร์ท 100 บาท</strong> (ยกเว้นหาคนมาแทนได้) —
           ติดต่อแอดมินเพื่อกด accept การถอนชื่อครับ
         </p>
+        <p>• ลงหลายวันได้ในครั้งเดียว แต่ <strong>ถอนชื่อต้องถอนแยกทีละวัน</strong> ในหน้าของวันนั้น</p>
       </div>
 
       <section className="flex flex-col gap-3">
@@ -90,18 +93,16 @@ export default async function RegisterPage() {
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold">{d.dayLabel}</span>
-              <span className="text-xs text-brand-700">ดูรายชื่อ / สนาม / ค่าใช้จ่าย →</span>
+              <span className="text-xs text-gray-400">{d.venue}</span>
             </div>
             <div className="text-sm text-gray-600 mt-1">
-              1 ทุ่ม {d.earlyCount}/{d.earlyCapacity} · 2 ทุ่ม {d.lateCount}/{d.lateCapacity} · สำรอง{" "}
-              {d.waitlistCount}/{WAITLIST_LIMIT}
+              เริ่ม {d.startTime} น. · 1 ทุ่ม {d.earlyCount}/{d.earlyCapacity} · 2 ทุ่ม {d.lateCount}/
+              {d.lateCapacity} · สำรอง {d.waitlistCount}/{WAITLIST_LIMIT}
               {d.registrationClosed && <span className="text-amber-600 ml-2">ปิดรับหลักแล้ว</span>}
             </div>
           </Link>
         ))}
       </section>
-
-      <AnnouncementCarousel items={announcements} />
     </main>
   );
 }

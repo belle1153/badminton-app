@@ -29,9 +29,14 @@ export default function AnnouncementCarousel({ items }: { items: Item[] }) {
     <section className="rounded-lg border border-brand-200 bg-brand-50/60 p-3 flex flex-col gap-2">
       <p className="font-semibold text-brand-800">📣 {a.title}</p>
       {a.body && <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.body}</p>}
-      {a.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={a.imageUrl} alt={a.title} className="rounded-md w-full object-contain" />
+      {items.some((it) => it.imageUrl) && (
+        // Fixed 16:9 box for every slide so switching images never shifts layout.
+        <div className="w-full aspect-video rounded-md overflow-hidden bg-brand-100/40">
+          {a.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={a.imageUrl} alt={a.title} className="w-full h-full object-contain" />
+          )}
+        </div>
       )}
       {items.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-1">

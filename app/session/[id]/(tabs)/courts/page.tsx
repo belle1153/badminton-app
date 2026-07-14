@@ -4,7 +4,7 @@ import { deriveCourtState } from "@/lib/queue";
 import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
-import QueuePairs, { type QueuePair } from "../../../QueuePairs";
+import QueuePairs, { type QueueMatchup } from "../../../QueuePairs";
 
 export const dynamic = "force-dynamic";
 
@@ -104,15 +104,15 @@ export default async function SessionCourtsPage({
     const s = signUpById.get(q.id)!;
     return { id: s.id, name: s.name, skillLevel: s.skillLevel as SkillLevel, fixedPartnerId: s.fixedPartnerId };
   });
-  const pairs: QueuePair[] = [];
-  for (let i = 0; i + 4 <= queuePlayers.length; i += 4) {
+  // Up to 3 upcoming matchups (= 6 prepared pairs) for users.
+  const matchups: QueueMatchup[] = [];
+  for (let i = 0; i + 4 <= queuePlayers.length && matchups.length < 3; i += 4) {
     const { team1, team2 } = balanceTeams(queuePlayers.slice(i, i + 4));
-    pairs.push({ players: team1.map((p) => ({ id: p.id, name: p.name })) });
-    pairs.push({ players: team2.map((p) => ({ id: p.id, name: p.name })) });
-  }
-  const rest = queuePlayers.slice(Math.floor(queuePlayers.length / 4) * 4);
-  for (let i = 0; i < rest.length; i += 2) {
-    pairs.push({ players: rest.slice(i, i + 2).map((p) => ({ id: p.id, name: p.name })) });
+    matchups.push({
+      key: `m-${i}`,
+      teamA: team1.map((p) => ({ id: p.id, name: p.name })),
+      teamB: team2.map((p) => ({ id: p.id, name: p.name })),
+    });
   }
 
   // Read-only game log per court (finished games with results).
@@ -140,10 +140,10 @@ export default async function SessionCourtsPage({
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold">คิวรอลงสนาม</h2>
-          <span className="text-sm text-gray-400">พักนานสุดได้ลงก่อน</span>
+          <h2 className="font-semibold">คู่เตรียม</h2>
+          <span className="text-sm text-gray-400">คิว {queuePlayers.length} คน</span>
         </div>
-        <QueuePairs sessionId={id} pairs={pairs} />
+        <QueuePairs sessionId={id} matchups={matchups} />
       </section>
 
       {finished.length > 0 && (
