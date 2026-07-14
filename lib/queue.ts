@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { generateMatches, type Player, type SkillLevel } from "@/lib/matching";
+import { balanceTeams, diffPenalty, type Player, type SkillLevel } from "@/lib/matching";
 
 export interface QueuePlayer {
   id: string; // signUp id
@@ -133,9 +133,14 @@ export type FillResult =
   | { ok: false; reason: "court_taken" | "not_enough" };
 
 /**
- * Pull the next four from the queue onto a completely idle court (no current
- * game and nothing pre-queued) and start that court's next-numbered game with
- * skill-balanced teams.
+ * Start the next game on an idle court, picking the four that make the most
+ * even game (fun-first balancing) while keeping the queue fair:
+ *
+ * - The player who has waited longest is ALWAYS in the game.
+ * - The other three come from the front window of the queue (up to 8 people),
+ *   scored by: team-tier balance (club odds table: diff 0 best, 3 avoid),
+ *   how far back in the queue they stand, not repeating >2 players from any
+ *   earlier game together, and keeping fixed practice pairs side by side.
  */
 export async function fillCourt(sessionId: string, court: number): Promise<FillResult> {
   const [signups, matches] = await Promise.all([
@@ -147,17 +152,47 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
   if (state.currentByCourt.has(court)) return { ok: false, reason: "court_taken" };
   if (state.queue.length < 4) return { ok: false, reason: "not_enough" };
 
-  const nextFour = state.queue.slice(0, 4);
   const byId = new Map((signups as SignUpRow[]).map((s) => [s.id, s]));
-  const players: Player[] = nextFour.map((q) => {
-    const s = byId.get(q.id)!;
+  const toPlayer = (id: string): Player => {
+    const s = byId.get(id)!;
     return { id: s.id, name: s.name, skillLevel: s.skillLevel, fixedPartnerId: s.fixedPartnerId };
-  });
+  };
 
-  const { matches: built } = generateMatches(players, [court]);
-  const match = built[0];
-  const team1 = match ? match.team1 : players.slice(0, 2);
-  const team2 = match ? match.team2 : players.slice(2, 4);
+  const window = state.queue.slice(0, 8).map((q) => toPlayer(q.id));
+  const finishedSets = (matches as MatchRow[])
+    .filter((m) => m.finishedAt != null)
+    .map((m) => new Set(m.players.map((p) => p.signUpId)));
+  const windowIds = new Set(window.map((p) => p.id));
+
+  let best: { four: Player[]; score: number } | null = null;
+  // Front player fixed at index 0; choose the other three from the window.
+  for (let i = 1; i < window.length - 2; i++)
+    for (let j = i + 1; j < window.length - 1; j++)
+      for (let k = j + 1; k < window.length; k++) {
+        const four = [window[0], window[i], window[j], window[k]];
+        const ids = new Set(four.map((p) => p.id));
+
+        let score = i + j + k; // queue-position fairness
+        score += diffPenalty(balanceTeams(four).diff) * 4; // balance first
+
+        // Don't rebuild an old foursome: >2 shared with any finished game.
+        for (const fs of finishedSets) {
+          let overlap = 0;
+          for (const id of ids) if (fs.has(id)) overlap++;
+          if (overlap > 2) score += 50;
+        }
+
+        // Fixed pair waiting together should go on together.
+        for (const p of four) {
+          if (p.fixedPartnerId && windowIds.has(p.fixedPartnerId) && !ids.has(p.fixedPartnerId)) {
+            score += 20;
+          }
+        }
+
+        if (!best || score < best.score) best = { four, score };
+      }
+
+  const { team1, team2 } = balanceTeams(best!.four);
 
   const maxRoundForCourt = (matches as MatchRow[])
     .filter((m) => m.court === court)

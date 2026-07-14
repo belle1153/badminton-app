@@ -78,6 +78,7 @@ model SignUp {
   preferredSlot  TimeSlot      @default(EARLY) // which block they wanted (for queue-jump when 1 ทุ่ม opens)
   slotNumber     Int?
   checkedInAt    DateTime?
+  checkedOutAt   DateTime? // when they left (per-person billing clock stops)
   createdAt      DateTime      @default(now())
   matchSlots     MatchPlayer[]
   fixedPartnerId String?       @unique
@@ -102,6 +103,7 @@ model Announcement {
   body      String   @default("")
   imageUrl  String? // resized image stored as a data URL
   active    Boolean  @default(true)
+  kind      String   @default("announcement") // "announcement" | "rule" (กฎก๊วน)
   createdAt DateTime @default(now())
 }
 

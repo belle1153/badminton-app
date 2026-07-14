@@ -35,7 +35,15 @@ async function resizeWide(file: File, max = 1000): Promise<string> {
   return c.toDataURL("image/jpeg", 0.7);
 }
 
-export default function AnnouncementManager({ announcements }: { announcements: Announcement[] }) {
+export default function AnnouncementManager({
+  announcements,
+  kind = "announcement",
+  addLabel = "เพิ่มประกาศใหม่",
+}: {
+  announcements: Announcement[];
+  kind?: "announcement" | "rule";
+  addLabel?: string;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -62,7 +70,7 @@ export default function AnnouncementManager({ announcements }: { announcements: 
       const res = await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), body, imageUrl: image }),
+        body: JSON.stringify({ title: title.trim(), body, imageUrl: image, kind }),
       });
       if (!res.ok) {
         setError((await res.json()).error ?? "เพิ่มไม่สำเร็จ");
@@ -97,7 +105,7 @@ export default function AnnouncementManager({ announcements }: { announcements: 
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       <form onSubmit={create} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
-        <span className="text-sm font-semibold">เพิ่มประกาศใหม่</span>
+        <span className="text-sm font-semibold">{addLabel}</span>
         <input
           placeholder="หัวข้อ"
           value={title}

@@ -2,18 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
 interface P {
   id: string;
   name: string;
-}
-
-interface Sub {
-  id: string;
-  name: string;
-  skillLevel: string;
-  waitlist?: boolean;
 }
 
 export interface HistoryGame {
@@ -27,50 +19,24 @@ export interface HistoryGame {
 }
 
 /**
- * Per-court game log (ประวัติแมท): every game a court has run, in order, with
- * winners. Unfinished games (playing / queued) can still be edited — swap a
- * player out, or cancel a queued game entirely.
+ * Per-court game log (ประวัติแมท) — read-only record of every game with
+ * winners. Player editing lives on the live board (สนามสด); here the only
+ * action is cancelling a still-queued game.
  */
 export default function MatchHistory({
   sessionId,
   games,
-  substitutes,
   readOnly,
 }: {
   sessionId: string;
   games: HistoryGame[];
-  substitutes: Sub[];
   readOnly?: boolean;
 }) {
   const router = useRouter();
-  const [swapTarget, setSwapTarget] = useState<{ matchId: string; playerId: string } | null>(null);
-  const [replacement, setReplacement] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const courts = [...new Set(games.map((g) => g.court))].sort((a, b) => a - b);
-
-  async function confirmSwap() {
-    if (!swapTarget || !replacement) return;
-    setError(null);
-    setLoading("swap");
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/matches/${swapTarget.matchId}/swap`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outSignUpId: swapTarget.playerId, inSignUpId: replacement }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "สลับไม่สำเร็จ");
-      setSwapTarget(null);
-      setReplacement("");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(null);
-    }
-  }
 
   async function cancelGame(g: HistoryGame) {
     if (!confirm(`ยกเลิก สนาม ${g.court} เกมที่ ${g.round} ใช่ไหมครับ?`)) return;
@@ -90,56 +56,13 @@ export default function MatchHistory({
     }
   }
 
-  function playerName(g: HistoryGame, p: P, team: number) {
-    const editable = !readOnly && g.status !== "finished";
-    const isSwapping = swapTarget?.matchId === g.id && swapTarget.playerId === p.id;
-    const winner = g.status === "finished" && g.winnerTeam === team;
-    if (isSwapping) {
-      return (
-        <span key={p.id} className="inline-flex items-center gap-1">
-          <select
-            value={replacement}
-            onChange={(e) => setReplacement(e.target.value)}
-            className="text-xs border border-gray-300 rounded px-1 py-0.5 max-w-[9rem]"
-            autoFocus
-          >
-            <option value="">แทน {p.name} ด้วย...</option>
-            {substitutes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]}){s.waitlist ? " — สำรอง" : ""}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={confirmSwap}
-            disabled={!replacement || loading === "swap"}
-            className="text-brand-700 text-xs disabled:opacity-50"
-          >
-            ✓
-          </button>
-          <button onClick={() => setSwapTarget(null)} className="text-gray-400 text-xs">
-            ✕
-          </button>
-        </span>
-      );
-    }
+  function team(g: HistoryGame, players: P[], teamNo: number) {
+    const winner = g.status === "finished" && g.winnerTeam === teamNo;
     return (
-      <button
-        key={p.id}
-        type="button"
-        disabled={!editable}
-        onClick={() => {
-          setSwapTarget({ matchId: g.id, playerId: p.id });
-          setReplacement("");
-          setError(null);
-        }}
-        className={`${winner ? "font-semibold text-brand-700" : ""} ${
-          editable ? "hover:underline decoration-dotted" : "cursor-default"
-        }`}
-      >
-        {p.name}
-        {editable && <span className="text-brand-400 text-[10px] ml-0.5">✎</span>}
-      </button>
+      <span className={winner ? "font-semibold text-brand-700" : "text-gray-700"}>
+        {players.map((p) => p.name).join(" + ")}
+        {winner && " ✓"}
+      </span>
     );
   }
 
@@ -187,14 +110,9 @@ export default function MatchHistory({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="flex gap-1.5">{g.team1.map((p) => playerName(g, p, 1))}</span>
+                    {team(g, g.team1, 1)}
                     <span className="text-gray-300">vs</span>
-                    <span className="flex gap-1.5">{g.team2.map((p) => playerName(g, p, 2))}</span>
-                    {g.status === "finished" && g.winnerTeam != null && (
-                      <span className="text-[11px] text-brand-700 ml-1">
-                        ✓ ทีม{g.winnerTeam === 1 ? "ซ้าย" : "ขวา"}ชนะ
-                      </span>
-                    )}
+                    {team(g, g.team2, 2)}
                   </div>
                 </li>
               ))}

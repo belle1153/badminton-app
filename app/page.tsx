@@ -11,18 +11,39 @@ export default async function Home() {
       orderBy: { date: "desc" },
       include: { signUps: { where: { status: "CONFIRMED" } } },
     }),
-    prisma.announcement.findMany({ where: { active: true }, orderBy: { createdAt: "desc" } }),
+    prisma.announcement.findMany({ where: { active: true, kind: "announcement" }, orderBy: { createdAt: "desc" } }),
   ]);
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
       <h1 className="text-2xl font-bold">🏸 TUATUENG REGISTER</h1>
 
-      {sessions.length === 0 && (
-        <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่น กดสร้างรอบใหม่ได้เลยครับ</p>
-      )}
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          href="/register"
+          className="rounded-xl border-2 border-brand-200 bg-brand-50/60 p-4 flex flex-col items-center gap-1 text-center hover:border-brand-400 transition"
+        >
+          <span className="text-3xl">📝</span>
+          <span className="font-semibold text-brand-800">ลงทะเบียน</span>
+          <span className="text-xs text-gray-500">ลงชื่อตีแบด / เลือกวัน</span>
+        </Link>
+        <Link
+          href="/rules"
+          className="rounded-xl border-2 border-gray-200 p-4 flex flex-col items-center gap-1 text-center hover:border-brand-400 transition"
+        >
+          <span className="text-3xl">📖</span>
+          <span className="font-semibold">กฎของก๊วน / สนาม</span>
+          <span className="text-xs text-gray-500">กติกา อ่านก่อนมาตี</span>
+        </Link>
+      </div>
 
-      <ul className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3">
+        <h2 className="font-semibold">📅 วัน Register ที่เปิดอยู่</h2>
+        {sessions.length === 0 && (
+          <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่น กดสร้างรอบใหม่ได้เลยครับ</p>
+        )}
+
+        <ul className="flex flex-col gap-3">
         {sessions.map((s) => (
           <li key={s.id}>
             <Link
@@ -50,7 +71,8 @@ export default async function Home() {
             </Link>
           </li>
         ))}
-      </ul>
+        </ul>
+      </section>
 
       <AnnouncementCarousel items={announcements} />
     </main>

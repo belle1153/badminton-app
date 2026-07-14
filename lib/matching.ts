@@ -26,11 +26,59 @@ export const SKILL_LABELS: Record<SkillLevel, string> = {
   P: "P",
 };
 
+// Club weighting groups the 9 levels into 4 tiers for balancing:
+// 1=RK · 2=BG,BG+ · 3=N-,N,N+ · 4=S,S+,P
+export const SKILL_TIER: Record<SkillLevel, number> = {
+  RK: 1,
+  BG: 2,
+  BG_PLUS: 2,
+  N_MINUS: 3,
+  N: 3,
+  N_PLUS: 3,
+  S: 4,
+  S_PLUS: 4,
+  P: 4,
+};
+
 export interface Player {
   id: string;
   name: string;
   skillLevel: SkillLevel;
   fixedPartnerId?: string | null;
+}
+
+/**
+ * Split exactly four players into the two most even teams by tier weight
+ * (a team's weight = sum of its players' tiers). A mutual fixed pair always
+ * stays together. Returns the split with the smallest weight difference.
+ */
+export function balanceTeams(four: Player[]): { team1: Player[]; team2: Player[]; diff: number } {
+  const [a, b, c, d] = four;
+  const w = (p: Player) => SKILL_TIER[p.skillLevel];
+  const splits: [Player[], Player[]][] = [
+    [[a, b], [c, d]],
+    [[a, c], [b, d]],
+    [[a, d], [b, c]],
+  ];
+  const paired = (t: Player[]) =>
+    t[0].fixedPartnerId === t[1].id && t[1].fixedPartnerId === t[0].id;
+  const hasPair = splits.some(([t1, t2]) => paired(t1) || paired(t2));
+
+  let best: { team1: Player[]; team2: Player[]; diff: number } | null = null;
+  for (const [t1, t2] of splits) {
+    if (hasPair && !(paired(t1) || paired(t2))) continue; // never break a fixed pair
+    const diff = Math.abs(w(t1[0]) + w(t1[1]) - (w(t2[0]) + w(t2[1])));
+    if (!best || diff < best.diff) best = { team1: t1, team2: t2, diff };
+  }
+  return best!;
+}
+
+// Penalty for a match by team-weight difference, from the club's odds table:
+// diff 0 ≈ 50/50 (best), 1 ≈ 40%, 2 ≈ 8%, 3 ≈ 2% (avoid), 4+ never.
+export const DIFF_PENALTY = [0, 1, 8, 30, 100];
+
+export function diffPenalty(diff: number): number {
+  return DIFF_PENALTY[Math.min(diff, DIFF_PENALTY.length - 1)];
 }
 
 export interface CourtMatch {

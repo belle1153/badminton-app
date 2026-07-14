@@ -15,7 +15,7 @@ export default async function RegisterPage() {
       orderBy: { date: "asc" },
       include: { signUps: { where: { status: { not: "WITHDRAWN" } } } },
     }),
-    prisma.announcement.findMany({ where: { active: true }, orderBy: { createdAt: "desc" } }),
+    prisma.announcement.findMany({ where: { active: true, kind: "announcement" }, orderBy: { createdAt: "desc" } }),
   ]);
 
   if (sessions.length === 0) {

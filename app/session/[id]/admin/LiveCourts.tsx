@@ -2,10 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
 interface P {
   id: string;
   name: string;
+  skillLevel?: string;
+}
+
+export interface Substitute {
+  id: string;
+  name: string;
+  skillLevel: string;
+  waitlist?: boolean;
 }
 
 export interface LiveMatch {
@@ -37,6 +46,7 @@ export default function LiveCourts({
   upcomingMatches = [],
   queue,
   recentFinished,
+  substitutes = [],
 }: {
   sessionId: string;
   courts: number;
@@ -44,6 +54,7 @@ export default function LiveCourts({
   upcomingMatches?: LiveMatch[];
   queue: P[];
   recentFinished: FinishedGame[];
+  substitutes?: Substitute[];
 }) {
   const router = useRouter();
   const [finishing, setFinishing] = useState<LiveMatch | null>(null);
@@ -51,6 +62,31 @@ export default function LiveCourts({
   const [winner, setWinner] = useState<0 | 1 | 2 | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Player being swapped out of a live game (edit-in-place on the court card).
+  const [swapping, setSwapping] = useState<{ matchId: string; playerId: string } | null>(null);
+  const [replacement, setReplacement] = useState("");
+
+  async function confirmSwap() {
+    if (!swapping || !replacement) return;
+    setError(null);
+    setLoading("swap");
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/matches/${swapping.matchId}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outSignUpId: swapping.playerId, inSignUpId: replacement }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "สลับไม่สำเร็จ");
+      setSwapping(null);
+      setReplacement("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
 
   const byCourt = new Map(activeMatches.map((m) => [m.court, m]));
   const upcomingByCourt = new Map<number, LiveMatch[]>();
@@ -143,17 +179,60 @@ export default function LiveCourts({
     }
   }
 
-  function teamRow(players: P[]) {
+  function teamRow(m: LiveMatch, players: P[]) {
     return (
       <div className="flex flex-col items-center gap-1">
-        {players.map((p) => (
-          <span
-            key={p.id}
-            className="bg-white text-gray-900 text-sm font-medium rounded-full px-3 py-1 shadow-sm whitespace-nowrap"
-          >
-            {p.name}
-          </span>
-        ))}
+        {players.map((p) => {
+          if (swapping && swapping.matchId === m.id && swapping.playerId === p.id) {
+            return (
+              <span key={p.id} className="inline-flex items-center gap-1 bg-white rounded-full px-2 py-1 shadow-sm">
+                <select
+                  value={replacement}
+                  onChange={(e) => setReplacement(e.target.value)}
+                  className="text-gray-900 text-xs rounded max-w-[8.5rem]"
+                  autoFocus
+                >
+                  <option value="">แทน {p.name} ด้วย...</option>
+                  {substitutes.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]}){s.waitlist ? " — สำรอง" : ""}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={confirmSwap}
+                  disabled={!replacement || loading === "swap"}
+                  className="text-brand-700 text-sm disabled:opacity-50"
+                >
+                  ✓
+                </button>
+                <button onClick={() => setSwapping(null)} className="text-gray-400 text-sm">
+                  ✕
+                </button>
+              </span>
+            );
+          }
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                setSwapping({ matchId: m.id, playerId: p.id });
+                setReplacement("");
+                setError(null);
+              }}
+              className="bg-white text-gray-900 text-sm font-medium rounded-full px-3 py-1 shadow-sm whitespace-nowrap inline-flex items-center gap-1"
+            >
+              {p.name}
+              {p.skillLevel && (
+                <span className="text-gray-400 text-[11px]">
+                  {SKILL_LABELS[p.skillLevel as SkillLevel] ?? p.skillLevel}
+                </span>
+              )}
+              <span className="text-brand-500 text-[11px]">✎</span>
+            </button>
+          );
+        })}
       </div>
     );
   }
@@ -189,13 +268,13 @@ export default function LiveCourts({
                 สนาม {court}
                 {m && <span className="text-white/60 font-normal"> — เกมที่ {m.round}</span>}
               </div>
-              <div className="bg-gradient-to-b from-slate-600 to-slate-800 p-3 flex flex-col gap-2 min-h-[150px]">
+              <div className="bg-gradient-to-b from-blue-500 to-blue-700 p-3 flex flex-col gap-2 min-h-[150px]">
                 {m ? (
                   <>
                     <div className="flex-1 flex flex-col justify-center gap-2">
-                      {teamRow(m.team1)}
+                      {teamRow(m, m.team1)}
                       <div className="border-t-2 border-dashed border-white/50" />
-                      {teamRow(m.team2)}
+                      {teamRow(m, m.team2)}
                     </div>
                     <button
                       onClick={() => openFinish(m)}
@@ -249,11 +328,11 @@ export default function LiveCourts({
                 key={p.id}
                 className={`text-sm rounded-full px-3 py-1 border ${
                   i < 4
-                    ? "bg-brand-50 border-brand-300 text-brand-800"
-                    : "bg-gray-50 border-gray-200 text-gray-600"
+                    ? "bg-amber-400 border-amber-400 text-white font-medium"
+                    : "bg-amber-50 border-amber-300 text-amber-800"
                 }`}
               >
-                <span className="text-gray-400 mr-1">{i + 1}.</span>
+                <span className={`mr-1 ${i < 4 ? "text-white/70" : "text-amber-400"}`}>{i + 1}.</span>
                 {p.name}
               </li>
             ))}

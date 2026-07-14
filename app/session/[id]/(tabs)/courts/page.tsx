@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { deriveCourtState } from "@/lib/queue";
-import { type SkillLevel } from "@/lib/matching";
+import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
-import QueueList from "../../../QueueList";
+import QueuePairs, { type QueuePair } from "../../../QueuePairs";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,12 @@ export default async function SessionCourtsPage({
   // court's current game plus up to two pre-queued next games.
   const allMatches = session.matches.map(toTeamMatch);
   const matchById = new Map(session.matches.map((m) => [m.id, m]));
-  const courts = Array.from({ length: session.courtsLate }, (_, i) => {
+  // Never hide a court that still has a live game after the count is reduced.
+  const courtsToShow = [...liveState.currentByCourt.keys()].reduce(
+    (max, c) => Math.max(max, c),
+    session.courtsLate
+  );
+  const courts = Array.from({ length: courtsToShow }, (_, i) => {
     const court = i + 1;
     const cur = liveState.currentByCourt.get(court);
     const ups = (liveState.upcomingByCourt.get(court) ?? []).slice(0, 2);
@@ -92,7 +97,29 @@ export default async function SessionCourtsPage({
     };
   });
 
-  const queue = liveState.queue.map((q) => ({ id: q.id, name: q.name }));
+  // Show the queue as prepared pairs: each block of four (in wait order) is
+  // split into its two balanced teams, so people see who they'll pair with.
+  const signUpById = new Map(session.signUps.map((s) => [s.id, s]));
+  const queuePlayers: Player[] = liveState.queue.map((q) => {
+    const s = signUpById.get(q.id)!;
+    return { id: s.id, name: s.name, skillLevel: s.skillLevel as SkillLevel, fixedPartnerId: s.fixedPartnerId };
+  });
+  const pairs: QueuePair[] = [];
+  for (let i = 0; i + 4 <= queuePlayers.length; i += 4) {
+    const { team1, team2 } = balanceTeams(queuePlayers.slice(i, i + 4));
+    pairs.push({ players: team1.map((p) => ({ id: p.id, name: p.name })) });
+    pairs.push({ players: team2.map((p) => ({ id: p.id, name: p.name })) });
+  }
+  const rest = queuePlayers.slice(Math.floor(queuePlayers.length / 4) * 4);
+  for (let i = 0; i < rest.length; i += 2) {
+    pairs.push({ players: rest.slice(i, i + 2).map((p) => ({ id: p.id, name: p.name })) });
+  }
+
+  // Read-only game log per court (finished games with results).
+  const finished = session.matches
+    .filter((m) => m.finishedAt != null)
+    .sort((a, b) => a.court - b.court || a.round - b.round);
+  const historyCourts = [...new Set(finished.map((m) => m.court))];
 
   return (
     <>
@@ -116,8 +143,46 @@ export default async function SessionCourtsPage({
           <h2 className="font-semibold">คิวรอลงสนาม</h2>
           <span className="text-sm text-gray-400">พักนานสุดได้ลงก่อน</span>
         </div>
-        <QueueList sessionId={id} queue={queue} />
+        <QueuePairs sessionId={id} pairs={pairs} />
       </section>
+
+      {finished.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-semibold">ประวัติเกม</h2>
+          {historyCourts.map((court) => (
+            <div key={court} className="flex flex-col gap-1">
+              <h3 className="text-sm font-medium text-gray-600">สนาม {court}</h3>
+              <ul className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
+                {finished
+                  .filter((m) => m.court === court)
+                  .map((m) => {
+                    const t1 = m.players.filter((p) => p.team === 1).map((p) => p.signUp.name);
+                    const t2 = m.players.filter((p) => p.team === 2).map((p) => p.signUp.name);
+                    return (
+                      <li key={m.id} className="px-2.5 py-1.5 text-sm flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-gray-400 shrink-0 w-12">เกม {m.round}</span>
+                        <span className={m.winnerTeam === 1 ? "font-semibold text-brand-700" : "text-gray-600"}>
+                          {t1.join(" + ")}
+                          {m.winnerTeam === 1 && " ✓"}
+                        </span>
+                        <span className="text-gray-300 text-xs">vs</span>
+                        <span className={m.winnerTeam === 2 ? "font-semibold text-brand-700" : "text-gray-600"}>
+                          {t2.join(" + ")}
+                          {m.winnerTeam === 2 && " ✓"}
+                        </span>
+                        {m.winnerTeam == null && (
+                          <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
+                            🤝 เสมอ
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+          ))}
+        </section>
+      )}
     </>
   );
 }

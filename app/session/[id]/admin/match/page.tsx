@@ -57,14 +57,33 @@ export default async function SessionMatchPage({
   const matchById = new Map(matches.map((m) => [m.id, m]));
   const toLive = (game: { id: string; round: number }, court: number): LiveMatch => {
     const m = matchById.get(game.id)!;
+    const toP = (p: (typeof m.players)[number]) => ({
+      id: p.signUp.id,
+      name: p.signUp.name,
+      skillLevel: p.signUp.skillLevel,
+    });
     return {
       id: m.id,
       court,
       round: m.round,
-      team1: m.players.filter((p) => p.team === 1).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
-      team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
+      team1: m.players.filter((p) => p.team === 1).map(toP),
+      team2: m.players.filter((p) => p.team === 2).map(toP),
     };
   };
+
+  // Swap pool for editing live games: present and not booked in any pending game.
+  const substitutes = session.signUps
+    .filter(
+      (s) =>
+        (s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null)) &&
+        !state.reservedIds.has(s.id)
+    )
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel,
+      waitlist: s.status === "WAITLIST",
+    }));
 
   const liveMatches: LiveMatch[] = [...state.currentByCourt.entries()].map(([court, g]) =>
     toLive(g, court)
@@ -99,11 +118,15 @@ export default async function SessionMatchPage({
       {session.status === "OPEN" && (
         <LiveCourts
           sessionId={id}
-          courts={session.courtsLate}
+          courts={[...liveMatches, ...upcomingMatches].reduce(
+            (max, m) => Math.max(max, m.court),
+            session.courtsLate
+          )}
           activeMatches={liveMatches}
           upcomingMatches={upcomingMatches}
           queue={liveQueue}
           recentFinished={recentFinished}
+          substitutes={substitutes}
         />
       )}
 

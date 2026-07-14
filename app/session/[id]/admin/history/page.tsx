@@ -57,32 +57,14 @@ export default async function SessionMatchHistoryPage({
     team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
   }));
 
-  // Swap pool: anyone present who isn't booked in an unfinished game.
-  const substitutes = session.signUps
-    .filter(
-      (s) =>
-        (s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null)) &&
-        !state.reservedIds.has(s.id)
-    )
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      skillLevel: s.skillLevel,
-      waitlist: s.status === "WAITLIST",
-    }));
-
   return (
     <>
       <h1 className="font-semibold text-lg">ประวัติแมท (ต่อสนาม)</h1>
       <p className="text-sm text-gray-500 -mt-3">
-        กดชื่อ (✎) ในเกมที่ยังไม่จบเพื่อสลับตัว · เกมที่รอคิวยกเลิกได้
+        บันทึกทุกเกมพร้อมผล · แก้ตัวผู้เล่นได้ที่หน้า &quot;จัดการแมท → สนามสด&quot; ·
+        เกมที่รอคิวยกเลิกได้
       </p>
-      <MatchHistory
-        sessionId={id}
-        games={games}
-        substitutes={substitutes}
-        readOnly={session.status === "CLOSED"}
-      />
+      <MatchHistory sessionId={id} games={games} readOnly={session.status === "CLOSED"} />
     </>
   );
 }

@@ -10,7 +10,10 @@ export default async function AnnouncementsPage() {
     redirect("/admin/login");
   }
 
-  const announcements = await prisma.announcement.findMany({ orderBy: { createdAt: "desc" } });
+  const announcements = await prisma.announcement.findMany({
+    where: { kind: "announcement" },
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">

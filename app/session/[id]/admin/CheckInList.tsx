@@ -11,7 +11,9 @@ interface CheckInSignUp {
   name: string;
   skillLevel: string;
   status: "CONFIRMED" | "WAITLIST";
+  preferredSlot: "EARLY" | "LATE";
   checkedInAt: string | null;
+  checkedOutAt: string | null;
 }
 
 export default function CheckInList({
@@ -24,18 +26,45 @@ export default function CheckInList({
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  // Optimistic check-in overlay so the button flips instantly (server catches up).
+  const [optimistic, setOptimistic] = useState<Map<string, boolean>>(new Map());
 
-  async function toggle(signUpId: string, checkedIn: boolean) {
+  async function toggleOut(signUpId: string, checkedOut: boolean) {
     setPendingId(signUpId);
     try {
-      await fetch(`/api/sessions/${sessionId}/signup/${signUpId}/checkin`, {
+      await fetch(`/api/sessions/${sessionId}/signup/${signUpId}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkedIn }),
+        body: JSON.stringify({ checkedOut }),
       });
       router.refresh();
     } finally {
       setPendingId(null);
+    }
+  }
+
+  async function toggle(signUpId: string, checkedIn: boolean) {
+    setOptimistic((m) => new Map(m).set(signUpId, checkedIn));
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/signup/${signUpId}/checkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkedIn }),
+      });
+      if (!res.ok) {
+        setOptimistic((m) => {
+          const n = new Map(m);
+          n.delete(signUpId);
+          return n;
+        });
+      }
+      router.refresh();
+    } catch {
+      setOptimistic((m) => {
+        const n = new Map(m);
+        n.delete(signUpId);
+        return n;
+      });
     }
   }
 
@@ -92,7 +121,7 @@ export default function CheckInList({
     }
   }
 
-  const checkedInCount = signUps.filter((s) => s.checkedInAt).length;
+  const checkedInCount = signUps.filter((s) => optimistic.get(s.id) ?? s.checkedInAt != null).length;
 
   return (
     <section className="flex flex-col gap-2">
@@ -126,24 +155,62 @@ export default function CheckInList({
       <p className="text-xs text-gray-400">
         กดปุ่มสถานะเพื่อสลับ &quot;ยังไม่มา / มาแล้ว&quot; · ปรับระดับมือได้จาก dropdown
       </p>
-      <div className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
-        {signUps.map((s) => {
-          const here = s.checkedInAt != null;
+      {(["EARLY", "LATE"] as const).map((slot) => {
+        const group = signUps.filter((s) => s.preferredSlot === slot);
+        if (group.length === 0) return null;
+        const isHere = (s: CheckInSignUp) => optimistic.get(s.id) ?? s.checkedInAt != null;
+        // Not-arrived on top; arrived sink down; checked-out at the very bottom.
+        const ordered = [...group].sort((a, b) => {
+          const rank = (x: CheckInSignUp) => (x.checkedOutAt ? 2 : isHere(x) ? 1 : 0);
+          return rank(a) - rank(b);
+        });
+        return (
+          <div key={slot} className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-gray-600">
+              {slot === "EARLY" ? "🕖 รอบ 1 ทุ่ม" : "🕗 รอบ 2 ทุ่ม"}{" "}
+              <span className="font-normal text-gray-400">
+                ({group.filter(isHere).length}/{group.length} มาแล้ว)
+              </span>
+            </h3>
+            <div className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
+              {ordered.map((s) => {
+          const here = optimistic.get(s.id) ?? s.checkedInAt != null;
           const busy = pendingId === s.id;
           return (
             <div key={s.id} className="flex items-center gap-2 text-sm px-2 py-2">
-              <button
-                onClick={() => toggle(s.id, !here)}
-                disabled={busy}
-                aria-pressed={here}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors disabled:opacity-50 ${
-                  here
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-white text-gray-400 border-gray-300"
-                }`}
-              >
-                {here ? "✓ มาแล้ว" : "ยังไม่มา"}
-              </button>
+              {s.checkedOutAt ? (
+                <button
+                  onClick={() => toggleOut(s.id, false)}
+                  disabled={busy}
+                  className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border bg-gray-200 text-gray-600 border-gray-300 disabled:opacity-50"
+                  title="กดเพื่อยกเลิกเช็คเอาท์"
+                >
+                  🏁 กลับแล้ว{" "}
+                  {new Date(s.checkedOutAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                </button>
+              ) : (
+                <button
+                  onClick={() => toggle(s.id, !here)}
+                  disabled={busy}
+                  aria-pressed={here}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors disabled:opacity-50 ${
+                    here
+                      ? "bg-green-500 text-white border-green-500"
+                      : "bg-white text-gray-400 border-gray-300"
+                  }`}
+                >
+                  {here ? "✓ มาแล้ว" : "ยังไม่มา"}
+                </button>
+              )}
+              {here && !s.checkedOutAt && (
+                <button
+                  onClick={() => toggleOut(s.id, true)}
+                  disabled={busy}
+                  className="shrink-0 text-[11px] text-gray-500 hover:underline disabled:opacity-50"
+                >
+                  เช็คเอาท์
+                </button>
+              )}
               <span className={`flex-1 min-w-0 truncate ${here ? "font-medium" : "text-gray-500"}`}>
                 {s.name}
               </span>
@@ -173,9 +240,13 @@ export default function CheckInList({
               </button>
             </div>
           );
-        })}
-        {signUps.length === 0 && <p className="text-sm text-gray-400 p-3">ยังไม่มีคนลงชื่อ</p>}
-      </div>
+              })}
+            </div>
+          </div>
+        );
+      })}
+      {signUps.length === 0 && <p className="text-sm text-gray-400 p-3">ยังไม่มีคนลงชื่อ</p>}
+
     </section>
   );
 }

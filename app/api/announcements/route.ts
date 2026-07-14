@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const text = typeof body.body === "string" ? body.body : "";
   const imageUrl = body.imageUrl ?? null;
+  const kind = body.kind === "rule" ? "rule" : "announcement";
 
   if (!title) return NextResponse.json({ error: "กรุณาใส่หัวข้อ" }, { status: 400 });
   if (imageUrl !== null && (!String(imageUrl).startsWith("data:image/") || String(imageUrl).length > MAX_IMAGE)) {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   const created = await prisma.announcement.create({
-    data: { title, body: text, imageUrl },
+    data: { title, body: text, imageUrl, kind },
   });
   return NextResponse.json(created);
 }
