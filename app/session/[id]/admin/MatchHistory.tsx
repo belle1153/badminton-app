@@ -172,8 +172,8 @@ export default function MatchHistory({
                       </span>
                     )}
                     {g.status === "finished" && g.winnerTeam == null && (
-                      <span className="text-[10px] rounded-full bg-gray-100 text-gray-500 px-1.5 py-0.5">
-                        จบแล้ว
+                      <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
+                        🤝 เสมอ
                       </span>
                     )}
                     {!readOnly && g.status === "upcoming" && (

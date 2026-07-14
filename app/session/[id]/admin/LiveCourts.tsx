@@ -21,6 +21,7 @@ export interface FinishedGame {
   court: number;
   winnerNames: string[];
   loserNames: string[];
+  draw?: boolean;
 }
 
 /**
@@ -46,7 +47,8 @@ export default function LiveCourts({
 }) {
   const router = useRouter();
   const [finishing, setFinishing] = useState<LiveMatch | null>(null);
-  const [winner, setWinner] = useState<1 | 2 | null>(null);
+  // 1 | 2 = winning team, 0 = draw (เสมอ), null = not picked yet.
+  const [winner, setWinner] = useState<0 | 1 | 2 | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -269,9 +271,19 @@ export default function LiveCourts({
             {recentFinished.map((g) => (
               <li key={g.id} className="text-sm border-b border-gray-100 py-1 flex items-center gap-2">
                 <span className="text-xs text-gray-400 shrink-0">สนาม {g.court}</span>
-                <span className="text-brand-700 font-medium">✓ {g.winnerNames.join(" + ")}</span>
-                <span className="text-gray-400 text-xs">ชนะ</span>
-                <span className="text-gray-500">{g.loserNames.join(" + ")}</span>
+                {g.draw ? (
+                  <>
+                    <span className="text-gray-700">{g.winnerNames.join(" + ")}</span>
+                    <span className="text-amber-600 text-xs font-medium">🤝 เสมอ</span>
+                    <span className="text-gray-700">{g.loserNames.join(" + ")}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-brand-700 font-medium">✓ {g.winnerNames.join(" + ")}</span>
+                    <span className="text-gray-400 text-xs">ชนะ</span>
+                    <span className="text-gray-500">{g.loserNames.join(" + ")}</span>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -299,6 +311,16 @@ export default function LiveCourts({
                   </button>
                 );
               })}
+              <button
+                onClick={() => setWinner(0)}
+                className={`rounded-lg border-2 px-3 py-2 text-sm font-medium ${
+                  winner === 0
+                    ? "bg-amber-500 text-white border-amber-500"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-amber-400"
+                }`}
+              >
+                🤝 เสมอ
+              </button>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-2 mt-1">

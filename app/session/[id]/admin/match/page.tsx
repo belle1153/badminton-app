@@ -84,8 +84,9 @@ export default async function SessionMatchPage({
       return {
         id: m.id,
         court: m.court,
-        winnerNames: m.winnerTeam === 1 ? t1 : t2,
-        loserNames: m.winnerTeam === 1 ? t2 : t1,
+        winnerNames: m.winnerTeam === 2 ? t2 : t1,
+        loserNames: m.winnerTeam === 2 ? t1 : t2,
+        draw: m.winnerTeam == null,
       };
     });
 

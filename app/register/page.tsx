@@ -63,8 +63,6 @@ export default async function RegisterPage() {
       <AutoRefresh />
       <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
 
-      <AnnouncementCarousel items={announcements} />
-
       <p className="text-sm text-gray-600">
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
       </p>
@@ -102,6 +100,8 @@ export default async function RegisterPage() {
           </Link>
         ))}
       </section>
+
+      <AnnouncementCarousel items={announcements} />
     </main>
   );
 }

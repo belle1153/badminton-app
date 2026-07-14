@@ -13,10 +13,10 @@ export async function POST(
 
   const { id, matchId } = await params;
   const body = await req.json();
-  const winnerTeam = Number(body.winnerTeam);
+  const winnerTeam = Number(body.winnerTeam); // 1 | 2 | 0 = เสมอ (draw)
 
-  if (winnerTeam !== 1 && winnerTeam !== 2) {
-    return NextResponse.json({ error: "ต้องเลือกทีมที่ชนะ" }, { status: 400 });
+  if (winnerTeam !== 1 && winnerTeam !== 2 && winnerTeam !== 0) {
+    return NextResponse.json({ error: "ต้องเลือกทีมที่ชนะ หรือเสมอ" }, { status: 400 });
   }
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
@@ -29,7 +29,7 @@ export async function POST(
 
   await prisma.match.update({
     where: { id: matchId },
-    data: { finishedAt: new Date(), winnerTeam },
+    data: { finishedAt: new Date(), winnerTeam: winnerTeam === 0 ? null : winnerTeam },
   });
 
   // A pre-queued game slides up to become the court's current game by itself;
