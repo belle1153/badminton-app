@@ -173,7 +173,10 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
         const ids = new Set(four.map((p) => p.id));
 
         let score = i + j + k; // queue-position fairness
-        score += diffPenalty(balanceTeams(four).diff) * 4; // balance first
+        const split = balanceTeams(four);
+        // Balance first: even totals, then mirrored line-ups — RK+S+ vs BG+N-
+        // is 5v5 on paper but plays badly, so composition mismatch costs too.
+        score += diffPenalty(split.diff) * 4 + split.mismatch * 5;
 
         // Don't rebuild an old foursome: >2 shared with any finished game.
         for (const fs of finishedSets) {

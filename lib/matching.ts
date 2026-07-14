@@ -50,9 +50,19 @@ export interface Player {
 /**
  * Split exactly four players into the two most even teams by tier weight
  * (a team's weight = sum of its players' tiers). A mutual fixed pair always
- * stays together. Returns the split with the smallest weight difference.
+ * stays together.
+ *
+ * Besides the weight difference, `mismatch` measures how differently the two
+ * teams are composed: sorted tiers compared position by position. Equal sums
+ * can still feel unfair — RK+S+ (1,4) vs BG+N- (2,3) is 5v5 but plays badly,
+ * so mirrored line-ups (N-+S+ vs N-+P → (3,4) vs (3,4)) are preferred.
  */
-export function balanceTeams(four: Player[]): { team1: Player[]; team2: Player[]; diff: number } {
+export function balanceTeams(four: Player[]): {
+  team1: Player[];
+  team2: Player[];
+  diff: number;
+  mismatch: number;
+} {
   const [a, b, c, d] = four;
   const w = (p: Player) => SKILL_TIER[p.skillLevel];
   const splits: [Player[], Player[]][] = [
@@ -64,11 +74,16 @@ export function balanceTeams(four: Player[]): { team1: Player[]; team2: Player[]
     t[0].fixedPartnerId === t[1].id && t[1].fixedPartnerId === t[0].id;
   const hasPair = splits.some(([t1, t2]) => paired(t1) || paired(t2));
 
-  let best: { team1: Player[]; team2: Player[]; diff: number } | null = null;
+  let best: { team1: Player[]; team2: Player[]; diff: number; mismatch: number } | null = null;
   for (const [t1, t2] of splits) {
     if (hasPair && !(paired(t1) || paired(t2))) continue; // never break a fixed pair
     const diff = Math.abs(w(t1[0]) + w(t1[1]) - (w(t2[0]) + w(t2[1])));
-    if (!best || diff < best.diff) best = { team1: t1, team2: t2, diff };
+    const s1 = [w(t1[0]), w(t1[1])].sort((x, y) => x - y);
+    const s2 = [w(t2[0]), w(t2[1])].sort((x, y) => x - y);
+    const mismatch = Math.abs(s1[0] - s2[0]) + Math.abs(s1[1] - s2[1]);
+    if (!best || diff < best.diff || (diff === best.diff && mismatch < best.mismatch)) {
+      best = { team1: t1, team2: t2, diff, mismatch };
+    }
   }
   return best!;
 }
