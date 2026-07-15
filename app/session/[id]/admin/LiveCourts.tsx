@@ -98,9 +98,11 @@ export default function LiveCourts({
 
   const byCourt = new Map(activeMatches.map((m) => [m.court, m]));
   const openSet = new Set(openCourts);
-  // Show every open court plus any court still playing (so a court closed
-  // mid-play isn't hidden), sorted ascending.
-  const courtList = [...new Set([...openCourts, ...byCourt.keys()])].sort((a, b) => a - b);
+  // A court with a game running counts as open no matter what: its card shows,
+  // so its toggle must show open too (and it can't be closed mid-game). This
+  // keeps the toggle and the courts on screen in sync.
+  const playing = new Set(activeMatches.map((m) => m.court));
+  const courtList = [...new Set([...openCourts, ...playing])].sort((a, b) => a - b);
   const emptyCourts = courtList.filter((c) => !byCourt.has(c) && openSet.has(c));
   const canFill = queue.length >= 4;
 
@@ -126,6 +128,10 @@ export default function LiveCourts({
   }
 
   function toggleCourt(court: number) {
+    if (playing.has(court)) {
+      setError(`สนาม ${court} กำลังเล่นอยู่ — จบเกมก่อนถึงปิดได้`);
+      return;
+    }
     const next = new Set(openSet);
     if (next.has(court)) {
       next.delete(court);
@@ -305,12 +311,14 @@ export default function LiveCourts({
         </div>
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: maxCourts }, (_, i) => i + 1).map((c) => {
-            const on = openSet.has(c);
+            const isPlaying = playing.has(c);
+            const on = openSet.has(c) || isPlaying;
             return (
               <button
                 key={c}
                 onClick={() => toggleCourt(c)}
                 disabled={loading === "courts-open"}
+                title={isPlaying ? "กำลังเล่นอยู่ — จบเกมก่อนถึงปิดได้" : undefined}
                 className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
                   on
                     ? "bg-brand-600 text-white border-brand-600"

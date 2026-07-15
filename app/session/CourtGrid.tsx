@@ -31,7 +31,7 @@ export default function CourtGrid({ sessionId, courts }: { sessionId: string; co
   }, [sessionId]);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="flex flex-col gap-3">
       {courts.map((c) => {
         const isSelf =
           !!c.match &&
