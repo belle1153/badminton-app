@@ -21,11 +21,11 @@ export default function AdminTabBar({ base }: { base: string }) {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium ${
+            className={`flex-1 flex flex-col items-center gap-1 py-3.5 text-sm font-medium ${
               active ? "text-brand-700" : "text-gray-400"
             }`}
           >
-            <span className="text-lg leading-none">{tab.icon}</span>
+            <span className="text-2xl leading-none">{tab.icon}</span>
             {tab.label}
           </Link>
         );

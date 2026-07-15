@@ -3,7 +3,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
-import ManualMatchForm from "./ManualMatchForm";
 
 interface ConfirmedSignUp {
   id: string;
@@ -17,13 +16,11 @@ export default function MatchControls({
   sessionId,
   status,
   confirmedSignUps,
-  sessionCourts,
   hasMatches,
 }: {
   sessionId: string;
   status: "OPEN" | "CLOSED";
   confirmedSignUps: ConfirmedSignUp[];
-  sessionCourts: number;
   hasMatches: boolean;
 }) {
   const router = useRouter();
@@ -110,14 +107,6 @@ export default function MatchControls({
   return (
     <div className="flex flex-col gap-8">
       {error && <p className="text-red-600 text-sm">{error}</p>}
-
-      {!isClosed && (
-        <ManualMatchForm
-          sessionId={sessionId}
-          courtOptions={Array.from({ length: sessionCourts }, (_, i) => i + 1)}
-          players={confirmedSignUps.filter((s) => s.checkedIn).map((s) => ({ id: s.id, name: s.name }))}
-        />
-      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">คู่ซ้อมแข่ง (จับคู่ตายตัว)</h2>

@@ -25,7 +25,7 @@ export default function AdminShell({
     <div className="flex flex-col min-h-full">
       <AutoRefresh />
       <AdminNav />
-      <main className="max-w-2xl mx-auto w-full p-6 pb-24 flex flex-col gap-5 flex-1">
+      <main className="max-w-2xl mx-auto w-full p-6 pb-28 flex flex-col gap-5 flex-1">
         <div>
           <h1 className="text-xl font-bold">
             แอดมิน: {session.venue}{" "}

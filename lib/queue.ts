@@ -133,6 +133,104 @@ export type FillResult =
   | { ok: true; matchId: string; round: number; court: number; playerIds: string[] }
   | { ok: false; reason: "court_taken" | "not_enough" | "not_open" };
 
+export type BookResult =
+  | { ok: true; matchId: string; round: number; court: number }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Validate a hand-picked 2v2 and create it as a real Match — shared by the
+ * "จัดลงสนามเอง" API and by promoting a คู่เตรียม (PendingPair) once every
+ * player is free. When `court` is omitted, books onto the lowest-numbered
+ * currently-free open court; if none is free, fails with a 409 so the caller
+ * can fall back to keeping the foursome pending instead of erroring out.
+ */
+export async function bookFoursome(
+  sessionId: string,
+  team1: string[],
+  team2: string[],
+  court?: number
+): Promise<BookResult> {
+  const playerIds = [...team1, ...team2];
+  if (team1.length !== 2 || team2.length !== 2 || new Set(playerIds).size !== 4) {
+    return { ok: false, status: 400, error: "ต้องเลือกผู้เล่น 4 คนไม่ซ้ำกัน (ทีมละ 2 คน)" };
+  }
+
+  const session = await prisma.session.findUnique({ where: { id: sessionId } });
+  if (!session) return { ok: false, status: 404, error: "ไม่พบรอบนี้" };
+  if (session.status === "CLOSED") return { ok: false, status: 400, error: "รอบนี้ปิดแล้ว" };
+
+  const allMatches = await prisma.match.findMany({
+    where: { sessionId },
+    include: { players: true },
+  });
+
+  // One pending game per person: nobody picked here may already be in an
+  // unfinished match (current or upcoming) on any court.
+  const booked = new Set(
+    allMatches.filter((m) => m.finishedAt == null).flatMap((m) => m.players.map((p) => p.signUpId))
+  );
+
+  const signUps = await prisma.signUp.findMany({ where: { id: { in: playerIds } } });
+  for (const pid of playerIds) {
+    const s = signUps.find((x) => x.id === pid);
+    if (!s || s.sessionId !== sessionId || s.status === "WITHDRAWN") {
+      return { ok: false, status: 400, error: "มีผู้เล่นที่เลือกไม่ถูกต้อง" };
+    }
+    if (s.status === "WAITLIST" && s.checkedInAt == null) {
+      return { ok: false, status: 400, error: `${s.name} เป็นตัวสำรองที่ยังไม่เช็คอิน` };
+    }
+    if (booked.has(pid)) {
+      return {
+        ok: false,
+        status: 400,
+        error: `${s.name} มีเกมค้างอยู่แล้ว (กำลังเล่นหรือถูกจองคิวไว้)`,
+      };
+    }
+  }
+
+  const busyCourts = new Set(allMatches.filter((m) => m.finishedAt == null).map((m) => m.court));
+  let finalCourt = court;
+  if (finalCourt == null) {
+    const free = openCourtNumbers(session)
+      .filter((c) => !busyCourts.has(c))
+      .sort((a, b) => a - b);
+    if (free.length === 0) return { ok: false, status: 409, error: "ยังไม่มีสนามว่าง" };
+    finalCourt = free[0];
+  } else {
+    if (!Number.isInteger(finalCourt) || finalCourt < 1 || finalCourt > 6) {
+      return { ok: false, status: 400, error: "สนามไม่ถูกต้อง" };
+    }
+    // Courts run one game at a time: refuse if this court is already playing.
+    if (busyCourts.has(finalCourt)) {
+      return {
+        ok: false,
+        status: 400,
+        error: `สนาม ${finalCourt} กำลังเล่นอยู่ — รอสนามว่างก่อนครับ`,
+      };
+    }
+  }
+
+  // Next game number for this court.
+  const round =
+    allMatches.filter((m) => m.court === finalCourt).reduce((max, m) => Math.max(max, m.round), 0) + 1;
+
+  const created = await prisma.match.create({
+    data: {
+      sessionId,
+      round,
+      court: finalCourt,
+      players: {
+        create: [
+          ...team1.map((pid) => ({ signUpId: pid, team: 1 })),
+          ...team2.map((pid) => ({ signUpId: pid, team: 2 })),
+        ],
+      },
+    },
+  });
+
+  return { ok: true, matchId: created.id, round, court: finalCourt };
+}
+
 /** Cost of one foursome: skill spread dominates; avoid replaying a finished
  *  game (>2 shared); keep a fixed pair whose partner is waiting together. */
 function foursomeCost(four: Player[], finishedSets: Set<string>[], windowIds: Set<string>): number {

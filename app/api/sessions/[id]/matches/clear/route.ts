@@ -18,6 +18,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
 
   await prisma.match.deleteMany({ where: { sessionId: id } });
+  await prisma.pendingPair.deleteMany({ where: { sessionId: id } });
 
   return NextResponse.json({ ok: true });
 }

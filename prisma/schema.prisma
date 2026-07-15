@@ -67,6 +67,7 @@ model Session {
   createdAt            DateTime         @default(now())
   signUps              SignUp[]
   matches              Match[]
+  pendingPairs         PendingPair[]
 }
 
 model SignUp {
@@ -152,4 +153,19 @@ model MatchPlayer {
   signUpId String
   signUp   SignUp @relation(fields: [signUpId], references: [id], onDelete: Cascade)
   team     Int
+}
+
+// A foursome the admin has set aside for the next court, persisted so it
+// survives refreshes and other players finishing their games. Unlike Match,
+// a PendingPair is not bound to a court yet — it may even include someone
+// still playing right now (their id is just earmarked); it can only be
+// promoted into a real Match once all four are actually free and a court is
+// open (see /api/sessions/[id]/pending-pairs/[pendingId]/book).
+model PendingPair {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team1Ids  String[] // exactly 2 signUp ids
+  team2Ids  String[] // exactly 2 signUp ids
+  createdAt DateTime @default(now())
 }

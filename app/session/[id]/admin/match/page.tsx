@@ -115,6 +115,39 @@ export default async function SessionMatchPage({
   const freeCts = openCts.filter((c) => !state.currentByCourt.has(c));
   const queueSignature = queuePlayers.map((p) => p.id).join(",");
 
+  // Every checked-in person, tagged with the court they're currently playing
+  // on (if any) — the pool for คู่เตรียม's ✎ swap and "จัดคู่เตรียมเอง", so the
+  // admin can earmark someone still mid-game for the next foursome.
+  const busyCourtBySignUp = new Map<string, number>();
+  for (const [court, g] of state.currentByCourt) for (const pid of g.playerIds) busyCourtBySignUp.set(pid, court);
+  for (const [court, list] of state.upcomingByCourt)
+    for (const g of list) for (const pid of g.playerIds) if (!busyCourtBySignUp.has(pid)) busyCourtBySignUp.set(pid, court);
+
+  const candidates = session.signUps
+    .filter((s) => s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null))
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel as SkillLevel,
+      busyCourt: busyCourtBySignUp.get(s.id) ?? null,
+    }));
+
+  const pendingPairRows = await prisma.pendingPair.findMany({
+    where: { sessionId: id },
+    orderBy: { createdAt: "asc" },
+  });
+  const toLite = (pid: string) => {
+    const s = signUpById.get(pid);
+    return s
+      ? { id: s.id, name: s.name, skillLevel: s.skillLevel as SkillLevel }
+      : { id: pid, name: "(ไม่พบชื่อ)", skillLevel: "RK" as SkillLevel };
+  };
+  const pendingPairs = pendingPairRows.map((p) => ({
+    id: p.id,
+    team1: p.team1Ids.map(toLite),
+    team2: p.team2Ids.map(toLite),
+  }));
+
   const recentFinished: FinishedGame[] = matches
     .filter((m) => m.finishedAt != null)
     .sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
@@ -154,13 +187,13 @@ export default async function SessionMatchPage({
         />
       )}
 
-      {session.status === "OPEN" && plannerMatchups.length > 0 && (
+      {session.status === "OPEN" && candidates.length > 0 && (
         <UpcomingPlanner
           key={queueSignature}
           sessionId={id}
           initialMatchups={plannerMatchups}
-          pool={queuePlayers}
-          openCourts={openCts}
+          candidates={candidates}
+          pendingPairs={pendingPairs}
           freeCourts={freeCts}
         />
       )}
@@ -175,7 +208,6 @@ export default async function SessionMatchPage({
           fixedPartnerId: s.fixedPartnerId,
           checkedIn: s.checkedInAt != null,
         }))}
-        sessionCourts={session.courtsLate}
         hasMatches={matches.length > 0}
       />
     </>
