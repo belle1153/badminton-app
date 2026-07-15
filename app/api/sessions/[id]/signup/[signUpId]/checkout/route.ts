@@ -21,6 +21,23 @@ export async function POST(
     return NextResponse.json({ error: "ไม่พบรายชื่อนี้" }, { status: 404 });
   }
 
+  // Can't check someone out while they're still in a live game — that would
+  // leave a "ยังไม่มา" player sitting on a court. Finish or swap them out first.
+  if (checkedOut) {
+    const inGame = await prisma.match.findFirst({
+      where: { sessionId: id, finishedAt: null, players: { some: { signUpId } } },
+      select: { court: true },
+    });
+    if (inGame) {
+      return NextResponse.json(
+        {
+          error: `${target.name} กำลังเล่นอยู่สนาม ${inGame.court} — จบเกมหรือสลับตัวออกก่อนถึงเช็คเอาท์ได้`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const updated = await prisma.signUp.update({
     where: { id: signUpId },
     data: checkedOut
