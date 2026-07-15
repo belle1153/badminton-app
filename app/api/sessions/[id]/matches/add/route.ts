@@ -3,11 +3,10 @@ import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 
 /**
- * Place a hand-picked 2v2 onto a court. Each court runs its own game sequence
- * (สนาม X เกมที่ N): the new match gets that court's next number. If the court
- * is currently playing, the match is pre-queued as an upcoming game and slides
- * up when the current one finishes. A player can only be booked in one
- * unfinished game at a time.
+ * Place a hand-picked 2v2 onto a FREE court (starts playing now). Courts show
+ * only the game in progress; games are never pre-queued onto a busy court —
+ * everyone waiting stays in the คู่เตรียม pool until a court frees. A player can
+ * only be booked in one unfinished game at a time.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) {
@@ -64,10 +63,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  // Courts run one game at a time: refuse if this court is already playing.
+  if (allMatches.some((m) => m.court === court && m.finishedAt == null)) {
+    return NextResponse.json(
+      { error: `สนาม ${court} กำลังเล่นอยู่ — รอสนามว่างก่อนครับ` },
+      { status: 400 }
+    );
+  }
+
   // Next game number for this court.
   const round =
     allMatches.filter((m) => m.court === court).reduce((max, m) => Math.max(max, m.round), 0) + 1;
-  const isUpcoming = allMatches.some((m) => m.court === court && m.finishedAt == null);
 
   const created = await prisma.match.create({
     data: {
@@ -83,5 +89,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
-  return NextResponse.json({ ok: true, matchId: created.id, round, court, upcoming: isUpcoming });
+  return NextResponse.json({ ok: true, matchId: created.id, round, court });
 }

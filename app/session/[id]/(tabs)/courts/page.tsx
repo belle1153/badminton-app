@@ -91,12 +91,7 @@ export default async function SessionCourtsPage({
   const courtNums = [...new Set([...openCourtNumbers(session), ...occupied])].sort((a, b) => a - b);
   const courts = courtNums.map((court) => {
     const cur = liveState.currentByCourt.get(court);
-    const ups = (liveState.upcomingByCourt.get(court) ?? []).slice(0, 2);
-    return {
-      court,
-      match: cur ? toTeamMatch(matchById.get(cur.id)!) : null,
-      upcoming: ups.map((g) => toTeamMatch(matchById.get(g.id)!)),
-    };
+    return { court, match: cur ? toTeamMatch(matchById.get(cur.id)!) : null };
   });
 
   // Show the queue as prepared pairs: each block of four (in wait order) is

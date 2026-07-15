@@ -23,7 +23,7 @@ export default async function SessionMatchHistoryPage({
   const matches = await prisma.match.findMany({
     where: { sessionId: id },
     include: { players: { include: { signUp: true } } },
-    orderBy: [{ court: "asc" }, { round: "asc" }],
+    orderBy: [{ createdAt: "asc" }, { court: "asc" }],
   });
 
   const state = deriveCourtState(
@@ -47,10 +47,12 @@ export default async function SessionMatchHistoryPage({
 
   const currentIds = new Set([...state.currentByCourt.values()].map((g) => g.id));
 
-  const games: HistoryGame[] = matches.map((m) => ({
+  // Global game numbering 1..N across the whole day (chronological), not per
+  // court, so the log reads เกม 1, 2, 3 … like the club's paper sheet.
+  const games: HistoryGame[] = matches.map((m, i) => ({
     id: m.id,
+    seq: i + 1,
     court: m.court,
-    round: m.round,
     status: m.finishedAt != null ? "finished" : currentIds.has(m.id) ? "playing" : "upcoming",
     winnerTeam: m.winnerTeam,
     team1: m.players.filter((p) => p.team === 1).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
@@ -59,9 +61,9 @@ export default async function SessionMatchHistoryPage({
 
   return (
     <>
-      <h1 className="font-semibold text-lg">ประวัติแมท (ต่อสนาม)</h1>
+      <h1 className="font-semibold text-lg">ประวัติแมท</h1>
       <p className="text-sm text-gray-500 -mt-3">
-        บันทึกทุกเกมพร้อมผล · แก้ตัวผู้เล่นได้ที่หน้า &quot;จัดการแมท → สนามสด&quot; ·
+        บันทึกทุกเกมพร้อมผล เรียงตามเวลา · แก้ตัวผู้เล่นได้ที่หน้า &quot;จัดการแมท → สนามสด&quot; ·
         เกมที่รอคิวยกเลิกได้
       </p>
       <MatchHistory sessionId={id} games={games} readOnly={session.status === "CLOSED"} />

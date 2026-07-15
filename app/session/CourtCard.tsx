@@ -23,7 +23,6 @@ export default function CourtCard({
   sessionId,
   court,
   match,
-  upcoming = [],
   substitutes,
   isSelf,
   editable,
@@ -31,7 +30,6 @@ export default function CourtCard({
   sessionId: string;
   court: number;
   match: TeamMatch | null;
-  upcoming?: TeamMatch[];
   substitutes?: PlayerInfo[];
   isSelf?: boolean;
   editable?: boolean;
@@ -41,11 +39,9 @@ export default function CourtCard({
   const [replacement, setReplacement] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Which game the card is showing: 0 = playing now, 1-2 = pre-queued next games.
-  const [viewIdx, setViewIdx] = useState(0);
 
-  const slots: (TeamMatch | null)[] = [match, ...upcoming.slice(0, 2)];
-  const shown = slots[Math.min(viewIdx, slots.length - 1)] ?? match;
+  // Courts show only the game being played now; who's next lives in คู่เตรียม.
+  const shown = match;
 
   function startEdit(playerId: string) {
     setEditingPlayerId(playerId);
@@ -154,25 +150,6 @@ export default function CourtCard({
           <span className="text-white/60 font-normal"> — เกมที่ {shown.round}</span>
         )}
       </div>
-      {!editable && match && upcoming.length > 0 && (
-        <div className="bg-slate-700 flex">
-          {slots.map((s, i) =>
-            s ? (
-              <button
-                key={s.id}
-                onClick={() => setViewIdx(i)}
-                className={`flex-1 py-1.5 text-xs font-medium transition-colors ${
-                  Math.min(viewIdx, slots.length - 1) === i
-                    ? "bg-brand-600 text-white"
-                    : "text-white/60 hover:text-white"
-                }`}
-              >
-                {i === 0 ? `▶ เกม ${s.round ?? "-"}` : `ถัดไป: เกม ${s.round ?? "-"}`}
-              </button>
-            ) : null
-          )}
-        </div>
-      )}
       <div
         className={`bg-gradient-to-b from-blue-500 to-blue-700 p-4 flex flex-col flex-1 ${
           editable ? "min-h-[200px]" : "min-h-[280px]"

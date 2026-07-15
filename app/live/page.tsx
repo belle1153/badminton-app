@@ -27,8 +27,15 @@ type MatchRow = {
  * inline and day by day, so players don't have to open each day one at a time.
  */
 export default async function LiveAllPage() {
+  // Only today's play (ICT). Session dates are stored at UTC midnight of the
+  // intended local date, so match against today's ICT date at UTC midnight.
+  const nowIct = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  const todayMidnight = new Date(
+    Date.UTC(nowIct.getUTCFullYear(), nowIct.getUTCMonth(), nowIct.getUTCDate())
+  );
+
   const sessions = await prisma.session.findMany({
-    where: { status: "OPEN" },
+    where: { status: "OPEN", date: todayMidnight },
     orderBy: { date: "asc" },
     include: {
       signUps: { where: { status: { not: "WITHDRAWN" } } },
@@ -81,12 +88,7 @@ export default async function LiveAllPage() {
     const courtNums = [...new Set([...openCourtNumbers(s), ...occupied])].sort((a, b) => a - b);
     const courts = courtNums.map((court) => {
       const cur = state.currentByCourt.get(court);
-      const ups = (state.upcomingByCourt.get(court) ?? []).slice(0, 2);
-      return {
-        court,
-        match: cur ? toTeamMatch(matchById.get(cur.id)!) : null,
-        upcoming: ups.map((g) => toTeamMatch(matchById.get(g.id)!)),
-      };
+      return { court, match: cur ? toTeamMatch(matchById.get(cur.id)!) : null };
     });
 
     // คู่เตรียม: split the waiting queue (wait order) into balanced matchups.
@@ -133,7 +135,7 @@ export default async function LiveAllPage() {
       </Link>
       <h1 className="text-xl font-bold">🏸 สนามที่กำลังเล่น</h1>
 
-      {boards.length === 0 && <p className="text-sm text-gray-400">ยังไม่มีรอบเล่นเปิดอยู่</p>}
+      {boards.length === 0 && <p className="text-sm text-gray-400">วันนี้ยังไม่มีรอบเล่น</p>}
 
       {boards.map((b) => (
         <section key={b.id} className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4">

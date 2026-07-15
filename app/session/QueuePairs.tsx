@@ -47,18 +47,18 @@ export default function QueuePairs({
   );
 
   return (
-    <ol className="flex flex-col gap-2">
+    <ol className="flex flex-col gap-2 rounded-xl border-2 border-orange-300 bg-orange-50/50 p-2">
       {matchups.map((m, i) => (
         <li
           key={m.key}
           className={`rounded-lg border px-3 py-2 text-sm flex items-center gap-2 ${
-            i === 0 ? "bg-brand-50 border-brand-300" : "bg-gray-50 border-gray-200"
+            i === 0 ? "bg-orange-100 border-orange-300" : "bg-white border-orange-200"
           }`}
         >
-          <span className="text-[10px] text-gray-400 shrink-0 w-9">คู่ {i + 1}</span>
+          <span className="text-[10px] text-orange-400 shrink-0 w-9">คู่ {i + 1}</span>
           <div className="flex-1 flex items-center justify-around gap-1">
             {team(m.teamA)}
-            <span className="text-xs font-bold text-gray-400 shrink-0">VS</span>
+            <span className="text-xs font-bold text-orange-400 shrink-0">VS</span>
             {team(m.teamB)}
           </div>
         </li>

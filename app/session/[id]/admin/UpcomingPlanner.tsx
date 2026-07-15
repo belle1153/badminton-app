@@ -29,7 +29,7 @@ export default function UpcomingPlanner({
   const router = useRouter();
   const [matchups, setMatchups] = useState<Lite[][]>(initialMatchups);
   const [courts, setCourts] = useState<number[]>(() =>
-    initialMatchups.map((_, i) => freeCourts[i] ?? openCourts[i] ?? openCourts[0] ?? 1)
+    initialMatchups.map((_, i) => freeCourts[i] ?? freeCourts[0] ?? 0)
   );
   const [editing, setEditing] = useState<{ m: number; slot: number } | null>(null);
   const [loading, setLoading] = useState<number | null>(null);
@@ -120,14 +120,17 @@ export default function UpcomingPlanner({
     );
   };
 
+  const noFreeCourt = freeCourts.length === 0;
+
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-2 rounded-xl border-2 border-orange-300 bg-orange-50/50 p-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">🔮 คู่เตรียม (ล่วงหน้า)</h2>
-        <span className="text-xs text-gray-500">แก้ตัวผู้เล่นก่อนลงได้</span>
+        <h2 className="font-semibold text-orange-800">🔶 คู่เตรียม</h2>
+        <span className="text-xs text-orange-600">แก้ตัวผู้เล่นก่อนลงได้</span>
       </div>
-      <p className="text-xs text-gray-400">
-        คู่ที่ระบบจะจัดลงถัดไป (มือใกล้กันก่อน แล้วคิว) กด ✎ เพื่อสลับกับคนในคิว แล้ว &quot;จองลงสนาม&quot;
+      <p className="text-xs text-orange-700/70">
+        คู่ที่ระบบจัดไว้ถัดไป (มือใกล้กันก่อน แล้วคิว) กด ✎ เพื่อสลับกับคนในคิว
+        {noFreeCourt ? " · รอสนามว่างก่อนถึงจะลงได้" : ' · เลือกสนามว่างแล้ว "ลงสนาม"'}
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -146,27 +149,31 @@ export default function UpcomingPlanner({
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <label className="text-xs text-gray-500">ลงสนาม</label>
+                <label className="text-xs text-gray-500">ลงสนามว่าง</label>
                 <select
                   value={courts[m]}
+                  disabled={noFreeCourt}
                   onChange={(e) =>
                     setCourts((prev) => prev.map((c, i) => (i === m ? Number(e.target.value) : c)))
                   }
-                  className="text-sm rounded border border-gray-300 py-1 px-2 text-gray-900"
+                  className="text-sm rounded border border-gray-300 py-1 px-2 text-gray-900 disabled:opacity-50"
                 >
-                  {openCourts.map((c) => (
-                    <option key={c} value={c}>
-                      สนาม {c}
-                      {freeCourts.includes(c) ? " (ว่าง)" : " (ต่อคิว)"}
-                    </option>
-                  ))}
+                  {noFreeCourt ? (
+                    <option value={0}>ไม่มีสนามว่าง</option>
+                  ) : (
+                    freeCourts.map((c) => (
+                      <option key={c} value={c}>
+                        สนาม {c}
+                      </option>
+                    ))
+                  )}
                 </select>
                 <button
                   onClick={() => book(m)}
-                  disabled={loading === m || openCourts.length === 0}
-                  className="rounded-md bg-brand-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-brand-700 disabled:opacity-50"
+                  disabled={loading === m || noFreeCourt}
+                  className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-orange-700 disabled:opacity-50"
                 >
-                  {loading === m ? "กำลังจอง…" : "จองลงสนาม"}
+                  {loading === m ? "กำลังลง…" : "ลงสนาม"}
                 </button>
               </div>
             </li>

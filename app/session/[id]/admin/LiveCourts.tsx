@@ -43,9 +43,9 @@ export default function LiveCourts({
   sessionId,
   openCourts,
   maxCourts,
+  courtsLimit,
   isAuto,
   activeMatches,
-  upcomingMatches = [],
   queue,
   recentFinished,
   substitutes = [],
@@ -53,12 +53,13 @@ export default function LiveCourts({
   sessionId: string;
   /** Court numbers open to fill right now (a subset of 1..maxCourts). */
   openCourts: number[];
-  /** Ceiling of courts the venue has this session (toggle covers 1..maxCourts). */
+  /** How many court chips to show (venue max, e.g. 6). */
   maxCourts: number;
+  /** Most courts that may be open at once this session (the day's set count). */
+  courtsLimit: number;
   /** true = open set is the clock default (openCourts field not overridden). */
   isAuto: boolean;
   activeMatches: LiveMatch[];
-  upcomingMatches?: LiveMatch[];
   queue: P[];
   recentFinished: FinishedGame[];
   substitutes?: Substitute[];
@@ -96,17 +97,10 @@ export default function LiveCourts({
   }
 
   const byCourt = new Map(activeMatches.map((m) => [m.court, m]));
-  const upcomingByCourt = new Map<number, LiveMatch[]>();
-  for (const m of [...upcomingMatches].sort((a, b) => a.round - b.round)) {
-    const list = upcomingByCourt.get(m.court) ?? [];
-    list.push(m);
-    upcomingByCourt.set(m.court, list);
-  }
   const openSet = new Set(openCourts);
-  // Show every open court plus any court that still has a live/queued game
-  // (so a court closed mid-play isn't hidden), sorted ascending.
-  const occupied = new Set<number>([...byCourt.keys(), ...upcomingByCourt.keys()]);
-  const courtList = [...new Set([...openCourts, ...occupied])].sort((a, b) => a - b);
+  // Show every open court plus any court still playing (so a court closed
+  // mid-play isn't hidden), sorted ascending.
+  const courtList = [...new Set([...openCourts, ...byCourt.keys()])].sort((a, b) => a - b);
   const emptyCourts = courtList.filter((c) => !byCourt.has(c) && openSet.has(c));
   const canFill = queue.length >= 4;
 
@@ -133,8 +127,18 @@ export default function LiveCourts({
 
   function toggleCourt(court: number) {
     const next = new Set(openSet);
-    if (next.has(court)) next.delete(court);
-    else next.add(court);
+    if (next.has(court)) {
+      next.delete(court);
+    } else {
+      if (next.size >= courtsLimit) {
+        setError(
+          `เปิดได้สูงสุด ${courtsLimit} สนามในวันนี้ — ถ้าจะเพิ่ม ต้องแก้จำนวนสนามด้านบนก่อน`
+        );
+        return;
+      }
+      next.add(court);
+    }
+    setError(null);
     setOpenCourts([...next].sort((a, b) => a - b));
   }
 
@@ -286,7 +290,8 @@ export default function LiveCourts({
       <div className="rounded-lg border border-gray-200 p-2.5 flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-gray-600">
-            เปิด/ปิดสนาม {isAuto && <span className="text-gray-400">(อัตโนมัติตามเวลา)</span>}
+            เปิด/ปิดสนาม <span className="text-gray-400">(เปิดได้สูงสุด {courtsLimit})</span>
+            {isAuto && <span className="text-gray-400"> · อัตโนมัติ</span>}
           </span>
           {!isAuto && (
             <button
@@ -336,7 +341,6 @@ export default function LiveCourts({
       <div className="grid grid-cols-2 gap-3">
         {courtList.map((court) => {
           const m = byCourt.get(court);
-          const nexts = upcomingByCourt.get(court) ?? [];
           return (
             <div key={court} className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
               <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
@@ -374,11 +378,6 @@ export default function LiveCourts({
                     <p className="text-white/50 text-sm">🔒 ปิดอยู่</p>
                   </div>
                 )}
-                {nexts.slice(0, 2).map((n) => (
-                  <p key={n.id} className="text-[11px] text-white/70 text-center truncate">
-                    ⏭ เกมที่ {n.round}: {[...n.team1, ...n.team2].map((p) => p.name).join(", ")}
-                  </p>
-                ))}
               </div>
             </div>
           );

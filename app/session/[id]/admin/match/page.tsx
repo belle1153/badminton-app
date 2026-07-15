@@ -142,12 +142,12 @@ export default async function SessionMatchPage({
           sessionId={id}
           openCourts={openCourtNumbers(session)}
           maxCourts={Math.max(
-            session.courtsLate,
+            6,
             [...liveMatches, ...upcomingMatches].reduce((max, m) => Math.max(max, m.court), 0)
           )}
+          courtsLimit={session.courtsLate}
           isAuto={session.openCourts == null}
           activeMatches={liveMatches}
-          upcomingMatches={upcomingMatches}
           queue={liveQueue}
           recentFinished={recentFinished}
           substitutes={substitutes}

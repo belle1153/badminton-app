@@ -10,8 +10,8 @@ interface P {
 
 export interface HistoryGame {
   id: string;
+  seq: number; // global game number for the day (1..N)
   court: number;
-  round: number;
   status: "playing" | "upcoming" | "finished";
   winnerTeam: number | null;
   team1: P[];
@@ -19,9 +19,9 @@ export interface HistoryGame {
 }
 
 /**
- * Per-court game log (ประวัติแมท) — read-only record of every game with
- * winners. Player editing lives on the live board (สนามสด); here the only
- * action is cancelling a still-queued game.
+ * Day game log (ประวัติแมท) — read-only record of every game with winners,
+ * numbered 1..N in play order across all courts. Player editing lives on the
+ * live board (สนามสด); here the only action is cancelling a still-queued game.
  */
 export default function MatchHistory({
   sessionId,
@@ -36,10 +36,10 @@ export default function MatchHistory({
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const courts = [...new Set(games.map((g) => g.court))].sort((a, b) => a - b);
+  const ordered = [...games].sort((a, b) => a.seq - b.seq);
 
   async function cancelGame(g: HistoryGame) {
-    if (!confirm(`ยกเลิก สนาม ${g.court} เกมที่ ${g.round} ใช่ไหมครับ?`)) return;
+    if (!confirm(`ยกเลิก เกม ${g.seq} (สนาม ${g.court}) ใช่ไหมครับ?`)) return;
     setError(null);
     setLoading(`del-${g.id}`);
     try {
@@ -71,54 +71,49 @@ export default function MatchHistory({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-2">
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {courts.map((court) => (
-        <section key={court} className="flex flex-col gap-1">
-          <h2 className="font-semibold">สนาม {court}</h2>
-          <ul className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
-            {games
-              .filter((g) => g.court === court)
-              .sort((a, b) => a.round - b.round)
-              .map((g) => (
-                <li key={g.id} className="px-2.5 py-2 text-sm flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 shrink-0 w-14">เกมที่ {g.round}</span>
-                    {g.status === "playing" && (
-                      <span className="text-[10px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">
-                        กำลังเล่น
-                      </span>
-                    )}
-                    {g.status === "upcoming" && (
-                      <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
-                        รอคิว
-                      </span>
-                    )}
-                    {g.status === "finished" && g.winnerTeam == null && (
-                      <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
-                        🤝 เสมอ
-                      </span>
-                    )}
-                    {!readOnly && g.status === "upcoming" && (
-                      <button
-                        onClick={() => cancelGame(g)}
-                        disabled={loading === `del-${g.id}`}
-                        className="ml-auto text-[11px] text-red-500 hover:underline disabled:opacity-50"
-                      >
-                        ยกเลิกเกม
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {team(g, g.team1, 1)}
-                    <span className="text-gray-300">vs</span>
-                    {team(g, g.team2, 2)}
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </section>
-      ))}
+      <ul className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
+        {ordered.map((g) => (
+          <li key={g.id} className="px-2.5 py-2 text-sm flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 shrink-0 w-12">เกม {g.seq}</span>
+              <span className="text-[10px] rounded-full bg-slate-100 text-slate-600 px-1.5 py-0.5 shrink-0">
+                สนาม {g.court}
+              </span>
+              {g.status === "playing" && (
+                <span className="text-[10px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">
+                  กำลังเล่น
+                </span>
+              )}
+              {g.status === "upcoming" && (
+                <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
+                  รอคิว
+                </span>
+              )}
+              {g.status === "finished" && g.winnerTeam == null && (
+                <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
+                  🤝 เสมอ
+                </span>
+              )}
+              {!readOnly && g.status === "upcoming" && (
+                <button
+                  onClick={() => cancelGame(g)}
+                  disabled={loading === `del-${g.id}`}
+                  className="ml-auto text-[11px] text-red-500 hover:underline disabled:opacity-50"
+                >
+                  ยกเลิกเกม
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {team(g, g.team1, 1)}
+              <span className="text-gray-300">vs</span>
+              {team(g, g.team2, 2)}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { balanceTeams, courtSkillCost, diffPenalty, type Player, type SkillLevel } from "@/lib/matching";
+import { balanceTeams, courtSkillCost, SKILL_RANK, type Player, type SkillLevel } from "@/lib/matching";
 import { openCourtNumbers } from "@/lib/billing";
 
 export interface QueuePlayer {
@@ -133,79 +133,99 @@ export type FillResult =
   | { ok: true; matchId: string; round: number; court: number; playerIds: string[] }
   | { ok: false; reason: "court_taken" | "not_enough" | "not_open" };
 
-/**
- * Pick the next four for a court from a queue window (front of the queue first).
- * Selection priorities, in order:
- *
- * 1. Closest skill — minimize courtSkillCost so a court plays players of the
- *    nearest skill possible (the club's pairing table). This dominates.
- * 2. Queue fairness — prefer people nearer the front of the window.
- * 3. Team balance — even totals, then mirrored line-ups.
- * Plus: avoid rebuilding a finished foursome (>2 shared), and keep fixed
- * practice pairs together.
- *
- * The player at window[0] (waited longest) is ALWAYS included, so no one
- * starves. Returns the chosen four (window[0] first) or null if <4 available.
- */
-export function pickFoursome(window: Player[], finishedSets: Set<string>[]): Player[] | null {
-  if (window.length < 4) return null;
-  const windowIds = new Set(window.map((p) => p.id));
-
-  let best: { four: Player[]; score: number } | null = null;
-  for (let i = 1; i < window.length - 2; i++)
-    for (let j = i + 1; j < window.length - 1; j++)
-      for (let k = j + 1; k < window.length; k++) {
-        const four = [window[0], window[i], window[j], window[k]];
-        const ids = new Set(four.map((p) => p.id));
-
-        // 1) skill closeness dominates (×1000 dwarfs every other term).
-        let score = courtSkillCost(four) * 1000;
-        // 2) queue position (front of window preferred).
-        score += (i + j + k) * 30;
-        // 3) team balance: even totals, then mirrored line-ups.
-        const split = balanceTeams(four);
-        score += diffPenalty(split.diff) * 4 + split.mismatch * 8;
-
-        for (const fs of finishedSets) {
-          let overlap = 0;
-          for (const id of ids) if (fs.has(id)) overlap++;
-          if (overlap > 2) score += 300; // don't replay the same foursome
-        }
-        for (const p of four) {
-          if (p.fixedPartnerId && windowIds.has(p.fixedPartnerId) && !ids.has(p.fixedPartnerId)) {
-            score += 40; // keep a waiting fixed pair together
-          }
-        }
-
-        if (!best || score < best.score) best = { four, score };
-      }
-
-  return best?.four ?? null;
+/** Cost of one foursome: skill spread dominates; avoid replaying a finished
+ *  game (>2 shared); keep a fixed pair whose partner is waiting together. */
+function foursomeCost(four: Player[], finishedSets: Set<string>[], windowIds: Set<string>): number {
+  let c = courtSkillCost(four) * 1000;
+  const ids = new Set(four.map((p) => p.id));
+  for (const fs of finishedSets) {
+    let overlap = 0;
+    for (const id of ids) if (fs.has(id)) overlap++;
+    if (overlap > 2) c += 300;
+  }
+  for (const p of four) {
+    if (p.fixedPartnerId && windowIds.has(p.fixedPartnerId) && !ids.has(p.fixedPartnerId)) c += 40;
+  }
+  return c;
 }
 
 /**
- * Predict the next games from a queue (in wait order) by greedily applying
- * pickFoursome and removing the chosen four each time. The first foursome is
- * exactly what fillCourt would start next, so the คู่เตรียม preview matches the
- * games that actually run. Uses a front window of 8, same as fillCourt.
+ * Partition the front of the queue into skill-tight foursomes, GLOBALLY (not
+ * one court at a time). Filling greedily per court breaks up natural clusters —
+ * e.g. it will pull one BG into an RK court and leave a lone strong player with
+ * three weak ones. Partitioning the whole front window keeps same-tier players
+ * together (4 BG on one court, 4 RK on another, the two odd ones paired so their
+ * teams still mirror), which is what actually plays balanced.
+ *
+ * Heuristic: seed by sorting on skill rank and chunking, then hill-climb with
+ * 1-for-1 swaps between foursomes until no swap lowers the total cost. Foursomes
+ * come back ordered by their longest-waiting member, so the first is what fills
+ * the next free court.
+ */
+export function partitionFoursomes(window: Player[], finishedSets: Set<string>[] = []): Player[][] {
+  const n = Math.floor(window.length / 4);
+  if (n === 0) return [];
+  const players = window.slice(0, n * 4);
+  const queueIndex = new Map(players.map((p, i) => [p.id, i]));
+  const windowIds = new Set(players.map((p) => p.id));
+  const cost = (g: Player[]) => foursomeCost(g, finishedSets, windowIds);
+
+  const sorted = [...players].sort((a, b) => SKILL_RANK[a.skillLevel] - SKILL_RANK[b.skillLevel]);
+  const groups: Player[][] = [];
+  for (let g = 0; g < n; g++) groups.push(sorted.slice(g * 4, g * 4 + 4));
+
+  // Swap sets of indices to try between two groups. Size 1 alone can get stuck
+  // (e.g. can't turn {2BG,2N}+{2RK,2BG} into {4BG}+{2RK,2N} one at a time), so
+  // also try 2-for-2 swaps.
+  const combos1 = [[0], [1], [2], [3]];
+  const combos2 = [
+    [0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3],
+  ];
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (let g1 = 0; g1 < n; g1++)
+      for (let g2 = g1 + 1; g2 < n; g2++) {
+        for (const combos of [combos1, combos2])
+          for (const s1 of combos)
+            for (const s2 of combos) {
+              const before = cost(groups[g1]) + cost(groups[g2]);
+              const a = [...groups[g1]];
+              const b = [...groups[g2]];
+              for (let t = 0; t < s1.length; t++) {
+                const tmp = a[s1[t]];
+                a[s1[t]] = b[s2[t]];
+                b[s2[t]] = tmp;
+              }
+              if (cost(a) + cost(b) < before) {
+                groups[g1] = a;
+                groups[g2] = b;
+                improved = true;
+              }
+            }
+      }
+  }
+
+  groups.sort(
+    (a, b) =>
+      Math.min(...a.map((p) => queueIndex.get(p.id)!)) -
+      Math.min(...b.map((p) => queueIndex.get(p.id)!))
+  );
+  return groups;
+}
+
+/**
+ * The next games the queue will produce (คู่เตรียม), up to `max`. Uses the same
+ * global partition fillCourt draws from, so the preview matches what runs.
  */
 export function previewFoursomes(
   queue: Player[],
   finishedSets: Set<string>[],
   max: number
 ): Player[][] {
-  const remaining = [...queue];
-  const out: Player[][] = [];
-  while (out.length < max && remaining.length >= 4) {
-    const four = pickFoursome(remaining.slice(0, 8), finishedSets);
-    if (!four) break;
-    out.push(four);
-    const chosen = new Set(four.map((p) => p.id));
-    for (let i = remaining.length - 1; i >= 0; i--) {
-      if (chosen.has(remaining[i].id)) remaining.splice(i, 1);
-    }
-  }
-  return out;
+  const n = Math.min(max, Math.floor(queue.length / 4));
+  if (n === 0) return [];
+  return partitionFoursomes(queue.slice(0, n * 4), finishedSets);
 }
 
 /**
@@ -231,12 +251,14 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
     return { id: s.id, name: s.name, skillLevel: s.skillLevel, fixedPartnerId: s.fixedPartnerId };
   };
 
-  const window = state.queue.slice(0, 8).map((q) => toPlayer(q.id));
+  const windowPlayers = state.queue.map((q) => toPlayer(q.id));
   const finishedSets = (matches as MatchRow[])
     .filter((m) => m.finishedAt != null)
     .map((m) => new Set(m.players.map((p) => p.signUpId)));
 
-  const four = pickFoursome(window, finishedSets);
+  // Fill this court with the front cluster of the global partition, so a single
+  // fill and the คู่เตรียม preview stay consistent and well balanced.
+  const four = partitionFoursomes(windowPlayers, finishedSets)[0];
   if (!four) return { ok: false, reason: "not_enough" };
   const { team1, team2 } = balanceTeams(four);
 
