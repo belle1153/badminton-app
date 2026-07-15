@@ -23,7 +23,10 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [athleteId, setAthleteId] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState(days[0]?.id ?? "");
+  // Multi-select: sign up for several days at once with one tap on "ลงชื่อ".
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(
+    () => new Set(days[0] ? [days[0].id] : [])
+  );
   const [timeSlot, setTimeSlot] = useState<Slot>("EARLY");
   const [doneDays, setDoneDays] = useState<Set<string>>(new Set());
   const [suggestions, setSuggestions] = useState<AthleteSuggestion[]>([]);
@@ -48,9 +51,10 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
     };
   }, [name]);
 
-  async function signUp(confirmMove: boolean): Promise<{ text: string; ok: boolean } | null> {
-    const day = days.find((d) => d.id === selectedDay);
-    if (!day) return { text: "เลือกวันก่อนครับ", ok: false };
+  async function signUp(
+    day: DayOption,
+    confirmMove: boolean
+  ): Promise<{ text: string; ok: boolean }> {
     const res = await fetch(`/api/sessions/${day.id}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -60,7 +64,7 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
     if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
       const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
       if (confirm(`${day.label}: ${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
-        return signUp(true);
+        return signUp(day, true);
       }
       return { text: `${day.label}: คงรอบเดิมไว้`, ok: true };
     }
@@ -73,21 +77,40 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
     };
   }
 
+  function toggleDay(id: string) {
+    setSelectedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
+    const targets = days.filter((d) => selectedDays.has(d.id));
+    if (targets.length === 0) {
+      setMessage({ text: "เลือกวันก่อนครับ", ok: false });
+      return;
+    }
     setLoading(true);
     try {
-      const result = await signUp(false);
-      setMessage(result);
-      if (result?.ok) {
-        // Keep the name so signing up for the other day is one tap away;
-        // auto-jump to a day not yet signed up, if any.
-        const remaining = days.find((d) => d.id !== selectedDay && !doneDays.has(d.id));
-        if (remaining) setSelectedDay(remaining.id);
-        setSuggestions([]);
-        router.refresh();
-      }
+      const results = new Map<string, { text: string; ok: boolean }>();
+      for (const day of targets) results.set(day.id, await signUp(day, false));
+      setMessage({
+        text: [...results.values()].map((r) => r.text).join("\n"),
+        ok: [...results.values()].every((r) => r.ok),
+      });
+      setSuggestions([]);
+      // Drop days that went through (ok) so a second submit doesn't re-hit
+      // them; keep failed days selected for a retry, and keep the name typed.
+      setSelectedDays((prev) => {
+        const next = new Set(prev);
+        for (const d of targets) if (results.get(d.id)?.ok) next.delete(d.id);
+        return next;
+      });
+      router.refresh();
     } finally {
       setLoading(false);
     }
@@ -133,35 +156,38 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-gray-700">เลือกวัน</span>
-        <div className="flex flex-wrap gap-2">
-          {days.map((d) => (
-            <button
-              key={d.id}
-              type="button"
-              onClick={() => setSelectedDay(d.id)}
-              className={`rounded-md border px-3 py-2 text-sm font-medium ${
-                selectedDay === d.id
-                  ? "bg-brand-600 text-white border-brand-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              {doneDays.has(d.id) ? "✓ " : ""}
-              {d.label}
-            </button>
-          ))}
+        <span className="text-sm font-medium text-gray-700">เลือกวัน (เลือกได้หลายวัน)</span>
+        <div className="grid grid-cols-1 gap-2">
+          {days.map((d) => {
+            const selected = selectedDays.has(d.id);
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => toggleDay(d.id)}
+                className={`w-full rounded-md border px-3 py-2.5 text-sm font-medium text-center ${
+                  selected
+                    ? "bg-brand-600 text-white border-brand-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {doneDays.has(d.id) ? "✓ " : selected ? "☑ " : ""}
+                {d.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-gray-700">เลือกเวลา</span>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {(["EARLY", "LATE"] as const).map((slot) => (
             <button
               key={slot}
               type="button"
               onClick={() => setTimeSlot(slot)}
-              className={`rounded-md border px-4 py-2 text-sm font-medium ${
+              className={`w-full rounded-md border px-4 py-2.5 text-sm font-medium text-center ${
                 timeSlot === slot
                   ? "bg-brand-600 text-white border-brand-600"
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
@@ -175,10 +201,14 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
 
       <button
         type="submit"
-        disabled={loading}
-        className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50 self-start"
+        disabled={loading || selectedDays.size === 0}
+        className="w-full rounded-md bg-brand-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
       >
-        {loading ? "กำลังลง..." : "ลงชื่อ"}
+        {loading
+          ? "กำลังลง..."
+          : selectedDays.size > 1
+            ? `ลงชื่อ ${selectedDays.size} วัน`
+            : "ลงชื่อ"}
       </button>
 
       <Toast message={message} onDone={clearMessage} />

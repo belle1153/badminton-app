@@ -11,8 +11,9 @@ interface Announcement {
   active: boolean;
 }
 
-// Downscale to max 1000px wide as JPEG so a poster image stays a sane size.
-async function resizeWide(file: File, max = 1000): Promise<string> {
+// Downscale to max 1400px on the long edge as JPEG so posters stay sharp but
+// the stored data URL stays a sane size.
+async function resizeWide(file: File, max = 1400): Promise<string> {
   const dataUrl = await new Promise<string>((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result as string);
@@ -25,7 +26,7 @@ async function resizeWide(file: File, max = 1000): Promise<string> {
     i.onerror = rej;
     i.src = dataUrl;
   });
-  const scale = Math.min(1, max / img.width);
+  const scale = Math.min(1, max / Math.max(img.width, img.height));
   const w = Math.max(1, Math.round(img.width * scale));
   const h = Math.max(1, Math.round(img.height * scale));
   const c = document.createElement("canvas");
