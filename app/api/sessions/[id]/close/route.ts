@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import { courtCostByPerson } from "@/lib/billing";
 
+/**
+ * Close the day and freeze the totals. Everything is derived from actual play:
+ * court cost = rate × Σ (open courts × block-hours) the group actually used,
+ * ball cost = finished games × price (1 ball per game). The admin only picks
+ * which rate / ball price applied.
+ */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "ต้องเป็นแอดมิน" }, { status: 403 });
@@ -9,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const { courtRateId, courtHours, shuttlecockTypeId, shuttlecockQty } = body;
+  const { courtRateId, shuttlecockTypeId } = body;
 
   const session = await prisma.session.findUnique({ where: { id } });
   if (!session) {
@@ -19,32 +26,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "รอบนี้ปิดไปแล้ว" }, { status: 400 });
   }
 
-  const [courtRate, shuttlecockType] = await Promise.all([
+  const [courtRate, shuttlecockType, signUps, gamesPlayed] = await Promise.all([
     prisma.courtRate.findUnique({ where: { id: courtRateId } }),
     prisma.shuttlecockType.findUnique({ where: { id: shuttlecockTypeId } }),
+    prisma.signUp.findMany({
+      where: { sessionId: id, status: { not: "WITHDRAWN" } },
+      select: { id: true, timeSlot: true, checkedInAt: true, checkedOutAt: true },
+    }),
+    prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
   ]);
 
   if (!courtRate || !shuttlecockType) {
     return NextResponse.json({ error: "ข้อมูลค่าคอร์ท/ลูกแบดไม่ถูกต้อง" }, { status: 400 });
   }
 
-  const hours = Number(courtHours);
-  const qty = Number(shuttlecockQty);
-  if (!Number.isFinite(hours) || hours < 0 || !Number.isFinite(qty) || qty < 0) {
-    return NextResponse.json({ error: "จำนวนไม่ถูกต้อง" }, { status: 400 });
-  }
+  const attendees = signUps
+    .filter((s) => s.checkedInAt != null || s.checkedOutAt != null)
+    .map((s) => ({ id: s.id, timeSlot: s.timeSlot, checkedOutAt: s.checkedOutAt }));
 
-  const courtCost = Math.round(courtRate.pricePerHour * hours);
-  const shuttlecockCost = Math.round(shuttlecockType.pricePerPiece * qty);
+  const { total } = courtCostByPerson(session, attendees, courtRate.pricePerHour);
+  const courtCost = Math.round(total);
+  const shuttlecockCost = shuttlecockType.pricePerPiece * gamesPlayed;
   const totalCost = courtCost + shuttlecockCost;
 
   const updated = await prisma.session.update({
     where: { id },
     data: {
       courtRateId,
-      courtHours: hours,
+      courtHours: total / (courtRate.pricePerHour || 1), // court·hour units, for the record
       shuttlecockTypeId,
-      shuttlecockQty: qty,
+      shuttlecockQty: gamesPlayed,
       courtCost,
       shuttlecockCost,
       totalCost,

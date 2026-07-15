@@ -26,12 +26,22 @@ export default function CostPanel({
   status,
   courtRates,
   shuttlecockTypes,
+  courtHourUnits,
+  gamesPlayed,
+  defaultCourtRateId,
+  defaultShuttlecockTypeId,
   closedSummary,
 }: {
   sessionId: string;
   status: "OPEN" | "CLOSED";
   courtRates: CourtRate[];
   shuttlecockTypes: ShuttlecockType[];
+  /** Σ (open courts × block-hours) actually played — court cost = rate × units. */
+  courtHourUnits: number;
+  /** Finished games so far — 1 ball per game, so ball cost = games × price. */
+  gamesPlayed: number;
+  defaultCourtRateId: string | null;
+  defaultShuttlecockTypeId: string | null;
   closedSummary: ClosedSummary | null;
 }) {
   const router = useRouter();
@@ -39,15 +49,17 @@ export default function CostPanel({
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [courtRateId, setCourtRateId] = useState(courtRates[0]?.id ?? "");
-  const [courtHours, setCourtHours] = useState("2");
-  const [shuttlecockTypeId, setShuttlecockTypeId] = useState(shuttlecockTypes[0]?.id ?? "");
-  const [shuttlecockQty, setShuttlecockQty] = useState("0");
+  const [courtRateId, setCourtRateId] = useState(defaultCourtRateId ?? courtRates[0]?.id ?? "");
+  const [shuttlecockTypeId, setShuttlecockTypeId] = useState(
+    defaultShuttlecockTypeId ?? shuttlecockTypes[0]?.id ?? ""
+  );
 
   const selectedRate = courtRates.find((r) => r.id === courtRateId);
   const selectedShuttle = shuttlecockTypes.find((s) => s.id === shuttlecockTypeId);
-  const previewCourtCost = selectedRate ? selectedRate.pricePerHour * Number(courtHours || 0) : 0;
-  const previewShuttleCost = selectedShuttle ? selectedShuttle.pricePerPiece * Number(shuttlecockQty || 0) : 0;
+  // Everything is derived from actual play: court units and game count. Admin
+  // only picks which rate / ball price applies.
+  const previewCourtCost = selectedRate ? Math.round(selectedRate.pricePerHour * courtHourUnits) : 0;
+  const previewShuttleCost = selectedShuttle ? selectedShuttle.pricePerPiece * gamesPlayed : 0;
 
   async function handleClose() {
     setError(null);
@@ -56,12 +68,7 @@ export default function CostPanel({
       const res = await fetch(`/api/sessions/${sessionId}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courtRateId,
-          courtHours: Number(courtHours),
-          shuttlecockTypeId,
-          shuttlecockQty: Number(shuttlecockQty),
-        }),
+        body: JSON.stringify({ courtRateId, shuttlecockTypeId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "ปิดวันไม่สำเร็จ");
@@ -117,30 +124,25 @@ export default function CostPanel({
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-2 items-center">
-            <select value={courtRateId} onChange={(e) => setCourtRateId(e.target.value)} className="input flex-1">
+          <p className="text-xs text-gray-400">
+            คิดยอดอัตโนมัติจากที่เล่นจริง — เลือกแค่เรทคอร์ท/ลูกแบดที่ใช้ (จำนวนสนาม·ชม. และจำนวนลูกดึงจากระบบ)
+          </p>
+          <label className="text-sm text-gray-600 flex flex-col gap-1">
+            เรทคอร์ท
+            <select value={courtRateId} onChange={(e) => setCourtRateId(e.target.value)} className="input">
               {courtRates.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name} ({r.pricePerHour} บาท/ชม.)
                 </option>
               ))}
             </select>
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              value={courtHours}
-              onChange={(e) => setCourtHours(e.target.value)}
-              onFocus={(e) => e.target.select()}
-              className="input w-24"
-              placeholder="ชม."
-            />
-          </div>
-          <div className="flex gap-2 items-center">
+          </label>
+          <label className="text-sm text-gray-600 flex flex-col gap-1">
+            ลูกแบด
             <select
               value={shuttlecockTypeId}
               onChange={(e) => setShuttlecockTypeId(e.target.value)}
-              className="input flex-1"
+              className="input"
             >
               {shuttlecockTypes.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -148,20 +150,18 @@ export default function CostPanel({
                 </option>
               ))}
             </select>
-            <input
-              type="number"
-              min={0}
-              value={shuttlecockQty}
-              onChange={(e) => setShuttlecockQty(e.target.value)}
-              onFocus={(e) => e.target.select()}
-              className="input w-24"
-              placeholder="ลูก"
-            />
+          </label>
+          <div className="text-sm text-gray-600 rounded-md bg-gray-50 border border-gray-100 p-2.5 flex flex-col gap-0.5">
+            <p>
+              ค่าคอร์ท: {selectedRate?.pricePerHour ?? 0} × {courtHourUnits} (สนาม·ชม.) ={" "}
+              <span className="font-medium">{previewCourtCost}</span> บาท
+            </p>
+            <p>
+              ค่าลูกแบด: {selectedShuttle?.pricePerPiece ?? 0} × {gamesPlayed} เกม ={" "}
+              <span className="font-medium">{previewShuttleCost}</span> บาท
+            </p>
+            <p className="font-semibold pt-0.5">รวม: {previewCourtCost + previewShuttleCost} บาท</p>
           </div>
-          <p className="text-sm text-gray-600">
-            ค่าคอร์ท {previewCourtCost} + ค่าลูกแบด {previewShuttleCost} = รวม{" "}
-            <span className="font-semibold">{previewCourtCost + previewShuttleCost} บาท</span>
-          </p>
           <button
             onClick={handleClose}
             disabled={loading}

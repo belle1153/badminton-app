@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { blockStart, billedHours, formatHours, billingBlocks, courtsOpenAt } from "@/lib/billing";
+import { blockStart, billedHours, formatHours, courtCostByPerson } from "@/lib/billing";
 import CostPanel from "../CostPanel";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export default async function SessionCostPage({
   const { id } = await params;
   if (!(await isAdmin())) return null; // layout renders the PIN gate
 
-  const [session, courtRates, shuttlecockTypes] = await Promise.all([
+  const [session, courtRates, shuttlecockTypes, gamesPlayed] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
       include: {
@@ -26,6 +26,7 @@ export default async function SessionCostPage({
     }),
     prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
   ]);
   if (!session) return null;
 
@@ -40,28 +41,17 @@ export default async function SessionCostPage({
     (s) => s.checkedInAt != null || s.checkedOutAt != null
   );
 
-  // Court cost split per half-hour block: each block's court cost
-  // (open courts × rate × block-hours) is divided among everyone present in that
-  // block, summed across the blocks each person attended. A person's billed
-  // interval runs from their slot start (19:00 / 20:00) to their billed checkout
-  // (min 2h, half-hour steps); still-playing people count up to "now".
-  const now = new Date();
-  const startOf = (s: (typeof attendees)[number]) =>
-    blockStart(session.date, s.timeSlot as "EARLY" | "LATE");
-  const billedEndOf = (s: (typeof attendees)[number]) => {
-    const start = startOf(s);
-    if (!s.checkedOutAt) return now;
-    return new Date(start.getTime() + billedHours(start, s.checkedOutAt) * 3_600_000);
-  };
-  const courtShare = new Map<string, number>();
-  for (const b of billingBlocks(session.date)) {
-    const present = attendees.filter(
-      (s) => startOf(s).getTime() < b.end.getTime() && billedEndOf(s).getTime() > b.start.getTime()
-    );
-    if (present.length === 0) continue;
-    const perPlayer = (courtsOpenAt(session, b.start) * rate * b.hours) / present.length;
-    for (const s of present) courtShare.set(s.id, (courtShare.get(s.id) ?? 0) + perPlayer);
-  }
+  // Per-person court split (same block model the day total uses), so the table
+  // and the close-day total reconcile.
+  const { perPerson: courtShare, units: courtHourUnits } = courtCostByPerson(
+    session,
+    attendees.map((s) => ({
+      id: s.id,
+      timeSlot: s.timeSlot as "EARLY" | "LATE",
+      checkedOutAt: s.checkedOutAt,
+    })),
+    rate
+  );
 
   // Per-person day summary: everyone who actually showed up (checked in or out).
   const rows = attendees
@@ -94,6 +84,10 @@ export default async function SessionCostPage({
         status={session.status}
         courtRates={courtRates}
         shuttlecockTypes={shuttlecockTypes}
+        courtHourUnits={courtHourUnits}
+        gamesPlayed={gamesPlayed}
+        defaultCourtRateId={session.courtRateId}
+        defaultShuttlecockTypeId={session.shuttlecockTypeId}
         closedSummary={
           session.status === "CLOSED"
             ? {

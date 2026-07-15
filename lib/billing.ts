@@ -95,6 +95,51 @@ export function courtsOpenAt(
     : session.courtsEarly;
 }
 
+/**
+ * Split the day's court cost across everyone who showed up, and total it up.
+ * Each half-hour block's cost (open courts × rate × block-hours) is divided
+ * among the people present in that block, summed across the blocks each
+ * attended. `units` = Σ (open courts × block-hours) over blocks with anyone
+ * present, so total = rate × units. A person's billed interval runs from their
+ * slot start (19:00 / 20:00) to their billed checkout; still-playing people
+ * count up to `now`.
+ */
+export function courtCostByPerson(
+  session: {
+    courtsEarly: number;
+    courtsLate: number;
+    date: Date;
+    lateOpenedAt: Date | null;
+    openCourts?: string | null;
+  },
+  attendees: { id: string; timeSlot: "EARLY" | "LATE"; checkedOutAt: Date | null }[],
+  rate: number,
+  now: Date = new Date()
+): { perPerson: Map<string, number>; total: number; units: number } {
+  const startOf = (a: (typeof attendees)[number]) => blockStart(session.date, a.timeSlot);
+  const endOf = (a: (typeof attendees)[number]) =>
+    a.checkedOutAt
+      ? new Date(startOf(a).getTime() + billedHours(startOf(a), a.checkedOutAt) * 3_600_000)
+      : now;
+
+  const perPerson = new Map<string, number>();
+  let total = 0;
+  let units = 0;
+  for (const b of billingBlocks(session.date)) {
+    const present = attendees.filter(
+      (a) => startOf(a).getTime() < b.end.getTime() && endOf(a).getTime() > b.start.getTime()
+    );
+    if (present.length === 0) continue;
+    const courts = courtsOpenAt(session, b.start);
+    units += courts * b.hours;
+    const blockCost = courts * rate * b.hours;
+    total += blockCost;
+    const per = blockCost / present.length;
+    for (const a of present) perPerson.set(a.id, (perPerson.get(a.id) ?? 0) + per);
+  }
+  return { perPerson, total, units };
+}
+
 /** Billable hours between start and checkout (min 2h, half-hour steps, 10-min grace). */
 export function billedHours(start: Date, end: Date): number {
   const minutes = Math.max(0, (end.getTime() - start.getTime()) / 60_000);
