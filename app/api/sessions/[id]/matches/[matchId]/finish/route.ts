@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { bookFoursome, fillCourt } from "@/lib/queue";
+import { fillCourt } from "@/lib/queue";
 
 export async function POST(
   req: NextRequest,
@@ -42,11 +42,11 @@ export async function POST(
     return NextResponse.json({ ok: true, court: match.court, filled: false, nextQueued: true });
   }
 
-  // Prefer a prepared คู่เตรียม (PendingPair): drop the front-most one whose
-  // four players are all free now onto this just-freed court. This is what
-  // makes "จบเกม" pull the คู่เตรียม the admin lined up (edits included) instead
-  // of a freshly auto-computed foursome. Falls back to auto-fill when no
-  // คู่เตรียม is ready.
+  // If the admin has a prepared คู่เตรียม (PendingPair) that's ready right now
+  // (all four players free), don't fill automatically — the court stays empty
+  // and we hand the ready คู่เตรียม back so the client can ASK whether to drop
+  // it onto this court or just run the normal auto-fill. This keeps the admin
+  // in control of the timing instead of the คู่เตรียม dropping by itself.
   const pendings = await prisma.pendingPair.findMany({
     where: { sessionId: id },
     orderBy: { createdAt: "asc" },
@@ -63,18 +63,22 @@ export async function POST(
       [...p.team1Ids, ...p.team2Ids].every((pid) => !reserved.has(pid))
     );
     if (ready) {
-      const booked = await bookFoursome(id, ready.team1Ids, ready.team2Ids, match.court);
-      if (booked.ok) {
-        await prisma.pendingPair.delete({ where: { id: ready.id } });
-        return NextResponse.json({
-          ok: true,
-          court: match.court,
-          filled: true,
-          fromPending: true,
-        });
-      }
-      // Booking a stale คู่เตรียม failed (e.g. someone withdrew) — leave it in
-      // the list for the admin and fall through to auto-fill this court.
+      const ids = [...ready.team1Ids, ...ready.team2Ids];
+      const sus = await prisma.signUp.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true },
+      });
+      const nameOf = (pid: string) => sus.find((s) => s.id === pid)?.name ?? pid;
+      return NextResponse.json({
+        ok: true,
+        court: match.court,
+        filled: false,
+        readyPending: {
+          id: ready.id,
+          team1: ready.team1Ids.map(nameOf),
+          team2: ready.team2Ids.map(nameOf),
+        },
+      });
     }
   }
 

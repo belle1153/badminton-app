@@ -33,7 +33,9 @@ export default function MatchControls({
   const [partnerA, setPartnerA] = useState("");
   const [partnerB, setPartnerB] = useState("");
 
-  const unpaired = confirmedSignUps.filter((s) => !s.fixedPartnerId);
+  // Only people actually present (checked in) can be paired up for today —
+  // don't clutter the picker with everyone who registered but hasn't arrived.
+  const unpaired = confirmedSignUps.filter((s) => !s.fixedPartnerId && s.checkedIn);
   const pairs = useMemo(() => {
     const seen = new Set<string>();
     const result: [ConfirmedSignUp, ConfirmedSignUp][] = [];

@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { deriveCourtState, previewFoursomes } from "@/lib/queue";
+import { deriveCourtState } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
-import { type Player, type SkillLevel } from "@/lib/matching";
+import { type SkillLevel } from "@/lib/matching";
 import CourtCountEditor from "../CourtCountEditor";
 import MatchControls from "../MatchControls";
 import LiveCourts, { type LiveMatch, type FinishedGame } from "../LiveCourts";
@@ -93,27 +93,10 @@ export default async function SessionMatchPage({
   const upcomingMatches: LiveMatch[] = [...state.upcomingByCourt.entries()].flatMap(([court, list]) =>
     list.map((g) => toLive(g, court))
   );
-  const liveQueue = state.queue.map((q) => ({ id: q.id, name: q.name }));
 
-  // Admin preview of the next games (same picker fillCourt uses) so they can
-  // rebalance a line-up before it runs, then book it onto a court.
   const signUpById = new Map(session.signUps.map((s) => [s.id, s]));
-  const queuePlayers: Player[] = state.queue.map((q) => {
-    const s = signUpById.get(q.id)!;
-    return {
-      id: s.id,
-      name: s.name,
-      skillLevel: s.skillLevel as SkillLevel,
-      fixedPartnerId: s.fixedPartnerId,
-    };
-  });
-  const finishedSets = matches
-    .filter((m) => m.finishedAt != null)
-    .map((m) => new Set(m.players.map((p) => p.signUpId)));
-  const plannerMatchups = previewFoursomes(queuePlayers, finishedSets, 3);
   const openCts = openCourtNumbers(session);
   const freeCts = openCts.filter((c) => !state.currentByCourt.has(c));
-  const queueSignature = queuePlayers.map((p) => p.id).join(",");
 
   // Every checked-in person, tagged with the court they're currently playing
   // on (if any) — the pool for คู่เตรียม's ✎ swap and "จัดคู่เตรียมเอง", so the
@@ -124,7 +107,7 @@ export default async function SessionMatchPage({
     for (const g of list) for (const pid of g.playerIds) if (!busyCourtBySignUp.has(pid)) busyCourtBySignUp.set(pid, court);
 
   const candidates = session.signUps
-    .filter((s) => s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null))
+    .filter((s) => s.checkedInAt != null && (s.status === "CONFIRMED" || s.status === "WAITLIST"))
     .map((s) => ({
       id: s.id,
       name: s.name,
@@ -132,21 +115,40 @@ export default async function SessionMatchPage({
       busyCourt: busyCourtBySignUp.get(s.id) ?? null,
     }));
 
+  // คู่เตรียม is now a persisted, ordered FIFO queue (PendingPair). Render it in
+  // order; each player carries their skill + the court they're mid-game on.
   const pendingPairRows = await prisma.pendingPair.findMany({
     where: { sessionId: id },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const toLite = (pid: string) => {
     const s = signUpById.get(pid);
     return s
-      ? { id: s.id, name: s.name, skillLevel: s.skillLevel as SkillLevel }
-      : { id: pid, name: "(ไม่พบชื่อ)", skillLevel: "RK" as SkillLevel };
+      ? {
+          id: s.id,
+          name: s.name,
+          skillLevel: s.skillLevel as SkillLevel,
+          busyCourt: busyCourtBySignUp.get(s.id) ?? null,
+        }
+      : { id: pid, name: "(ไม่พบชื่อ)", skillLevel: "RK" as SkillLevel, busyCourt: null };
   };
   const pendingPairs = pendingPairRows.map((p) => ({
     id: p.id,
     team1: p.team1Ids.map(toLite),
     team2: p.team2Ids.map(toLite),
   }));
+
+  // Free (checked-in, not playing) players who aren't parked in a คู่เตรียม yet
+  // — the client uses this signature to top the queue up when it changes.
+  const queuedIds = new Set(pendingPairRows.flatMap((p) => [...p.team1Ids, ...p.team2Ids]));
+  const freeUnqueuedIds = state.queue.map((q) => q.id).filter((qid) => !queuedIds.has(qid));
+  const freeUnqueuedSignature = [...freeUnqueuedIds].sort().join(",");
+
+  // The admin "คิวรอลงสนาม" list = genuinely-waiting players (not already lined
+  // up in a คู่เตรียม), so it and fillCourt agree on who's fillable.
+  const liveQueue = state.queue
+    .filter((q) => !queuedIds.has(q.id))
+    .map((q) => ({ id: q.id, name: q.name }));
 
   const recentFinished: FinishedGame[] = matches
     .filter((m) => m.finishedAt != null)
@@ -187,14 +189,13 @@ export default async function SessionMatchPage({
         />
       )}
 
-      {session.status === "OPEN" && candidates.length > 0 && (
+      {session.status === "OPEN" && (
         <UpcomingPlanner
-          key={queueSignature}
           sessionId={id}
-          initialMatchups={plannerMatchups}
           candidates={candidates}
           pendingPairs={pendingPairs}
           freeCourts={freeCts}
+          freeUnqueuedSignature={freeUnqueuedSignature}
         />
       )}
 

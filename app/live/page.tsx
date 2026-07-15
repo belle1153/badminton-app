@@ -35,6 +35,7 @@ export default async function LiveAllPage() {
         },
         orderBy: { round: "asc" },
       },
+      pendingPairs: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
     },
   });
 
@@ -48,7 +49,7 @@ export default async function LiveAllPage() {
       createdAt: x.createdAt,
       status: x.status,
     }));
-    const board = buildCourtBoard(signUps, s.matches, openCourtNumbers(s), `${s.id}-`);
+    const board = buildCourtBoard(signUps, s.matches, openCourtNumbers(s), s.pendingPairs, `${s.id}-`);
 
     return {
       id: s.id,

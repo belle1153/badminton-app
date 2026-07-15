@@ -29,6 +29,7 @@ export default async function SessionCourtsPage({
         },
         orderBy: { round: "asc" },
       },
+      pendingPairs: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
     },
   });
 
@@ -68,7 +69,12 @@ export default async function SessionCourtsPage({
     team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
   }));
 
-  const board = buildCourtBoard(signUps, session.matches, openCourtNumbers(session));
+  const board = buildCourtBoard(
+    signUps,
+    session.matches,
+    openCourtNumbers(session),
+    session.pendingPairs
+  );
 
   return (
     <>

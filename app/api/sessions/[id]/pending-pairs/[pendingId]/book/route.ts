@@ -10,7 +10,7 @@ import { bookFoursome, loadCourtState } from "@/lib/queue";
  * them immediately.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; pendingId: string }> }
 ) {
   if (!(await isAdmin())) {
@@ -18,6 +18,9 @@ export async function POST(
   }
 
   const { id, pendingId } = await params;
+  const body = await req.json().catch(() => ({}));
+  const court = body?.court == null || body.court === "" || body.court === 0 ? undefined : Number(body.court);
+
   const pending = await prisma.pendingPair.findUnique({ where: { id: pendingId } });
   if (!pending || pending.sessionId !== id) {
     return NextResponse.json({ error: "ไม่พบคู่เตรียมนี้" }, { status: 404 });
@@ -35,7 +38,7 @@ export async function POST(
     );
   }
 
-  const result = await bookFoursome(id, pending.team1Ids, pending.team2Ids);
+  const result = await bookFoursome(id, pending.team1Ids, pending.team2Ids, court);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

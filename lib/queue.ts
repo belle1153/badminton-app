@@ -129,6 +129,57 @@ export async function loadCourtState(sessionId: string): Promise<CourtState> {
   return deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 }
 
+/**
+ * Top up the คู่เตรียม queue (PendingPair) so it stays a stable, ordered FIFO
+ * list instead of a preview that reshuffles every render. Takes the checked-in
+ * players who are free right now AND not already sitting in a คู่เตรียม, splits
+ * them into skill-tight foursomes (the same partition the auto-preview used),
+ * and APPENDS them to the back of the queue. Existing คู่เตรียม are never
+ * touched — so once คู่ 1/2/3 are laid out they keep their members and order;
+ * booking one just removes it and the rest slide up. Newcomers who check in
+ * later are added behind them. Returns how many new foursomes were queued.
+ */
+export async function syncPendingQueue(sessionId: string): Promise<number> {
+  const [session, signups, matches, pendings] = await Promise.all([
+    prisma.session.findUnique({ where: { id: sessionId } }),
+    prisma.signUp.findMany({ where: { sessionId }, select: SIGNUP_SELECT }),
+    prisma.match.findMany({ where: { sessionId }, select: MATCH_SELECT }),
+    prisma.pendingPair.findMany({ where: { sessionId } }),
+  ]);
+  if (!session || session.status === "CLOSED") return 0;
+
+  const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
+  const alreadyQueued = new Set(pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]));
+  // state.queue = checked-in, not in any unfinished match, front (waited longest)
+  // first. Drop anyone already parked in a คู่เตรียม.
+  const freeUnqueued = state.queue.filter((q) => !alreadyQueued.has(q.id));
+  if (freeUnqueued.length < 4) return 0;
+
+  const byId = new Map((signups as SignUpRow[]).map((s) => [s.id, s]));
+  const players: Player[] = freeUnqueued.map((q) => {
+    const s = byId.get(q.id)!;
+    return { id: s.id, name: s.name, skillLevel: s.skillLevel, fixedPartnerId: s.fixedPartnerId };
+  });
+  const finishedSets = (matches as MatchRow[])
+    .filter((m) => m.finishedAt != null)
+    .map((m) => new Set(m.players.map((p) => p.signUpId)));
+
+  const foursomes = partitionFoursomes(players, finishedSets);
+  let created = 0;
+  for (const four of foursomes) {
+    const { team1, team2 } = balanceTeams(four);
+    await prisma.pendingPair.create({
+      data: {
+        sessionId,
+        team1Ids: team1.map((p) => p.id),
+        team2Ids: team2.map((p) => p.id),
+      },
+    });
+    created++;
+  }
+  return created;
+}
+
 export type FillResult =
   | { ok: true; matchId: string; round: number; court: number; playerIds: string[] }
   | { ok: false; reason: "court_taken" | "not_enough" | "not_open" };
@@ -332,16 +383,22 @@ export function previewFoursomes(
  * has waited longest is always in the game.
  */
 export async function fillCourt(sessionId: string, court: number): Promise<FillResult> {
-  const [session, signups, matches] = await Promise.all([
+  const [session, signups, matches, pendings] = await Promise.all([
     prisma.session.findUnique({ where: { id: sessionId } }),
     prisma.signUp.findMany({ where: { sessionId }, select: SIGNUP_SELECT }),
     prisma.match.findMany({ where: { sessionId }, select: MATCH_SELECT }),
+    prisma.pendingPair.findMany({ where: { sessionId }, select: { team1Ids: true, team2Ids: true } }),
   ]);
   const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 
   if (session && !openCourtNumbers(session).includes(court)) return { ok: false, reason: "not_open" };
   if (state.currentByCourt.has(court)) return { ok: false, reason: "court_taken" };
-  if (state.queue.length < 4) return { ok: false, reason: "not_enough" };
+
+  // Don't auto-pull anyone already lined up in a คู่เตรียม — they leave the free
+  // queue when their prepared game is booked, not by a random fill.
+  const queuedInPending = new Set(pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]));
+  const freeQueue = state.queue.filter((q) => !queuedInPending.has(q.id));
+  if (freeQueue.length < 4) return { ok: false, reason: "not_enough" };
 
   const byId = new Map((signups as SignUpRow[]).map((s) => [s.id, s]));
   const toPlayer = (id: string): Player => {
@@ -349,7 +406,7 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
     return { id: s.id, name: s.name, skillLevel: s.skillLevel, fixedPartnerId: s.fixedPartnerId };
   };
 
-  const windowPlayers = state.queue.map((q) => toPlayer(q.id));
+  const windowPlayers = freeQueue.map((q) => toPlayer(q.id));
   const finishedSets = (matches as MatchRow[])
     .filter((m) => m.finishedAt != null)
     .map((m) => new Set(m.players.map((p) => p.signUpId)));

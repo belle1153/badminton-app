@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { balanceTeams, SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
-type Lite = { id: string; name: string; skillLevel: SkillLevel; fixedPartnerId?: string | null };
+type Lite = { id: string; name: string; skillLevel: SkillLevel; busyCourt: number | null };
 
 /** Anyone checked in, whether free right now or mid-game on a court. */
 export interface Candidate {
   id: string;
   name: string;
   skillLevel: SkillLevel;
-  busyCourt: number | null; // court number if currently mid-game, else null (free / queued)
+  busyCourt: number | null; // court number if currently mid-game, else null
 }
 
 export interface PersistedPending {
@@ -21,267 +21,88 @@ export interface PersistedPending {
 }
 
 /**
- * คู่เตรียม panel — three related things live here:
- *
- * 1. ระบบจัดให้ (initialMatchups): preview of the next games the queue will
- *    produce — same foursomes fillCourt picks. Admin can swap any slot for
- *    another checked-in person (even someone currently playing, earmarking
- *    them) before booking it onto a free court.
- * 2. คู่เตรียมที่จัดเอง (pendingPairs): foursomes the admin hand-picked and
- *    saved via "จัดคู่เตรียมเอง" below. Persisted in the DB so they survive
- *    refreshes and other people's games finishing — needed because a pick
- *    may include someone still mid-game, who can only actually play once
- *    they finish and leave the court.
- * 3. จัดคู่เตรียมเอง: hand-pick any four checked-in people (including players
- *    currently on a court). If everyone's free and a court is open, it books
- *    immediately; otherwise it's saved as a pending pair above.
+ * คู่เตรียม — a persisted, ordered FIFO queue (PendingPair rows), not a preview
+ * that reshuffles. The queue tops itself up from the checked-in players who are
+ * free (see /pending-pairs/sync), balanced by skill. The admin can:
+ *   - ✎ swap any player for another checked-in person — saved straight away.
+ *   - ลงสนาม: drop a คู่เตรียม onto a free court now (the rest keep their order
+ *     and slide up).
+ *   - ยกเลิก: remove a คู่เตรียม.
+ *   - จัดคู่เตรียมเอง: hand-pick four (incl. players mid-game) and append them.
+ * A game finishing also offers to drop the front คู่เตรียม (handled on the live
+ * court board), so คู่ 1 → court, คู่ 2 becomes คู่ 1, and so on.
  */
 export default function UpcomingPlanner({
   sessionId,
-  initialMatchups,
   candidates,
   pendingPairs,
   freeCourts,
+  freeUnqueuedSignature,
 }: {
   sessionId: string;
-  initialMatchups: Lite[][];
-  candidates: Candidate[]; // everyone checked in, for swapping and for hand-picking
-  pendingPairs: PersistedPending[];
-  freeCourts: number[]; // open courts with no current game (booked as a live game)
-}) {
-  const router = useRouter();
-  const [matchups, setMatchups] = useState<Lite[][]>(initialMatchups);
-  const [courts, setCourts] = useState<number[]>(() =>
-    initialMatchups.map((_, i) => freeCourts[i] ?? freeCourts[0] ?? 0)
-  );
-  const [editing, setEditing] = useState<{ m: number; slot: number } | null>(null);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const byId = new Map(candidates.map((c) => [c.id, c]));
-  const noFreeCourt = freeCourts.length === 0;
-
-  // --- ระบบจัดให้: swap a slot with any checked-in person -----------------
-  function replace(m: number, slot: number, playerId: string) {
-    const incoming = candidates.find((x) => x.id === playerId);
-    setEditing(null);
-    if (!incoming) return;
-    setMatchups((prev) => {
-      const next = prev.map((four) => [...four]);
-      const outgoing = next[m][slot];
-      for (let mi = 0; mi < next.length; mi++) {
-        const si = next[mi].findIndex((p) => p.id === playerId);
-        if (si >= 0) {
-          next[mi][si] = outgoing; // exchange with the other matchup
-          break;
-        }
-      }
-      next[m][slot] = { id: incoming.id, name: incoming.name, skillLevel: incoming.skillLevel };
-      return next;
-    });
-  }
-
-  async function book(m: number) {
-    const { team1, team2 } = balanceTeams(matchups[m]);
-    setError(null);
-    setLoading(`auto-${m}`);
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/matches/add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          court: courts[m],
-          team1: team1.map((p) => p.id),
-          team2: team2.map((p) => p.id),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "จองไม่สำเร็จ");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  // Persist an (edited) auto matchup into the คู่เตรียม queue so it survives a
-  // refresh and gets pulled onto the next court that finishes — the only way
-  // an edit to a ระบบจัดให้ matchup sticks (the on-screen edits are otherwise
-  // client-only). Works even while everyone's still mid-game.
-  async function lockQueue(m: number) {
-    const { team1, team2 } = balanceTeams(matchups[m]);
-    setError(null);
-    setLoading(`lock-${m}`);
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          team1: team1.map((p) => p.id),
-          team2: team2.map((p) => p.id),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "ล็อกคิวไม่สำเร็จ");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  const chip = (p: Lite, m: number, slot: number) => {
-    const busyCourt = byId.get(p.id)?.busyCourt ?? null;
-    if (editing && editing.m === m && editing.slot === slot) {
-      return (
-        <select
-          key={p.id}
-          autoFocus
-          defaultValue=""
-          onChange={(e) => replace(m, slot, e.target.value)}
-          onBlur={() => setEditing(null)}
-          className="text-gray-900 text-xs rounded border border-gray-300 max-w-[11rem] py-1"
-        >
-          <option value="" disabled>
-            แทน {p.name} ด้วย…
-          </option>
-          {candidates
-            .filter((b) => !matchups[m].some((x) => x.id === b.id))
-            .map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} ({SKILL_LABELS[b.skillLevel]})
-                {b.busyCourt ? ` — เล่นอยู่ สนาม ${b.busyCourt}` : ""}
-              </option>
-            ))}
-        </select>
-      );
-    }
-    return (
-      <button
-        key={p.id}
-        type="button"
-        onClick={() => setEditing({ m, slot })}
-        className={`text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 border inline-flex items-center gap-1 ${
-          busyCourt ? "bg-amber-50 border-amber-300" : "bg-white border-gray-200"
-        }`}
-      >
-        {p.name}
-        <span className="text-gray-400">{SKILL_LABELS[p.skillLevel]}</span>
-        {busyCourt && <span className="text-amber-600">⏳ สนาม {busyCourt}</span>}
-        <span className="text-brand-500">✎</span>
-      </button>
-    );
-  };
-
-  return (
-    <section className="flex flex-col gap-4 rounded-xl border-2 border-orange-300 bg-orange-50/50 p-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-orange-800">🔶 คู่เตรียม</h2>
-        <span className="text-xs text-orange-600">แก้ตัวผู้เล่นก่อนลงได้</span>
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      {matchups.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-orange-700/70">
-            คิวถัดไป (มือใกล้กันก่อน แล้วคิว) กด ✎ เพื่อสลับกับใครก็ได้ที่เช็คอินไว้ — รวมถึงคนที่
-            กำลังเล่นอยู่ (จองไว้รอ) · แก้แล้วกด &quot;🔒 ล็อกคิว&quot; เพื่อเก็บคู่ไว้ พอสนามไหนจบเกม
-            ระบบจะดึงคู่ที่ล็อกไว้ (คู่หน้าสุด) ลงให้อัตโนมัติ
-            {noFreeCourt ? "" : ' · หรือเลือกสนามว่างแล้ว "ลงสนาม" เดี๋ยวนี้เลย'}
-          </p>
-          <ol className="flex flex-col gap-2">
-            {matchups.map((four, m) => {
-              const { team1, team2 } = balanceTeams(four);
-              const slotOf = (p: Lite) => four.findIndex((q) => q.id === p.id);
-              const anyBusy = four.some((p) => byId.get(p.id)?.busyCourt);
-              return (
-                <li key={m} className="rounded-lg border border-gray-200 bg-white/60 p-2.5 flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-gray-400 shrink-0 w-8">คู่ {m + 1}</span>
-                    <div className="flex-1 flex items-center justify-around gap-1 flex-wrap">
-                      <div className="flex flex-col gap-1">{team1.map((p) => chip(p, m, slotOf(p)))}</div>
-                      <span className="text-xs font-bold text-gray-400 shrink-0">VS</span>
-                      <div className="flex flex-col gap-1">{team2.map((p) => chip(p, m, slotOf(p)))}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <button
-                      onClick={() => lockQueue(m)}
-                      disabled={loading === `lock-${m}`}
-                      title="เก็บคู่นี้ (พร้อมที่แก้) เข้าคิวคู่เตรียม — จะลงสนามอัตโนมัติเมื่อมีสนามจบเกม"
-                      className="rounded-md border border-orange-400 text-orange-700 text-sm font-medium px-3 py-1.5 hover:bg-orange-100 disabled:opacity-50"
-                    >
-                      {loading === `lock-${m}` ? "กำลังล็อก…" : "🔒 ล็อกคิว (ลงเมื่อจบเกม)"}
-                    </button>
-                    {anyBusy ? (
-                      <p className="text-xs text-amber-700 text-right">⏳ รอคนที่กำลังเล่นจบเกมก่อนถึงลงสนามว่างได้</p>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-gray-500">ลงสนามว่าง</label>
-                        <select
-                          value={courts[m]}
-                          disabled={noFreeCourt}
-                          onChange={(e) =>
-                            setCourts((prev) => prev.map((c, i) => (i === m ? Number(e.target.value) : c)))
-                          }
-                          className="text-sm rounded border border-gray-300 py-1 px-2 text-gray-900 disabled:opacity-50"
-                        >
-                          {noFreeCourt ? (
-                            <option value={0}>ไม่มีสนามว่าง</option>
-                          ) : (
-                            freeCourts.map((c) => (
-                              <option key={c} value={c}>
-                                สนาม {c}
-                              </option>
-                            ))
-                          )}
-                        </select>
-                        <button
-                          onClick={() => book(m)}
-                          disabled={loading === `auto-${m}` || noFreeCourt}
-                          className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-orange-700 disabled:opacity-50"
-                        >
-                          {loading === `auto-${m}` ? "กำลังลง…" : "ลงสนาม"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      )}
-
-      <PendingPairsList sessionId={sessionId} pendingPairs={pendingPairs} candidates={candidates} />
-
-      <ManualPendingPairForm sessionId={sessionId} candidates={candidates} />
-    </section>
-  );
-}
-
-/** Persisted, hand-picked or earmarked pending pairs — survive refreshes. */
-function PendingPairsList({
-  sessionId,
-  pendingPairs,
-  candidates,
-}: {
-  sessionId: string;
-  pendingPairs: PersistedPending[];
   candidates: Candidate[];
+  pendingPairs: PersistedPending[];
+  freeCourts: number[];
+  freeUnqueuedSignature: string;
 }) {
   const router = useRouter();
+  const [editing, setEditing] = useState<{ pairId: string; slot: string } | null>(null);
+  const [courtByPair, setCourtByPair] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const byId = new Map(candidates.map((c) => [c.id, c]));
 
-  async function bookPending(id: string) {
+  const noFreeCourt = freeCourts.length === 0;
+  const courtFor = (pairId: string) => courtByPair[pairId] ?? freeCourts[0] ?? 0;
+
+  // Keep the queue topped up: whenever the set of free-but-unqueued players
+  // changes (someone checks in, a game frees four), append them as new คู่เตรียม
+  // at the back. Guarded so it fires once per distinct signature — no loop.
+  const lastSynced = useRef<string | null>(null);
+  useEffect(() => {
+    if (!freeUnqueuedSignature) return;
+    if (lastSynced.current === freeUnqueuedSignature) return;
+    lastSynced.current = freeUnqueuedSignature;
+    (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/sync`, { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.created > 0) router.refresh();
+      } catch {
+        // A failed top-up is harmless — the next change retries.
+      }
+    })();
+  }, [freeUnqueuedSignature, sessionId, router]);
+
+  async function swap(pairId: string, outSignUpId: string, inSignUpId: string) {
+    setEditing(null);
+    if (!inSignUpId) return;
     setError(null);
-    setLoading(`book-${id}`);
+    setLoading(`swap-${pairId}`);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/${id}/book`, { method: "POST" });
+      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/${pairId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outSignUpId, inSignUpId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "สลับผู้เล่นไม่สำเร็จ");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function book(pairId: string) {
+    setError(null);
+    setLoading(`book-${pairId}`);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/${pairId}/book`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ court: courtFor(pairId) }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "ลงสนามไม่สำเร็จ");
       router.refresh();
@@ -292,11 +113,11 @@ function PendingPairsList({
     }
   }
 
-  async function cancelPending(id: string) {
+  async function cancel(pairId: string) {
     setError(null);
-    setLoading(`cancel-${id}`);
+    setLoading(`cancel-${pairId}`);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/${pairId}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error ?? "ยกเลิกไม่สำเร็จ");
@@ -309,82 +130,139 @@ function PendingPairsList({
     }
   }
 
-  if (pendingPairs.length === 0) return null;
+  const chip = (p: Lite, pairId: string, inThisPair: Set<string>) => {
+    const slot = p.id;
+    if (editing && editing.pairId === pairId && editing.slot === slot) {
+      return (
+        <select
+          key={p.id}
+          autoFocus
+          defaultValue=""
+          onChange={(e) => swap(pairId, p.id, e.target.value)}
+          onBlur={() => setEditing(null)}
+          className="text-gray-900 text-xs rounded border border-gray-300 max-w-[11rem] py-1"
+        >
+          <option value="" disabled>
+            แทน {p.name} ด้วย…
+          </option>
+          {candidates
+            .filter((c) => !inThisPair.has(c.id))
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({SKILL_LABELS[c.skillLevel]})
+                {c.busyCourt ? ` — เล่นอยู่ สนาม ${c.busyCourt}` : ""}
+              </option>
+            ))}
+        </select>
+      );
+    }
+    return (
+      <button
+        key={p.id}
+        type="button"
+        onClick={() => setEditing({ pairId, slot })}
+        className={`text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 border inline-flex items-center gap-1 ${
+          p.busyCourt ? "bg-amber-50 border-amber-300" : "bg-white border-gray-200"
+        }`}
+      >
+        {p.name}
+        <span className="text-gray-400">{SKILL_LABELS[p.skillLevel]}</span>
+        {p.busyCourt && <span className="text-amber-600">⏳ สนาม {p.busyCourt}</span>}
+        <span className="text-brand-500">✎</span>
+      </button>
+    );
+  };
 
   return (
-    <div className="flex flex-col gap-2 border-t border-orange-200 pt-3">
-      <h3 className="text-sm font-semibold text-orange-800">คู่เตรียมที่จัดเอง</h3>
+    <section className="flex flex-col gap-4 rounded-xl border-2 border-orange-300 bg-orange-50/50 p-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-orange-800">🔶 คู่เตรียม</h2>
+        <span className="text-xs text-orange-600">แก้ตัวผู้เล่นก่อนลงได้</span>
+      </div>
+      <p className="text-xs text-orange-700/70">
+        คิวถาวร เรียงตามลำดับ (มือใกล้กันก่อน แล้วคิว) กด ✎ เพื่อสลับกับใครก็ได้ที่เช็คอินไว้ —
+        รวมถึงคนที่กำลังเล่นอยู่ (จองไว้รอ) แก้แล้วบันทึกทันที · กด &quot;ลงสนาม&quot; แล้วคู่ถัดไปจะเลื่อนขึ้นเอง
+      </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <ol className="flex flex-col gap-2">
-        {pendingPairs.map((p) => {
-          const four = [...p.team1, ...p.team2];
-          const busyOnes = four
-            .map((pl) => ({ pl, court: byId.get(pl.id)?.busyCourt ?? null }))
-            .filter((x) => x.court != null);
-          return (
-            <li key={p.id} className="rounded-lg border border-gray-200 bg-white/60 p-2.5 flex flex-col gap-2">
-              <div className="flex-1 flex items-center justify-around gap-1 flex-wrap">
-                <div className="flex flex-col gap-1">
-                  {p.team1.map((pl) => (
-                    <span
-                      key={pl.id}
-                      className={`text-xs font-medium rounded-full px-2.5 py-1 border inline-flex items-center gap-1 ${
-                        byId.get(pl.id)?.busyCourt ? "bg-amber-50 border-amber-300" : "bg-white border-gray-200"
-                      }`}
-                    >
-                      {pl.name} <span className="text-gray-400">{SKILL_LABELS[pl.skillLevel]}</span>
-                    </span>
-                  ))}
+
+      {pendingPairs.length === 0 ? (
+        <p className="text-sm text-gray-400">
+          {candidates.length < 4
+            ? "ยังไม่มีคนพร้อมพอจัดคู่ (ต้องเช็คอินอย่างน้อย 4 คน)"
+            : "กำลังจัดคู่เตรียมจากคิว…"}
+        </p>
+      ) : (
+        <ol className="flex flex-col gap-2">
+          {pendingPairs.map((pair, i) => {
+            const inThisPair = new Set([...pair.team1, ...pair.team2].map((p) => p.id));
+            const busyOnes = [...pair.team1, ...pair.team2].filter((p) => p.busyCourt != null);
+            const anyBusy = busyOnes.length > 0;
+            return (
+              <li key={pair.id} className="rounded-lg border border-gray-200 bg-white/60 p-2.5 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-gray-400 shrink-0 w-8">คู่ {i + 1}</span>
+                  <div className="flex-1 flex items-center justify-around gap-1 flex-wrap">
+                    <div className="flex flex-col gap-1">{pair.team1.map((p) => chip(p, pair.id, inThisPair))}</div>
+                    <span className="text-xs font-bold text-gray-400 shrink-0">VS</span>
+                    <div className="flex flex-col gap-1">{pair.team2.map((p) => chip(p, pair.id, inThisPair))}</div>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-gray-400 shrink-0">VS</span>
-                <div className="flex flex-col gap-1">
-                  {p.team2.map((pl) => (
-                    <span
-                      key={pl.id}
-                      className={`text-xs font-medium rounded-full px-2.5 py-1 border inline-flex items-center gap-1 ${
-                        byId.get(pl.id)?.busyCourt ? "bg-amber-50 border-amber-300" : "bg-white border-gray-200"
-                      }`}
-                    >
-                      {pl.name} <span className="text-gray-400">{SKILL_LABELS[pl.skillLevel]}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                {busyOnes.length > 0 ? (
-                  <p className="text-xs text-amber-700">
-                    ⏳ รอ {busyOnes.map((x) => `${x.pl.name} (สนาม ${x.court})`).join(", ")} จบเกมก่อน
-                  </p>
-                ) : (
-                  <span className="text-xs text-gray-400">ทุกคนพร้อมแล้ว</span>
-                )}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <button
-                    onClick={() => cancelPending(p.id)}
-                    disabled={loading === `cancel-${p.id}`}
+                    onClick={() => cancel(pair.id)}
+                    disabled={loading === `cancel-${pair.id}`}
                     className="text-xs text-red-600 hover:underline disabled:opacity-50"
                   >
                     ยกเลิก
                   </button>
-                  <button
-                    onClick={() => bookPending(p.id)}
-                    disabled={busyOnes.length > 0 || loading === `book-${p.id}`}
-                    className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-orange-700 disabled:opacity-50"
-                  >
-                    {loading === `book-${p.id}` ? "กำลังลง…" : "ลงสนาม"}
-                  </button>
+                  {anyBusy ? (
+                    <p className="text-xs text-amber-700 text-right">
+                      ⏳ รอ {busyOnes.map((p) => `${p.name} (สนาม ${p.busyCourt})`).join(", ")} จบเกมก่อน
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500">ลงสนามว่าง</label>
+                      <select
+                        value={courtFor(pair.id)}
+                        disabled={noFreeCourt}
+                        onChange={(e) =>
+                          setCourtByPair((prev) => ({ ...prev, [pair.id]: Number(e.target.value) }))
+                        }
+                        className="text-sm rounded border border-gray-300 py-1 px-2 text-gray-900 disabled:opacity-50"
+                      >
+                        {noFreeCourt ? (
+                          <option value={0}>ไม่มีสนามว่าง</option>
+                        ) : (
+                          freeCourts.map((c) => (
+                            <option key={c} value={c}>
+                              สนาม {c}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <button
+                        onClick={() => book(pair.id)}
+                        disabled={loading === `book-${pair.id}` || noFreeCourt}
+                        className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-orange-700 disabled:opacity-50"
+                      >
+                        {loading === `book-${pair.id}` ? "กำลังลง…" : "ลงสนาม"}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      <ManualPendingPairForm sessionId={sessionId} candidates={candidates} />
+    </section>
   );
 }
 
-/** Hand-pick any four checked-in people (including those currently playing)
- *  and save them as a คู่เตรียม. */
+/** Hand-pick any four checked-in people (including those currently playing) and
+ *  append them to the คู่เตรียม queue. */
 function ManualPendingPairForm({ sessionId, candidates }: { sessionId: string; candidates: Candidate[] }) {
   const router = useRouter();
   const [picks, setPicks] = useState<string[]>(["", "", "", ""]);
@@ -438,7 +316,7 @@ function ManualPendingPairForm({ sessionId, candidates }: { sessionId: string; c
             .filter((p) => p.id === picks[i] || !picks.includes(p.id))
             .map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {p.name} ({SKILL_LABELS[p.skillLevel]})
                 {p.busyCourt ? ` — เล่นอยู่ สนาม ${p.busyCourt}` : ""}
               </option>
             ))}
@@ -452,7 +330,7 @@ function ManualPendingPairForm({ sessionId, candidates }: { sessionId: string; c
       <h3 className="text-sm font-semibold text-orange-800">จัดคู่เตรียมเอง</h3>
       <p className="text-xs text-orange-700/70">
         เลือกได้ 4 คนจากทุกคนที่เช็คอินไว้ รวมถึงคนที่กำลังเล่นอยู่ (จะลงสนามได้ก็ต่อเมื่อจบเกมออกมาก่อน)
-        ถ้าทุกคนว่างและมีสนามว่าง ระบบจะจัดลงสนามให้ทันที ไม่งั้นจะไปรออยู่ในคู่เตรียมด้านบน
+        ถ้าทุกคนว่างและมีสนามว่าง ระบบจะจัดลงสนามให้ทันที ไม่งั้นจะไปต่อท้ายคู่เตรียมด้านบน
       </p>
       {candidates.length < 4 ? (
         <p className="text-sm text-gray-400">ต้องมีคนเช็คอินอย่างน้อย 4 คนก่อนครับ</p>

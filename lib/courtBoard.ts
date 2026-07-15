@@ -1,5 +1,5 @@
-import { deriveCourtState, previewFoursomes } from "@/lib/queue";
-import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
+import { deriveCourtState } from "@/lib/queue";
+import { type SkillLevel } from "@/lib/matching";
 
 export interface BoardPlayer {
   id: string;
@@ -62,20 +62,28 @@ interface BoardMatchRow {
   }[];
 }
 
+interface BoardPendingPair {
+  id: string;
+  team1Ids: string[];
+  team2Ids: string[];
+}
+
 /**
- * The per-day court board — current game per court, คู่เตรียม preview (next
- * balanced foursomes from the queue), and finished-game history. Shared by
- * the day's own courts tab (session/[id]/(tabs)/courts) and the multi-day
- * "สนามที่กำลังเล่น" view (app/live) so both render the exact same picture
- * from one place instead of two copies of the same computation.
+ * The per-day court board — current game per court, the คู่เตรียม queue, and
+ * finished-game history. Shared by the day's own courts tab
+ * (session/[id]/(tabs)/courts) and the multi-day "สนามที่กำลังเล่น" view
+ * (app/live) so both render the exact same picture from one place.
  *
- * `matchupKeyPrefix` keeps React keys unique when several boards render on
- * the same page (app/live shows one board per open session).
+ * คู่เตรียม are the admin's persisted PendingPair queue (in order), so players
+ * see the same upcoming games the admin actually lined up — not a separate
+ * recompute that could disagree. `matchupKeyPrefix` keeps React keys unique
+ * when several boards render on the same page (app/live shows one per session).
  */
 export function buildCourtBoard(
   signUps: BoardSignUp[],
   matches: BoardMatchRow[],
   openCourts: number[],
+  pendingPairs: BoardPendingPair[] = [],
   matchupKeyPrefix = ""
 ): CourtBoard {
   const state = deriveCourtState(
@@ -124,25 +132,15 @@ export function buildCourtBoard(
     return { court, match: cur ? toTeamMatch(matchById.get(cur.id)!) : null };
   });
 
-  // คู่เตรียม: split the front of the waiting queue (wait order) into balanced
-  // matchups, using the SAME picker fillCourt uses so the preview matches
-  // what actually runs (closest skill, then queue).
+  // คู่เตรียม = the admin's persisted queue, in order. Map each pending pair's
+  // ids to names so players see the exact games that were lined up.
   const signUpById = new Map(signUps.map((s) => [s.id, s]));
-  const queuePlayers: Player[] = state.queue.map((q) => {
-    const s = signUpById.get(q.id)!;
-    return { id: s.id, name: s.name, skillLevel: s.skillLevel as SkillLevel, fixedPartnerId: s.fixedPartnerId };
-  });
-  const finishedSets = matches
-    .filter((m) => m.finishedAt != null)
-    .map((m) => new Set(m.players.map((p) => p.signUp.id)));
-  const matchups: BoardMatchup[] = previewFoursomes(queuePlayers, finishedSets, 3).map((four, i) => {
-    const { team1, team2 } = balanceTeams(four);
-    return {
-      key: `${matchupKeyPrefix}${i}`,
-      teamA: team1.map((p) => ({ id: p.id, name: p.name })),
-      teamB: team2.map((p) => ({ id: p.id, name: p.name })),
-    };
-  });
+  const nameOf = (pid: string) => signUpById.get(pid)?.name ?? "?";
+  const matchups: BoardMatchup[] = pendingPairs.map((p) => ({
+    key: `${matchupKeyPrefix}${p.id}`,
+    teamA: p.team1Ids.map((pid) => ({ id: pid, name: nameOf(pid) })),
+    teamB: p.team2Ids.map((pid) => ({ id: pid, name: nameOf(pid) })),
+  }));
 
   const finished: BoardFinishedMatch[] = matches
     .filter((m) => m.finishedAt != null)
@@ -150,5 +148,9 @@ export function buildCourtBoard(
     .sort((a, b) => a.court - b.court || a.round - b.round);
   const historyCourts = [...new Set(finished.map((m) => m.court))];
 
-  return { courts, matchups, finished, historyCourts, queueCount: queuePlayers.length };
+  // Waiting = checked-in, free, and not already lined up in a คู่เตรียม.
+  const queuedIds = new Set(pendingPairs.flatMap((p) => [...p.team1Ids, ...p.team2Ids]));
+  const queueCount = state.queue.filter((q) => !queuedIds.has(q.id)).length;
+
+  return { courts, matchups, finished, historyCourts, queueCount };
 }
