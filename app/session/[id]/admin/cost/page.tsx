@@ -13,7 +13,7 @@ export default async function SessionCostPage({
   const { id } = await params;
   if (!(await isAdmin())) return null; // layout renders the PIN gate
 
-  const [session, courtRates, shuttlecockTypes, gamesPlayed] = await Promise.all([
+  const [session, courtRates, shuttlecockTypes, gamesPlayed, settings] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
       include: {
@@ -27,10 +27,12 @@ export default async function SessionCostPage({
     prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
+    prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
   if (!session) return null;
 
   const ballPrice = shuttlecockTypes[0]?.pricePerPiece ?? 0;
+  const feePerPerson = settings?.feePerPerson ?? 0;
   // Court rate/hr: the session's chosen rate if set, else the first master rate.
   const rate =
     (session.courtRateId
@@ -71,8 +73,9 @@ export default async function SessionCostPage({
         games,
         ballShareBaht,
         courtBaht,
+        feeBaht: feePerPerson,
         live: s.checkedOutAt == null,
-        totalBaht: courtBaht + ballShareBaht,
+        totalBaht: courtBaht + ballShareBaht + feePerPerson,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -105,6 +108,7 @@ export default async function SessionCostPage({
           เวลาเริ่มนับตามช่วงที่ลง (1 ทุ่ม/2 ทุ่ม) · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) ·
           ค่าลูก = เกมละ 1 ลูก หาร 4 คน · ค่าคอร์ท = ค่าคอร์ทแต่ละครึ่งชม. หารคนที่อยู่ช่วงนั้น
           {rate > 0 && ` (เรท ${rate} ฿/ชม./สนาม)`}
+          {feePerPerson > 0 && ` · ค่าธรรมเนียม ${feePerPerson} ฿/คน`}
         </p>
         {rows.length === 0 ? (
           <p className="text-sm text-gray-400">ยังไม่มีคนเช็คอินวันนี้</p>
@@ -120,6 +124,7 @@ export default async function SessionCostPage({
                   <th className="px-2 py-1.5 font-medium text-right">เกม</th>
                   <th className="px-2 py-1.5 font-medium text-right">ค่าคอร์ท (฿)</th>
                   <th className="px-2 py-1.5 font-medium text-right">ค่าลูก (฿)</th>
+                  {feePerPerson > 0 && <th className="px-2 py-1.5 font-medium text-right">ค่าธรรมเนียม (฿)</th>}
                   <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
                 </tr>
               </thead>
@@ -146,6 +151,7 @@ export default async function SessionCostPage({
                       {r.live && <span className="text-[10px] text-amber-500"> *</span>}
                     </td>
                     <td className="px-2 py-1.5 text-right">{r.ballShareBaht}</td>
+                    {feePerPerson > 0 && <td className="px-2 py-1.5 text-right">{r.feeBaht}</td>}
                     <td className="px-2 py-1.5 text-right font-semibold">{r.totalBaht}</td>
                   </tr>
                 ))}

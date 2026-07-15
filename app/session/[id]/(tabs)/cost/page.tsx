@@ -24,9 +24,10 @@ export default async function SessionCostPage({
   }
 
   const confirmed = session.signUps;
+  const feePerPerson = settings?.feePerPerson ?? 0;
   const perPerson =
     session.totalCost != null && confirmed.length > 0
-      ? Math.ceil(session.totalCost / confirmed.length)
+      ? Math.ceil(session.totalCost / confirmed.length) + feePerPerson
       : null;
 
   return (
@@ -40,6 +41,7 @@ export default async function SessionCostPage({
             รวม: {session.totalCost} บาท (หารเท่ากัน {confirmed.length} คน)
           </p>
         )}
+        {feePerPerson > 0 && <p>ค่าธรรมเนียม: {feePerPerson} บาท/คน</p>}
       </div>
       {perPerson != null && (
         <ol className="flex flex-col gap-1">

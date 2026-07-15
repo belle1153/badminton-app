@@ -19,19 +19,38 @@ export default function MasterDataForm({
   courtRates,
   shuttlecockTypes,
   qrImageDataUrl,
+  feePerPerson,
 }: {
   courtRates: CourtRate[];
   shuttlecockTypes: ShuttlecockType[];
   qrImageDataUrl: string | null;
+  feePerPerson: number;
 }) {
   const router = useRouter();
   const [rateName, setRateName] = useState("");
   const [ratePrice, setRatePrice] = useState("");
   const [shuttleName, setShuttleName] = useState("");
   const [shuttlePrice, setShuttlePrice] = useState("");
+  const [fee, setFee] = useState(String(feePerPerson));
+  const [feeMsg, setFeeMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(qrImageDataUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function saveFee(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setFeeMsg(null);
+    const res = await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feePerPerson: Number(fee) }),
+    });
+    const data = await res.json();
+    if (!res.ok) return setError(data.error ?? "บันทึกไม่สำเร็จ");
+    setFeeMsg("บันทึกแล้ว");
+    router.refresh();
+  }
 
   async function addCourtRate(e: React.FormEvent) {
     e.preventDefault();
@@ -176,6 +195,29 @@ export default function MasterDataForm({
           <button type="submit" className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700">
             เพิ่ม
           </button>
+        </form>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-semibold">ค่าธรรมเนียม (บาท/คน)</h2>
+        <p className="text-xs text-gray-400">
+          บวกเพิ่มต่อคนในหน้าคำนวณ (เช่น ค่าน้ำ/ค่าบริการ) — ปรับได้ตลอด ใช้ค่าล่าสุดกับทุกวัน
+        </p>
+        <form onSubmit={saveFee} className="flex gap-2 items-center">
+          <input
+            type="number"
+            min={0}
+            value={fee}
+            onChange={(e) => setFee(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            className="input w-32"
+            required
+          />
+          <span className="text-sm text-gray-500">บาท/คน</span>
+          <button type="submit" className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700">
+            บันทึก
+          </button>
+          {feeMsg && <span className="text-sm text-brand-700">{feeMsg}</span>}
         </form>
       </section>
 

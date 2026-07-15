@@ -129,6 +129,7 @@ model ShuttlecockType {
 model AppSettings {
   id             String   @id @default("singleton")
   qrImageDataUrl String?
+  feePerPerson   Int      @default(0) // ค่าธรรมเนียมต่อคน (บาท) — ปรับได้, แสดงในหน้าคำนวณ
   updatedAt      DateTime @updatedAt
 }
 

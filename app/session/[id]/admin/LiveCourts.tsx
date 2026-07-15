@@ -70,12 +70,6 @@ export default function LiveCourts({
   const [winner, setWinner] = useState<0 | 1 | 2 | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // After finishing a court that has a ready คู่เตรียม, ask the admin whether to
-  // drop it now or run the normal auto-fill — instead of doing either silently.
-  const [pendingPrompt, setPendingPrompt] = useState<{
-    court: number;
-    pending: { id: string; team1: string[]; team2: string[] };
-  } | null>(null);
   // Player being swapped out of a live game (edit-in-place on the court card).
   const [swapping, setSwapping] = useState<{ matchId: string; playerId: string } | null>(null);
   const [replacement, setReplacement] = useState("");
@@ -226,61 +220,8 @@ export default function LiveCourts({
       if (!res.ok) throw new Error(data.error ?? "จบเกมไม่สำเร็จ");
       setFinishing(null);
       setWinner(null);
-      // Court has a ready คู่เตรียม → ask before filling; otherwise it already
-      // auto-filled (or stays empty if the queue is short).
-      if (data.readyPending) {
-        setPendingPrompt({ court: data.court, pending: data.readyPending });
-      }
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  // "ลงคู่เตรียม" on the post-finish prompt: promote the ready คู่เตรียม onto the
-  // court that just freed up.
-  async function dropPendingNow() {
-    if (!pendingPrompt) return;
-    setError(null);
-    setLoading("drop-pending");
-    try {
-      const res = await fetch(
-        `/api/sessions/${sessionId}/pending-pairs/${pendingPrompt.pending.id}/book`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ court: pendingPrompt.court }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "ลงคู่เตรียมไม่สำเร็จ");
-      setPendingPrompt(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  // "ไม่ ดึงคิวปกติ": leave the คู่เตรียม parked and auto-fill this court from the
-  // waiting queue like a normal finish.
-  async function fillNormalAfterPrompt() {
-    if (!pendingPrompt) return;
-    const court = pendingPrompt.court;
-    setError(null);
-    setLoading("drop-pending");
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/courts/${court}/fill`, { method: "POST" });
-      // A short queue (<4) just leaves the court empty — not an error worth
-      // blocking on here.
-      if (!res.ok && res.status !== 400) {
-        const data = await res.json();
-        throw new Error(data.error ?? "ดึงคิวไม่สำเร็จ");
-      }
-      setPendingPrompt(null);
+      // The server already dropped the front คู่เตรียม onto this court (or
+      // auto-filled) — just refresh to show the new game.
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -563,53 +504,6 @@ export default function LiveCourts({
               >
                 ยกเลิก
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {pendingPrompt && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-sm p-4 flex flex-col gap-3 shadow-xl">
-            <h3 className="font-semibold text-center">
-              สนาม {pendingPrompt.court} ว่างแล้ว — ลงคู่เตรียมไหม?
-            </h3>
-            <div className="rounded-lg border-2 border-orange-300 bg-orange-50 px-3 py-2 text-sm">
-              <div className="flex items-center justify-around gap-2 text-center">
-                <span className="font-medium text-gray-800">
-                  {pendingPrompt.pending.team1.join(" + ")}
-                </span>
-                <span className="text-xs font-bold text-orange-400">VS</span>
-                <span className="font-medium text-gray-800">
-                  {pendingPrompt.pending.team2.join(" + ")}
-                </span>
-              </div>
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex flex-col gap-2 mt-1">
-              <button
-                onClick={dropPendingNow}
-                disabled={loading === "drop-pending"}
-                className="rounded-md bg-orange-600 text-white px-4 py-2 text-sm font-medium hover:bg-orange-700 disabled:opacity-50"
-              >
-                {loading === "drop-pending" ? "กำลังลง..." : `✅ ลงคู่เตรียมนี้ที่สนาม ${pendingPrompt.court}`}
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={fillNormalAfterPrompt}
-                  disabled={loading === "drop-pending"}
-                  className="flex-1 rounded-md border border-gray-300 text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-                >
-                  ไม่ ดึงคิวปกติ
-                </button>
-                <button
-                  onClick={() => setPendingPrompt(null)}
-                  disabled={loading === "drop-pending"}
-                  className="rounded-md border border-gray-300 text-gray-500 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-                >
-                  ไว้ก่อน
-                </button>
-              </div>
             </div>
           </div>
         </div>

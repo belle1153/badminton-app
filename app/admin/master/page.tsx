@@ -21,6 +21,7 @@ export default async function MasterDataPage() {
         courtRates={courtRates}
         shuttlecockTypes={shuttlecockTypes}
         qrImageDataUrl={settings?.qrImageDataUrl ?? null}
+        feePerPerson={settings?.feePerPerson ?? 0}
       />
     </main>
   );
