@@ -105,6 +105,33 @@ export default function UpcomingPlanner({
     }
   }
 
+  // Persist an (edited) auto matchup into the คู่เตรียม queue so it survives a
+  // refresh and gets pulled onto the next court that finishes — the only way
+  // an edit to a ระบบจัดให้ matchup sticks (the on-screen edits are otherwise
+  // client-only). Works even while everyone's still mid-game.
+  async function lockQueue(m: number) {
+    const { team1, team2 } = balanceTeams(matchups[m]);
+    setError(null);
+    setLoading(`lock-${m}`);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          team1: team1.map((p) => p.id),
+          team2: team2.map((p) => p.id),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "ล็อกคิวไม่สำเร็จ");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
+
   const chip = (p: Lite, m: number, slot: number) => {
     const busyCourt = byId.get(p.id)?.busyCourt ?? null;
     if (editing && editing.m === m && editing.slot === slot) {
@@ -160,8 +187,9 @@ export default function UpcomingPlanner({
         <div className="flex flex-col gap-2">
           <p className="text-xs text-orange-700/70">
             คิวถัดไป (มือใกล้กันก่อน แล้วคิว) กด ✎ เพื่อสลับกับใครก็ได้ที่เช็คอินไว้ — รวมถึงคนที่
-            กำลังเล่นอยู่ (จองไว้รอ)
-            {noFreeCourt ? " · รอสนามว่างก่อนถึงจะลงได้" : ' · เลือกสนามว่างแล้ว "ลงสนาม"'}
+            กำลังเล่นอยู่ (จองไว้รอ) · แก้แล้วกด &quot;🔒 ล็อกคิว&quot; เพื่อเก็บคู่ไว้ พอสนามไหนจบเกม
+            ระบบจะดึงคู่ที่ล็อกไว้ (คู่หน้าสุด) ลงให้อัตโนมัติ
+            {noFreeCourt ? "" : ' · หรือเลือกสนามว่างแล้ว "ลงสนาม" เดี๋ยวนี้เลย'}
           </p>
           <ol className="flex flex-col gap-2">
             {matchups.map((four, m) => {
@@ -178,38 +206,48 @@ export default function UpcomingPlanner({
                       <div className="flex flex-col gap-1">{team2.map((p) => chip(p, m, slotOf(p)))}</div>
                     </div>
                   </div>
-                  {anyBusy ? (
-                    <p className="text-xs text-amber-700 text-right">⏳ ต้องรอคนที่กำลังเล่นจบเกมก่อนถึงจะลงสนามได้</p>
-                  ) : (
-                    <div className="flex items-center justify-end gap-2">
-                      <label className="text-xs text-gray-500">ลงสนามว่าง</label>
-                      <select
-                        value={courts[m]}
-                        disabled={noFreeCourt}
-                        onChange={(e) =>
-                          setCourts((prev) => prev.map((c, i) => (i === m ? Number(e.target.value) : c)))
-                        }
-                        className="text-sm rounded border border-gray-300 py-1 px-2 text-gray-900 disabled:opacity-50"
-                      >
-                        {noFreeCourt ? (
-                          <option value={0}>ไม่มีสนามว่าง</option>
-                        ) : (
-                          freeCourts.map((c) => (
-                            <option key={c} value={c}>
-                              สนาม {c}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                      <button
-                        onClick={() => book(m)}
-                        disabled={loading === `auto-${m}` || noFreeCourt}
-                        className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-orange-700 disabled:opacity-50"
-                      >
-                        {loading === `auto-${m}` ? "กำลังลง…" : "ลงสนาม"}
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <button
+                      onClick={() => lockQueue(m)}
+                      disabled={loading === `lock-${m}`}
+                      title="เก็บคู่นี้ (พร้อมที่แก้) เข้าคิวคู่เตรียม — จะลงสนามอัตโนมัติเมื่อมีสนามจบเกม"
+                      className="rounded-md border border-orange-400 text-orange-700 text-sm font-medium px-3 py-1.5 hover:bg-orange-100 disabled:opacity-50"
+                    >
+                      {loading === `lock-${m}` ? "กำลังล็อก…" : "🔒 ล็อกคิว (ลงเมื่อจบเกม)"}
+                    </button>
+                    {anyBusy ? (
+                      <p className="text-xs text-amber-700 text-right">⏳ รอคนที่กำลังเล่นจบเกมก่อนถึงลงสนามว่างได้</p>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-500">ลงสนามว่าง</label>
+                        <select
+                          value={courts[m]}
+                          disabled={noFreeCourt}
+                          onChange={(e) =>
+                            setCourts((prev) => prev.map((c, i) => (i === m ? Number(e.target.value) : c)))
+                          }
+                          className="text-sm rounded border border-gray-300 py-1 px-2 text-gray-900 disabled:opacity-50"
+                        >
+                          {noFreeCourt ? (
+                            <option value={0}>ไม่มีสนามว่าง</option>
+                          ) : (
+                            freeCourts.map((c) => (
+                              <option key={c} value={c}>
+                                สนาม {c}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        <button
+                          onClick={() => book(m)}
+                          disabled={loading === `auto-${m}` || noFreeCourt}
+                          className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-orange-700 disabled:opacity-50"
+                        >
+                          {loading === `auto-${m}` ? "กำลังลง…" : "ลงสนาม"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </li>
               );
             })}

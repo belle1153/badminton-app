@@ -40,9 +40,6 @@ export default function CourtCard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Courts show only the game being played now; who's next lives in คู่เตรียม.
-  const shown = match;
-
   function startEdit(playerId: string) {
     setEditingPlayerId(playerId);
     setReplacement("");
@@ -146,8 +143,8 @@ export default function CourtCard({
     >
       <div className="bg-slate-800 text-white text-center text-sm font-semibold py-2">
         สนาม {court}
-        {!editable && shown?.round != null && (
-          <span className="text-white/60 font-normal"> — เกมที่ {shown.round}</span>
+        {!editable && match?.round != null && (
+          <span className="text-white/60 font-normal"> — เกมที่ {match.round}</span>
         )}
       </div>
       <div
@@ -156,7 +153,7 @@ export default function CourtCard({
         }`}
       >
         {error && <p className="text-red-300 text-xs text-center mb-1">{error}</p>}
-        {!(editable ? match : shown) ? (
+        {!match ? (
           <div className="flex-1 rounded-lg border-2 border-white/20 flex items-center justify-center">
             <p className="text-white/50 text-sm font-medium">ว่าง</p>
           </div>
@@ -169,7 +166,7 @@ export default function CourtCard({
                   : "flex justify-center items-start gap-4"
               }
             >
-              {(editable ? match! : shown!).team1.map(renderPlayer)}
+              {match.team1.map(renderPlayer)}
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 border-t-2 border-dashed border-white/50" />
@@ -183,7 +180,7 @@ export default function CourtCard({
                   : "flex justify-center items-start gap-4"
               }
             >
-              {(editable ? match! : shown!).team2.map(renderPlayer)}
+              {match.team2.map(renderPlayer)}
             </div>
           </div>
         )}

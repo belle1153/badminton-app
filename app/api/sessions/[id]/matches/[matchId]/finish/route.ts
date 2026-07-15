@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { fillCourt } from "@/lib/queue";
+import { bookFoursome, fillCourt } from "@/lib/queue";
 
 export async function POST(
   req: NextRequest,
@@ -40,6 +40,42 @@ export async function POST(
   });
   if (hasUpcoming) {
     return NextResponse.json({ ok: true, court: match.court, filled: false, nextQueued: true });
+  }
+
+  // Prefer a prepared คู่เตรียม (PendingPair): drop the front-most one whose
+  // four players are all free now onto this just-freed court. This is what
+  // makes "จบเกม" pull the คู่เตรียม the admin lined up (edits included) instead
+  // of a freshly auto-computed foursome. Falls back to auto-fill when no
+  // คู่เตรียม is ready.
+  const pendings = await prisma.pendingPair.findMany({
+    where: { sessionId: id },
+    orderBy: { createdAt: "asc" },
+  });
+  if (pendings.length > 0) {
+    // Reserved = anyone still in an unfinished match (this court is now free,
+    // so its just-finished four don't count).
+    const unfinished = await prisma.match.findMany({
+      where: { sessionId: id, finishedAt: null },
+      include: { players: { select: { signUpId: true } } },
+    });
+    const reserved = new Set(unfinished.flatMap((m) => m.players.map((p) => p.signUpId)));
+    const ready = pendings.find((p) =>
+      [...p.team1Ids, ...p.team2Ids].every((pid) => !reserved.has(pid))
+    );
+    if (ready) {
+      const booked = await bookFoursome(id, ready.team1Ids, ready.team2Ids, match.court);
+      if (booked.ok) {
+        await prisma.pendingPair.delete({ where: { id: ready.id } });
+        return NextResponse.json({
+          ok: true,
+          court: match.court,
+          filled: true,
+          fromPending: true,
+        });
+      }
+      // Booking a stale คู่เตรียม failed (e.g. someone withdrew) — leave it in
+      // the list for the admin and fall through to auto-fill this court.
+    }
   }
 
   const fill = await fillCourt(id, match.court);

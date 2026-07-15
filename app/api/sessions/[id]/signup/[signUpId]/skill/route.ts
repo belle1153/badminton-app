@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
-const VALID_SKILLS = ["RK", "N_MINUS", "N", "N_PLUS", "S", "S_PLUS", "BG", "BG_PLUS", "P"] as const;
-type Skill = (typeof VALID_SKILLS)[number];
+// Derived from the canonical skill list in lib/matching so this never drifts
+// out of sync if a level is ever added or renamed.
+const VALID_SKILLS = new Set(Object.keys(SKILL_LABELS));
 
 export async function POST(
   req: NextRequest,
@@ -16,7 +18,7 @@ export async function POST(
   const { id, signUpId } = await params;
   const { skillLevel } = await req.json();
 
-  if (!VALID_SKILLS.includes(skillLevel)) {
+  if (!VALID_SKILLS.has(skillLevel)) {
     return NextResponse.json({ error: "ระดับฝีมือไม่ถูกต้อง" }, { status: 400 });
   }
 
@@ -27,14 +29,14 @@ export async function POST(
 
   await prisma.signUp.update({
     where: { id: signUpId },
-    data: { skillLevel: skillLevel as Skill },
+    data: { skillLevel: skillLevel as SkillLevel },
   });
 
   // Remember the assessment on the athlete so future sign-ups carry it.
   if (signUp.athleteId) {
     await prisma.athlete.update({
       where: { id: signUp.athleteId },
-      data: { skillLevel: skillLevel as Skill },
+      data: { skillLevel: skillLevel as SkillLevel },
     });
   }
 

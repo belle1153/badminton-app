@@ -1,25 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { deriveCourtState, previewFoursomes } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
-import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
+import { type SkillLevel } from "@/lib/matching";
+import { buildCourtBoard } from "@/lib/courtBoard";
 import AutoRefresh from "../session/AutoRefresh";
 import CourtGrid from "../session/CourtGrid";
-import QueuePairs, { type QueueMatchup } from "../session/QueuePairs";
+import QueuePairs from "../session/QueuePairs";
 
 export const dynamic = "force-dynamic";
-
-type MatchRow = {
-  id: string;
-  round: number;
-  court: number;
-  finishedAt: Date | null;
-  winnerTeam: number | null;
-  players: {
-    team: number;
-    signUp: { id: string; name: string; skillLevel: string; athlete: { photoUrl: string | null } | null };
-  }[];
-};
 
 /**
  * "สนามที่กำลังเล่น" — the full court board (same as each day's own page: face
@@ -51,79 +39,23 @@ export default async function LiveAllPage() {
   });
 
   const boards = sessions.map((s) => {
-    const state = deriveCourtState(
-      s.signUps.map((x) => ({
-        id: x.id,
-        name: x.name,
-        skillLevel: x.skillLevel as SkillLevel,
-        fixedPartnerId: x.fixedPartnerId,
-        checkedInAt: x.checkedInAt,
-        createdAt: x.createdAt,
-        status: x.status,
-      })),
-      s.matches.map((m) => ({
-        id: m.id,
-        round: m.round,
-        court: m.court,
-        finishedAt: m.finishedAt,
-        players: m.players.map((p) => ({ signUpId: p.signUpId })),
-      }))
-    );
-
-    const matchById = new Map(s.matches.map((m) => [m.id, m as MatchRow]));
-    const activeIds = new Set([...state.currentByCourt.values()].map((g) => g.id));
-    const toTeamMatch = (m: MatchRow) => ({
-      id: m.id,
-      round: m.round,
-      active: activeIds.has(m.id),
-      team1: m.players
-        .filter((p) => p.team === 1)
-        .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel, photoUrl: p.signUp.athlete?.photoUrl ?? null })),
-      team2: m.players
-        .filter((p) => p.team === 2)
-        .map((p) => ({ id: p.signUp.id, name: p.signUp.name, skillLevel: p.signUp.skillLevel, photoUrl: p.signUp.athlete?.photoUrl ?? null })),
-    });
-
-    const occupied = new Set<number>([...state.currentByCourt.keys(), ...state.upcomingByCourt.keys()]);
-    const courtNums = [...new Set([...openCourtNumbers(s), ...occupied])].sort((a, b) => a - b);
-    const courts = courtNums.map((court) => {
-      const cur = state.currentByCourt.get(court);
-      return { court, match: cur ? toTeamMatch(matchById.get(cur.id)!) : null };
-    });
-
-    // คู่เตรียม: split the waiting queue (wait order) into balanced matchups.
-    const signUpById = new Map(s.signUps.map((x) => [x.id, x]));
-    const queuePlayers: Player[] = state.queue.map((q) => {
-      const x = signUpById.get(q.id)!;
-      return { id: x.id, name: x.name, skillLevel: x.skillLevel as SkillLevel, fixedPartnerId: x.fixedPartnerId };
-    });
-    const finishedSets = (s.matches as MatchRow[])
-      .filter((m) => m.finishedAt != null)
-      .map((m) => new Set(m.players.map((p) => p.signUp.id)));
-    const matchups: QueueMatchup[] = previewFoursomes(queuePlayers, finishedSets, 3).map((four, i) => {
-      const { team1, team2 } = balanceTeams(four);
-      return {
-        key: `${s.id}-${i}`,
-        teamA: team1.map((p) => ({ id: p.id, name: p.name })),
-        teamB: team2.map((p) => ({ id: p.id, name: p.name })),
-      };
-    });
-
-    const finished = (s.matches as MatchRow[])
-      .filter((m) => m.finishedAt != null)
-      .sort((a, b) => a.court - b.court || a.round - b.round);
-    const historyCourts = [...new Set(finished.map((m) => m.court))];
+    const signUps = s.signUps.map((x) => ({
+      id: x.id,
+      name: x.name,
+      skillLevel: x.skillLevel as SkillLevel,
+      fixedPartnerId: x.fixedPartnerId,
+      checkedInAt: x.checkedInAt,
+      createdAt: x.createdAt,
+      status: x.status,
+    }));
+    const board = buildCourtBoard(signUps, s.matches, openCourtNumbers(s), `${s.id}-`);
 
     return {
       id: s.id,
       venue: s.venue,
       dayLabel: new Date(s.date).toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long" }),
-      queue: state.queue.length,
-      courts,
-      matchups,
       hasGames: s.matches.length > 0,
-      finished,
-      historyCourts,
+      ...board,
     };
   });
 
@@ -163,7 +95,7 @@ export default async function LiveAllPage() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold text-sm">คู่เตรียม</h3>
-              <span className="text-xs text-gray-400">คิว {b.queue} คน</span>
+              <span className="text-xs text-gray-400">คิว {b.queueCount} คน</span>
             </div>
             <QueuePairs sessionId={b.id} matchups={b.matchups} />
           </div>
@@ -178,8 +110,8 @@ export default async function LiveAllPage() {
                     {b.finished
                       .filter((m) => m.court === court)
                       .map((m) => {
-                        const t1 = m.players.filter((p) => p.team === 1).map((p) => p.signUp.name);
-                        const t2 = m.players.filter((p) => p.team === 2).map((p) => p.signUp.name);
+                        const t1 = m.team1.map((p) => p.name);
+                        const t2 = m.team2.map((p) => p.name);
                         return (
                           <li key={m.id} className="px-2.5 py-1.5 text-sm flex items-center gap-2 flex-wrap">
                             <span className="text-xs text-gray-400 shrink-0 w-12">เกม {m.round}</span>

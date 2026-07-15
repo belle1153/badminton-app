@@ -21,3 +21,14 @@
 npx prisma generate
 npx prisma migrate deploy
 ```
+
+### 2026-07-15 — Code review / cleanup (no behavior change)
+
+รีวิวโค้ดทั้ง repo (ทุกไฟล์ใน `app/` และ `lib/`) หาจุดที่ซ้ำซ้อนหรือคลีนได้ ไม่มีผลกับ behavior ที่ผู้ใช้เห็น:
+
+1. **ลดโค้ดซ้ำก้อนใหญ่ที่สุด**: `app/live/page.tsx` (สนามที่กำลังเล่น) กับ `app/session/[id]/(tabs)/courts/page.tsx` (หน้าสนามของแต่ละวัน) มีลอจิกสร้าง "กระดาน" คอร์ท (คอร์ทปัจจุบัน + คู่เตรียม + ประวัติเกม) เหมือนกันทุกตัวอักษรอยู่ ~80 บรรทัด — ย้ายมารวมเป็นฟังก์ชันเดียว `buildCourtBoard()` ในไฟล์ใหม่ `lib/courtBoard.ts` แล้วให้ทั้งสองหน้าเรียกใช้ร่วมกัน ทำให้แก้ไข/เพิ่มฟีเจอร์ในอนาคตแก้จุดเดียวพอ
+2. **เลิก hardcode รายการระดับฝีมือซ้ำ**: `app/api/sessions/[id]/signup/[signUpId]/skill/route.ts` และ `app/api/athletes/[id]/route.ts` เคย hardcode array รายชื่อ skill level ไว้เอง (เสี่ยงหลุดถ้าเพิ่ม/แก้ระดับในอนาคต) — เปลี่ยนให้ดึงจาก `SKILL_LABELS` ใน `lib/matching.ts` เหมือนจุดอื่น ๆ ในระบบ
+3. **`app/session/CourtCard.tsx`**: มีตัวแปร `shown` กับเงื่อนไข `editable ? match! : shown!` ที่จริงแล้วค่าเท่ากับ `match` เสมอ (เดดโค้ดจากโค้ดเก่า) — ลบออก เหลือใช้ `match` ตรง ๆ
+4. **`app/session/SelfCourtBanner.tsx`**: มีคอมเมนต์เดิมซ้ำกันสองที่เหนือ `useMemo` คนละตัว — แก้คอมเมนต์ให้ตรงกับโค้ดแต่ละส่วน
+
+ไม่ได้แตะพวก `MultiSignUpForm.tsx` / `SignUpForm.tsx` (ทั้งสองมีลอจิก debounce ค้นหานักกีฬาคล้ายกันมาก ดึงรวมเป็น hook เดียวได้ในอนาคตถ้าต้องการ แต่ยังไม่แก้รอบนี้เพราะเป็นฟอร์มลงชื่อที่ผู้เล่นใช้จริงทุกวัน อยากให้ตัดสินใจ/ทดสอบก่อนแตะ)

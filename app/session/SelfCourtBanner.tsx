@@ -32,8 +32,7 @@ export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
       ? players.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
       : [];
 
-  // Only a currently-on-court (active) game counts — if the player just
-  // finished and is waiting in the queue, they're not "on a court" now.
+  // Every game (current or queued) this player is booked in.
   const mine = useMemo(
     () =>
       selectedId

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import { SKILL_LABELS } from "@/lib/matching";
 
-const VALID_SKILLS = ["RK", "N_MINUS", "N", "N_PLUS", "S", "S_PLUS", "BG", "BG_PLUS", "P"];
+// Derived from the canonical skill list in lib/matching so this never drifts
+// out of sync if a level is ever added or renamed.
+const VALID_SKILLS = new Set(Object.keys(SKILL_LABELS));
 
 export async function PATCH(
   req: NextRequest,
@@ -29,7 +32,7 @@ export async function PATCH(
     data.name = name;
   }
   if (body.skillLevel !== undefined) {
-    if (!VALID_SKILLS.includes(body.skillLevel)) {
+    if (!VALID_SKILLS.has(body.skillLevel)) {
       return NextResponse.json({ error: "ระดับฝีมือไม่ถูกต้อง" }, { status: 400 });
     }
     data.skillLevel = body.skillLevel;
