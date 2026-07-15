@@ -227,8 +227,11 @@ export async function bookFoursome(
     if (!s || s.sessionId !== sessionId || s.status === "WITHDRAWN") {
       return { ok: false, status: 400, error: "มีผู้เล่นที่เลือกไม่ถูกต้อง" };
     }
-    if (s.status === "WAITLIST" && s.checkedInAt == null) {
-      return { ok: false, status: 400, error: `${s.name} เป็นตัวสำรองที่ยังไม่เช็คอิน` };
+    // Only people actually present may be put on a court — a not-checked-in
+    // player (ยังไม่มา) must never end up in a game, no matter which path books
+    // it (auto-fill, จัดคู่เตรียมเอง, or promoting a คู่เตรียม).
+    if (s.checkedInAt == null) {
+      return { ok: false, status: 400, error: `${s.name} ยังไม่เช็คอิน (ยังไม่มา)` };
     }
     if (booked.has(pid)) {
       return {

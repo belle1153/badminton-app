@@ -129,8 +129,9 @@ export default async function SessionMatchPage({
           name: s.name,
           skillLevel: s.skillLevel as SkillLevel,
           busyCourt: busyCourtBySignUp.get(s.id) ?? null,
+          present: s.checkedInAt != null,
         }
-      : { id: pid, name: "(ไม่พบชื่อ)", skillLevel: "RK" as SkillLevel, busyCourt: null };
+      : { id: pid, name: "(ไม่พบชื่อ)", skillLevel: "RK" as SkillLevel, busyCourt: null, present: false };
   };
   const pendingPairs = pendingPairRows.map((p) => ({
     id: p.id,

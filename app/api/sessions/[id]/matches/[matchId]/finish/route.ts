@@ -59,8 +59,16 @@ export async function POST(
       include: { players: { select: { signUpId: true } } },
     });
     const reserved = new Set(unfinished.flatMap((m) => m.players.map((p) => p.signUpId)));
+    // Present = checked in. A คู่เตรียม is only "ready" when every member is
+    // free AND actually here — never offer to drop one with a ยังไม่มา player.
+    const allMembers = pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]);
+    const present = await prisma.signUp.findMany({
+      where: { id: { in: allMembers }, checkedInAt: { not: null } },
+      select: { id: true },
+    });
+    const presentIds = new Set(present.map((s) => s.id));
     const ready = pendings.find((p) =>
-      [...p.team1Ids, ...p.team2Ids].every((pid) => !reserved.has(pid))
+      [...p.team1Ids, ...p.team2Ids].every((pid) => !reserved.has(pid) && presentIds.has(pid))
     );
     if (ready) {
       const ids = [...ready.team1Ids, ...ready.team2Ids];

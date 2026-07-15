@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
-type Lite = { id: string; name: string; skillLevel: SkillLevel; busyCourt: number | null };
+type Lite = {
+  id: string;
+  name: string;
+  skillLevel: SkillLevel;
+  busyCourt: number | null;
+  present: boolean; // checked in (มาแล้ว) — a ยังไม่มา member blocks booking
+};
 
 /** Anyone checked in, whether free right now or mid-game on a court. */
 export interface Candidate {
@@ -22,8 +28,10 @@ export interface PersistedPending {
 
 /**
  * คู่เตรียม — a persisted, ordered FIFO queue (PendingPair rows), not a preview
- * that reshuffles. The queue tops itself up from the checked-in players who are
- * free (see /pending-pairs/sync), balanced by skill. The admin can:
+ * that reshuffles. It is filled ON DEMAND, not automatically: the admin presses
+ * "จัดคู่เตรียมจากคิว" when they're ready, so late arrivals (who might balance a
+ * foursome better) can still be included instead of the queue locking people in
+ * the moment they check in. The admin can then:
  *   - ✎ swap any player for another checked-in person — saved straight away.
  *   - ลงสนาม: drop a คู่เตรียม onto a free court now (the rest keep their order
  *     and slide up).
@@ -53,25 +61,24 @@ export default function UpcomingPlanner({
 
   const noFreeCourt = freeCourts.length === 0;
   const courtFor = (pairId: string) => courtByPair[pairId] ?? freeCourts[0] ?? 0;
+  const waitingCount = freeUnqueuedSignature ? freeUnqueuedSignature.split(",").length : 0;
 
-  // Keep the queue topped up: whenever the set of free-but-unqueued players
-  // changes (someone checks in, a game frees four), append them as new คู่เตรียม
-  // at the back. Guarded so it fires once per distinct signature — no loop.
-  const lastSynced = useRef<string | null>(null);
-  useEffect(() => {
-    if (!freeUnqueuedSignature) return;
-    if (lastSynced.current === freeUnqueuedSignature) return;
-    lastSynced.current = freeUnqueuedSignature;
-    (async () => {
-      try {
-        const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/sync`, { method: "POST" });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.created > 0) router.refresh();
-      } catch {
-        // A failed top-up is harmless — the next change retries.
-      }
-    })();
-  }, [freeUnqueuedSignature, sessionId, router]);
+  // Fill the queue only when the admin asks — this pairs up whoever is free and
+  // checked in RIGHT NOW, so they can wait for more/stronger players first.
+  async function generateFromQueue() {
+    setError(null);
+    setLoading("generate");
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/sync`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "จัดคู่เตรียมไม่สำเร็จ");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
 
   async function swap(pairId: string, outSignUpId: string, inSignUpId: string) {
     setEditing(null);
@@ -162,12 +169,17 @@ export default function UpcomingPlanner({
         type="button"
         onClick={() => setEditing({ pairId, slot })}
         className={`text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 border inline-flex items-center gap-1 ${
-          p.busyCourt ? "bg-amber-50 border-amber-300" : "bg-white border-gray-200"
+          !p.present
+            ? "bg-red-50 border-red-300"
+            : p.busyCourt
+              ? "bg-amber-50 border-amber-300"
+              : "bg-white border-gray-200"
         }`}
       >
         {p.name}
         <span className="text-gray-400">{SKILL_LABELS[p.skillLevel]}</span>
-        {p.busyCourt && <span className="text-amber-600">⏳ สนาม {p.busyCourt}</span>}
+        {!p.present && <span className="text-red-600">⚠️ ยังไม่มา</span>}
+        {p.present && p.busyCourt && <span className="text-amber-600">⏳ สนาม {p.busyCourt}</span>}
         <span className="text-brand-500">✎</span>
       </button>
     );
@@ -180,23 +192,42 @@ export default function UpcomingPlanner({
         <span className="text-xs text-orange-600">แก้ตัวผู้เล่นก่อนลงได้</span>
       </div>
       <p className="text-xs text-orange-700/70">
-        คิวถาวร เรียงตามลำดับ (มือใกล้กันก่อน แล้วคิว) กด ✎ เพื่อสลับกับใครก็ได้ที่เช็คอินไว้ —
-        รวมถึงคนที่กำลังเล่นอยู่ (จองไว้รอ) แก้แล้วบันทึกทันที · กด &quot;ลงสนาม&quot; แล้วคู่ถัดไปจะเลื่อนขึ้นเอง
+        คิวถาวร เรียงตามลำดับ (มือใกล้กันก่อน แล้วคิว) — กด &quot;จัดคู่เตรียมจากคิว&quot; เมื่อพร้อม
+        (รอคนมาครบ/มือดีก่อนได้) · กด ✎ สลับกับใครก็ได้ที่เช็คอินไว้ แก้แล้วบันทึกทันที · กด
+        &quot;ลงสนาม&quot; แล้วคู่ถัดไปเลื่อนขึ้นเอง
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {/* On-demand generation — never auto-forms คู่เตรียม as people check in. */}
+      {waitingCount >= 4 ? (
+        <button
+          onClick={generateFromQueue}
+          disabled={loading === "generate"}
+          className="rounded-md bg-orange-600 text-white text-sm font-medium px-3 py-2 hover:bg-orange-700 disabled:opacity-50 self-start"
+        >
+          {loading === "generate" ? "กำลังจัด…" : `➕ จัดคู่เตรียมจากคิว (รออยู่ ${waitingCount} คน)`}
+        </button>
+      ) : (
+        waitingCount > 0 && (
+          <p className="text-xs text-gray-400">คิวรออยู่ {waitingCount} คน — ครบ 4 คนถึงจัดคู่เตรียมได้</p>
+        )
+      )}
 
       {pendingPairs.length === 0 ? (
         <p className="text-sm text-gray-400">
           {candidates.length < 4
             ? "ยังไม่มีคนพร้อมพอจัดคู่ (ต้องเช็คอินอย่างน้อย 4 คน)"
-            : "กำลังจัดคู่เตรียมจากคิว…"}
+            : "กดปุ่มด้านบนเพื่อจัดคู่เตรียมจากคิว"}
         </p>
       ) : (
         <ol className="flex flex-col gap-2">
           {pendingPairs.map((pair, i) => {
             const inThisPair = new Set([...pair.team1, ...pair.team2].map((p) => p.id));
-            const busyOnes = [...pair.team1, ...pair.team2].filter((p) => p.busyCourt != null);
+            const members = [...pair.team1, ...pair.team2];
+            const notHere = members.filter((p) => !p.present);
+            const busyOnes = members.filter((p) => p.present && p.busyCourt != null);
             const anyBusy = busyOnes.length > 0;
+            const blocked = anyBusy || notHere.length > 0;
             return (
               <li key={pair.id} className="rounded-lg border border-gray-200 bg-white/60 p-2.5 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -215,9 +246,19 @@ export default function UpcomingPlanner({
                   >
                     ยกเลิก
                   </button>
-                  {anyBusy ? (
-                    <p className="text-xs text-amber-700 text-right">
-                      ⏳ รอ {busyOnes.map((p) => `${p.name} (สนาม ${p.busyCourt})`).join(", ")} จบเกมก่อน
+                  {blocked ? (
+                    <p className="text-xs text-right">
+                      {notHere.length > 0 && (
+                        <span className="text-red-600">
+                          ⚠️ รอ {notHere.map((p) => p.name).join(", ")} เช็คอินก่อน
+                        </span>
+                      )}
+                      {notHere.length > 0 && anyBusy && " · "}
+                      {anyBusy && (
+                        <span className="text-amber-700">
+                          ⏳ รอ {busyOnes.map((p) => `${p.name} (สนาม ${p.busyCourt})`).join(", ")} จบเกม
+                        </span>
+                      )}
                     </p>
                   ) : (
                     <div className="flex items-center gap-2">
