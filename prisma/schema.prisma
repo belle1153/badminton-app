@@ -53,6 +53,7 @@ model Session {
   status               SessionStatus    @default(OPEN)
   closedAt             DateTime?
   registrationClosedAt DateTime?
+  lateOpenedAt         DateTime?
   courtRateId          String?
   courtRate            CourtRate?       @relation(fields: [courtRateId], references: [id])
   courtHours           Float?

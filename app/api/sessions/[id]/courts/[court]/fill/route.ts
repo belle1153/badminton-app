@@ -28,7 +28,9 @@ export async function POST(
     const msg =
       fill.reason === "court_taken"
         ? `สนาม ${court} มีคนเล่นอยู่แล้ว`
-        : "คนในคิวไม่พอ 4 คน";
+        : fill.reason === "not_open"
+          ? `สนาม ${court} ยังไม่เปิด (รอรอบ 2 ทุ่ม หรือกดเปิดคอร์ท 2 ทุ่ม)`
+          : "คนในคิวไม่พอ 4 คน";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 

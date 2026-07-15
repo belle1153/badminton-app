@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { balanceTeams, diffPenalty, type Player, type SkillLevel } from "@/lib/matching";
+import { activeCourtCount } from "@/lib/billing";
 
 export interface QueuePlayer {
   id: string; // signUp id
@@ -130,7 +131,7 @@ export async function loadCourtState(sessionId: string): Promise<CourtState> {
 
 export type FillResult =
   | { ok: true; matchId: string; round: number; court: number; playerIds: string[] }
-  | { ok: false; reason: "court_taken" | "not_enough" };
+  | { ok: false; reason: "court_taken" | "not_enough" | "not_open" };
 
 /**
  * Start the next game on an idle court, picking the four that make the most
@@ -143,12 +144,14 @@ export type FillResult =
  *   earlier game together, and keeping fixed practice pairs side by side.
  */
 export async function fillCourt(sessionId: string, court: number): Promise<FillResult> {
-  const [signups, matches] = await Promise.all([
+  const [session, signups, matches] = await Promise.all([
+    prisma.session.findUnique({ where: { id: sessionId } }),
     prisma.signUp.findMany({ where: { sessionId }, select: SIGNUP_SELECT }),
     prisma.match.findMany({ where: { sessionId }, select: MATCH_SELECT }),
   ]);
   const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 
+  if (session && court > activeCourtCount(session)) return { ok: false, reason: "not_open" };
   if (state.currentByCourt.has(court)) return { ok: false, reason: "court_taken" };
   if (state.queue.length < 4) return { ok: false, reason: "not_enough" };
 

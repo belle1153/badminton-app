@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import { deriveCourtState } from "@/lib/queue";
+import { activeCourtCount } from "@/lib/billing";
 import { type SkillLevel } from "@/lib/matching";
 import CourtCountEditor from "../CourtCountEditor";
 import MatchControls from "../MatchControls";
@@ -120,8 +121,11 @@ export default async function SessionMatchPage({
           sessionId={id}
           courts={[...liveMatches, ...upcomingMatches].reduce(
             (max, m) => Math.max(max, m.court),
-            session.courtsLate
+            activeCourtCount(session)
           )}
+          activeCourts={activeCourtCount(session)}
+          courtsLate={session.courtsLate}
+          lateOpened={session.lateOpenedAt != null}
           activeMatches={liveMatches}
           upcomingMatches={upcomingMatches}
           queue={liveQueue}

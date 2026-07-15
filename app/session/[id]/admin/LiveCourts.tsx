@@ -42,6 +42,9 @@ export interface FinishedGame {
 export default function LiveCourts({
   sessionId,
   courts,
+  activeCourts,
+  courtsLate,
+  lateOpened = false,
   activeMatches,
   upcomingMatches = [],
   queue,
@@ -50,6 +53,12 @@ export default function LiveCourts({
 }: {
   sessionId: string;
   courts: number;
+  /** Courts open to fill right now (early courts before 20:00, all from 20:00). */
+  activeCourts: number;
+  /** Total courts once the 2-ทุ่ม block opens. */
+  courtsLate: number;
+  /** Admin already pressed "open 2-ทุ่ม courts early". */
+  lateOpened?: boolean;
   activeMatches: LiveMatch[];
   upcomingMatches?: LiveMatch[];
   queue: P[];
@@ -96,8 +105,32 @@ export default function LiveCourts({
     upcomingByCourt.set(m.court, list);
   }
   const courtList = Array.from({ length: courts }, (_, i) => i + 1);
-  const emptyCourts = courtList.filter((c) => !byCourt.has(c));
+  // Courts open right now to start a game (early block before 20:00). Extra
+  // 2-ทุ่ม courts stay locked until 20:00 or the admin opens them early.
+  const emptyCourts = courtList.filter((c) => !byCourt.has(c) && c <= activeCourts);
   const canFill = queue.length >= 4;
+  const canOpenLate = activeCourts < courtsLate;
+
+  async function handleOpenLate() {
+    setError(null);
+    setLoading("open-late");
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/open-late`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ open: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "เปิดคอร์ทไม่สำเร็จ");
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
 
   async function handleFill(court: number) {
     setError(null);
@@ -243,6 +276,22 @@ export default function LiveCourts({
         <h2 className="font-semibold">🏸 สนามสด — จบเกม / ดึงคิว</h2>
         <span className="text-xs text-gray-500">คิว {queue.length} คน</span>
       </div>
+
+      {canOpenLate ? (
+        <button
+          onClick={handleOpenLate}
+          disabled={loading === "open-late"}
+          className="rounded-md border-2 border-brand-600 text-brand-700 text-sm font-medium py-2 hover:bg-brand-50 disabled:opacity-50"
+        >
+          {loading === "open-late"
+            ? "กำลังเปิด..."
+            : `🔓 เปิดคอร์ท 2 ทุ่มเลย (ตอนนี้เปิด ${activeCourts} → ${courtsLate} สนาม)`}
+        </button>
+      ) : (
+        lateOpened && (
+          <p className="text-xs text-brand-600">🔓 เปิดคอร์ท 2 ทุ่มแล้ว ({courtsLate} สนาม)</p>
+        )
+      )}
 
       {emptyCourts.length > 0 && (
         <button

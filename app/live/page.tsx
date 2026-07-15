@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { deriveCourtState } from "@/lib/queue";
+import { activeCourtCount } from "@/lib/billing";
 import { type SkillLevel } from "@/lib/matching";
 import AutoRefresh from "../session/AutoRefresh";
 
@@ -36,7 +37,7 @@ export default async function LiveAllPage() {
       }))
     );
     const matchById = new Map(s.matches.map((m) => [m.id, m]));
-    const highest = [...state.currentByCourt.keys()].reduce((mx, c) => Math.max(mx, c), s.courtsLate);
+    const highest = [...state.currentByCourt.keys()].reduce((mx, c) => Math.max(mx, c), activeCourtCount(s));
     const courts = Array.from({ length: highest }, (_, i) => {
       const g = state.currentByCourt.get(i + 1);
       const m = g ? matchById.get(g.id)! : null;
