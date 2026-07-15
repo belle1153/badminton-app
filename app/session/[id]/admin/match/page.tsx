@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { deriveCourtState } from "@/lib/queue";
+import { deriveCourtState, previewFoursomes } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
-import { type SkillLevel } from "@/lib/matching";
+import { type Player, type SkillLevel } from "@/lib/matching";
 import CourtCountEditor from "../CourtCountEditor";
 import MatchControls from "../MatchControls";
 import LiveCourts, { type LiveMatch, type FinishedGame } from "../LiveCourts";
+import UpcomingPlanner from "../UpcomingPlanner";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,26 @@ export default async function SessionMatchPage({
   );
   const liveQueue = state.queue.map((q) => ({ id: q.id, name: q.name }));
 
+  // Admin preview of the next games (same picker fillCourt uses) so they can
+  // rebalance a line-up before it runs, then book it onto a court.
+  const signUpById = new Map(session.signUps.map((s) => [s.id, s]));
+  const queuePlayers: Player[] = state.queue.map((q) => {
+    const s = signUpById.get(q.id)!;
+    return {
+      id: s.id,
+      name: s.name,
+      skillLevel: s.skillLevel as SkillLevel,
+      fixedPartnerId: s.fixedPartnerId,
+    };
+  });
+  const finishedSets = matches
+    .filter((m) => m.finishedAt != null)
+    .map((m) => new Set(m.players.map((p) => p.signUpId)));
+  const plannerMatchups = previewFoursomes(queuePlayers, finishedSets, 3);
+  const openCts = openCourtNumbers(session);
+  const freeCts = openCts.filter((c) => !state.currentByCourt.has(c));
+  const queueSignature = queuePlayers.map((p) => p.id).join(",");
+
   const recentFinished: FinishedGame[] = matches
     .filter((m) => m.finishedAt != null)
     .sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
@@ -130,6 +151,17 @@ export default async function SessionMatchPage({
           queue={liveQueue}
           recentFinished={recentFinished}
           substitutes={substitutes}
+        />
+      )}
+
+      {session.status === "OPEN" && plannerMatchups.length > 0 && (
+        <UpcomingPlanner
+          key={queueSignature}
+          sessionId={id}
+          initialMatchups={plannerMatchups}
+          pool={queuePlayers}
+          openCourts={openCts}
+          freeCourts={freeCts}
         />
       )}
 
