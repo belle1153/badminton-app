@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { balanceTeams, diffPenalty, type Player, type SkillLevel } from "@/lib/matching";
+import { balanceTeams, courtSkillCost, diffPenalty, type Player, type SkillLevel } from "@/lib/matching";
 import { openCourtNumbers } from "@/lib/billing";
 
 export interface QueuePlayer {
@@ -134,14 +134,84 @@ export type FillResult =
   | { ok: false; reason: "court_taken" | "not_enough" | "not_open" };
 
 /**
- * Start the next game on an idle court, picking the four that make the most
- * even game (fun-first balancing) while keeping the queue fair:
+ * Pick the next four for a court from a queue window (front of the queue first).
+ * Selection priorities, in order:
  *
- * - The player who has waited longest is ALWAYS in the game.
- * - The other three come from the front window of the queue (up to 8 people),
- *   scored by: team-tier balance (club odds table: diff 0 best, 3 avoid),
- *   how far back in the queue they stand, not repeating >2 players from any
- *   earlier game together, and keeping fixed practice pairs side by side.
+ * 1. Closest skill — minimize courtSkillCost so a court plays players of the
+ *    nearest skill possible (the club's pairing table). This dominates.
+ * 2. Queue fairness — prefer people nearer the front of the window.
+ * 3. Team balance — even totals, then mirrored line-ups.
+ * Plus: avoid rebuilding a finished foursome (>2 shared), and keep fixed
+ * practice pairs together.
+ *
+ * The player at window[0] (waited longest) is ALWAYS included, so no one
+ * starves. Returns the chosen four (window[0] first) or null if <4 available.
+ */
+export function pickFoursome(window: Player[], finishedSets: Set<string>[]): Player[] | null {
+  if (window.length < 4) return null;
+  const windowIds = new Set(window.map((p) => p.id));
+
+  let best: { four: Player[]; score: number } | null = null;
+  for (let i = 1; i < window.length - 2; i++)
+    for (let j = i + 1; j < window.length - 1; j++)
+      for (let k = j + 1; k < window.length; k++) {
+        const four = [window[0], window[i], window[j], window[k]];
+        const ids = new Set(four.map((p) => p.id));
+
+        // 1) skill closeness dominates (×1000 dwarfs every other term).
+        let score = courtSkillCost(four) * 1000;
+        // 2) queue position (front of window preferred).
+        score += (i + j + k) * 30;
+        // 3) team balance: even totals, then mirrored line-ups.
+        const split = balanceTeams(four);
+        score += diffPenalty(split.diff) * 4 + split.mismatch * 8;
+
+        for (const fs of finishedSets) {
+          let overlap = 0;
+          for (const id of ids) if (fs.has(id)) overlap++;
+          if (overlap > 2) score += 300; // don't replay the same foursome
+        }
+        for (const p of four) {
+          if (p.fixedPartnerId && windowIds.has(p.fixedPartnerId) && !ids.has(p.fixedPartnerId)) {
+            score += 40; // keep a waiting fixed pair together
+          }
+        }
+
+        if (!best || score < best.score) best = { four, score };
+      }
+
+  return best?.four ?? null;
+}
+
+/**
+ * Predict the next games from a queue (in wait order) by greedily applying
+ * pickFoursome and removing the chosen four each time. The first foursome is
+ * exactly what fillCourt would start next, so the คู่เตรียม preview matches the
+ * games that actually run. Uses a front window of 8, same as fillCourt.
+ */
+export function previewFoursomes(
+  queue: Player[],
+  finishedSets: Set<string>[],
+  max: number
+): Player[][] {
+  const remaining = [...queue];
+  const out: Player[][] = [];
+  while (out.length < max && remaining.length >= 4) {
+    const four = pickFoursome(remaining.slice(0, 8), finishedSets);
+    if (!four) break;
+    out.push(four);
+    const chosen = new Set(four.map((p) => p.id));
+    for (let i = remaining.length - 1; i >= 0; i--) {
+      if (chosen.has(remaining[i].id)) remaining.splice(i, 1);
+    }
+  }
+  return out;
+}
+
+/**
+ * Start the next game on an idle court with the four pickFoursome chooses:
+ * closest skill first, then queue fairness, then team balance. The person who
+ * has waited longest is always in the game.
  */
 export async function fillCourt(sessionId: string, court: number): Promise<FillResult> {
   const [session, signups, matches] = await Promise.all([
@@ -165,42 +235,10 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
   const finishedSets = (matches as MatchRow[])
     .filter((m) => m.finishedAt != null)
     .map((m) => new Set(m.players.map((p) => p.signUpId)));
-  const windowIds = new Set(window.map((p) => p.id));
 
-  let best: { four: Player[]; score: number } | null = null;
-  // Front player fixed at index 0; choose the other three from the window.
-  for (let i = 1; i < window.length - 2; i++)
-    for (let j = i + 1; j < window.length - 1; j++)
-      for (let k = j + 1; k < window.length; k++) {
-        const four = [window[0], window[i], window[j], window[k]];
-        const ids = new Set(four.map((p) => p.id));
-
-        let score = i + j + k; // queue-position fairness
-        const split = balanceTeams(four);
-        // Balance first: even totals, then mirrored line-ups — RK+S+ vs BG+N-
-        // is 5v5 on paper but plays badly, so composition mismatch costs too.
-        // mismatch × 8 outweighs any queue-position cost in the window, so a
-        // mirrored line-up anywhere in the window always beats a lopsided one.
-        score += diffPenalty(split.diff) * 4 + split.mismatch * 8;
-
-        // Don't rebuild an old foursome: >2 shared with any finished game.
-        for (const fs of finishedSets) {
-          let overlap = 0;
-          for (const id of ids) if (fs.has(id)) overlap++;
-          if (overlap > 2) score += 50;
-        }
-
-        // Fixed pair waiting together should go on together.
-        for (const p of four) {
-          if (p.fixedPartnerId && windowIds.has(p.fixedPartnerId) && !ids.has(p.fixedPartnerId)) {
-            score += 20;
-          }
-        }
-
-        if (!best || score < best.score) best = { four, score };
-      }
-
-  const { team1, team2 } = balanceTeams(best!.four);
+  const four = pickFoursome(window, finishedSets);
+  if (!four) return { ok: false, reason: "not_enough" };
+  const { team1, team2 } = balanceTeams(four);
 
   const maxRoundForCourt = (matches as MatchRow[])
     .filter((m) => m.court === court)

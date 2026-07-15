@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { deriveCourtState } from "@/lib/queue";
+import { deriveCourtState, previewFoursomes } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
 import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
 import SelfCourtBanner from "../../../SelfCourtBanner";
@@ -106,16 +106,19 @@ export default async function SessionCourtsPage({
     const s = signUpById.get(q.id)!;
     return { id: s.id, name: s.name, skillLevel: s.skillLevel as SkillLevel, fixedPartnerId: s.fixedPartnerId };
   });
-  // Up to 3 upcoming matchups (= 6 prepared pairs) for users.
-  const matchups: QueueMatchup[] = [];
-  for (let i = 0; i + 4 <= queuePlayers.length && matchups.length < 3; i += 4) {
-    const { team1, team2 } = balanceTeams(queuePlayers.slice(i, i + 4));
-    matchups.push({
+  // Up to 3 upcoming matchups, chosen by the SAME picker fillCourt uses so the
+  // preview matches the games that actually run (closest skill, then queue).
+  const finishedSets = session.matches
+    .filter((m) => m.finishedAt != null)
+    .map((m) => new Set(m.players.map((p) => p.signUp.id)));
+  const matchups: QueueMatchup[] = previewFoursomes(queuePlayers, finishedSets, 3).map((four, i) => {
+    const { team1, team2 } = balanceTeams(four);
+    return {
       key: `m-${i}`,
       teamA: team1.map((p) => ({ id: p.id, name: p.name })),
       teamB: team2.map((p) => ({ id: p.id, name: p.name })),
-    });
-  }
+    };
+  });
 
   // Read-only game log per court (finished games with results).
   const finished = session.matches

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { deriveCourtState } from "@/lib/queue";
+import { deriveCourtState, previewFoursomes } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
 import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
 import AutoRefresh from "../session/AutoRefresh";
@@ -95,15 +95,17 @@ export default async function LiveAllPage() {
       const x = signUpById.get(q.id)!;
       return { id: x.id, name: x.name, skillLevel: x.skillLevel as SkillLevel, fixedPartnerId: x.fixedPartnerId };
     });
-    const matchups: QueueMatchup[] = [];
-    for (let i = 0; i + 4 <= queuePlayers.length && matchups.length < 3; i += 4) {
-      const { team1, team2 } = balanceTeams(queuePlayers.slice(i, i + 4));
-      matchups.push({
+    const finishedSets = (s.matches as MatchRow[])
+      .filter((m) => m.finishedAt != null)
+      .map((m) => new Set(m.players.map((p) => p.signUp.id)));
+    const matchups: QueueMatchup[] = previewFoursomes(queuePlayers, finishedSets, 3).map((four, i) => {
+      const { team1, team2 } = balanceTeams(four);
+      return {
         key: `${s.id}-${i}`,
         teamA: team1.map((p) => ({ id: p.id, name: p.name })),
         teamB: team2.map((p) => ({ id: p.id, name: p.name })),
-      });
-    }
+      };
+    });
 
     const finished = (s.matches as MatchRow[])
       .filter((m) => m.finishedAt != null)

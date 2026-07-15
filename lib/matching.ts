@@ -96,6 +96,37 @@ export function diffPenalty(diff: number): number {
   return DIFF_PENALTY[Math.min(diff, DIFF_PENALTY.length - 1)];
 }
 
+/**
+ * Cost of putting two skill groups on the same court, from the club's pairing
+ * table (lower = more suitable). Group = SKILL_TIER: 1=RK, 2=BG/BG+,
+ * 3=N-/N/N+, 4=S/S+/P. Same group is ideal (0); the two low groups (RK+BG) and
+ * the two high groups (N+S) pair well (20); crossing the whole range (RK+S) is
+ * worst (50). Indexed [1..4][1..4]; row/col 0 unused.
+ */
+const GROUP_PAIR_COST: number[][] = [
+  [0, 0, 0, 0, 0],
+  [0, 0, 20, 40, 50],
+  [0, 20, 0, 30, 40],
+  [0, 40, 30, 0, 20],
+  [0, 50, 40, 20, 0],
+];
+
+/**
+ * How skill-mismatched a foursome is: the sum of the group-pair cost over all
+ * six pairings. 0 = everyone in the same group; higher = wider skill spread.
+ * The matchmaker minimizes this first so each court plays players of the
+ * closest skill possible.
+ */
+export function courtSkillCost(four: Player[]): number {
+  let cost = 0;
+  for (let a = 0; a < four.length; a++) {
+    for (let b = a + 1; b < four.length; b++) {
+      cost += GROUP_PAIR_COST[SKILL_TIER[four[a].skillLevel]][SKILL_TIER[four[b].skillLevel]];
+    }
+  }
+  return cost;
+}
+
 export interface CourtMatch {
   court: number;
   team1: Player[];
