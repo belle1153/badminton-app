@@ -65,6 +65,7 @@ export function balanceTeams(four: Player[]): {
 } {
   const [a, b, c, d] = four;
   const w = (p: Player) => SKILL_TIER[p.skillLevel];
+  const r = (p: Player) => SKILL_RANK[p.skillLevel];
   const splits: [Player[], Player[]][] = [
     [[a, b], [c, d]],
     [[a, c], [b, d]],
@@ -74,15 +75,26 @@ export function balanceTeams(four: Player[]): {
     t[0].fixedPartnerId === t[1].id && t[1].fixedPartnerId === t[0].id;
   const hasPair = splits.some(([t1, t2]) => paired(t1) || paired(t2));
 
-  let best: { team1: Player[]; team2: Player[]; diff: number; mismatch: number } | null = null;
+  let best:
+    | { team1: Player[]; team2: Player[]; diff: number; mismatch: number; rankDiff: number }
+    | null = null;
   for (const [t1, t2] of splits) {
     if (hasPair && !(paired(t1) || paired(t2))) continue; // never break a fixed pair
     const diff = Math.abs(w(t1[0]) + w(t1[1]) - (w(t2[0]) + w(t2[1])));
     const s1 = [w(t1[0]), w(t1[1])].sort((x, y) => x - y);
     const s2 = [w(t2[0]), w(t2[1])].sort((x, y) => x - y);
     const mismatch = Math.abs(s1[0] - s2[0]) + Math.abs(s1[1] - s2[1]);
-    if (!best || diff < best.diff || (diff === best.diff && mismatch < best.mismatch)) {
-      best = { team1: t1, team2: t2, diff, mismatch };
+    // Fine tiebreak by the full 9-level rank: BG and BG+ share a tier but BG+
+    // is stronger, so pair the weakest with the strongest (RK+BG+ vs BG+BG,
+    // not RK+BG vs BG+BG+) when the tier sums tie.
+    const rankDiff = Math.abs(r(t1[0]) + r(t1[1]) - (r(t2[0]) + r(t2[1])));
+    if (
+      !best ||
+      diff < best.diff ||
+      (diff === best.diff && mismatch < best.mismatch) ||
+      (diff === best.diff && mismatch === best.mismatch && rankDiff < best.rankDiff)
+    ) {
+      best = { team1: t1, team2: t2, diff, mismatch, rankDiff };
     }
   }
   return best!;
