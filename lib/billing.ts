@@ -33,6 +33,36 @@ export function activeCourtCount(
 }
 
 /**
+ * Court numbers open for play right now. If the admin set an explicit open set
+ * (session.openCourts, e.g. "1,3,4") that wins — any subset of courts, in any
+ * combination. Otherwise it falls back to the clock default: courts 1..N where
+ * N = activeCourtCount (early courts before 20:00, all from 20:00).
+ */
+export function openCourtNumbers(
+  session: {
+    courtsEarly: number;
+    courtsLate: number;
+    date: Date;
+    lateOpenedAt: Date | null;
+    openCourts?: string | null;
+  },
+  now: Date = new Date()
+): number[] {
+  if (session.openCourts != null && session.openCourts.trim() !== "") {
+    return [
+      ...new Set(
+        session.openCourts
+          .split(",")
+          .map((s) => Number(s.trim()))
+          .filter((n) => Number.isInteger(n) && n > 0)
+      ),
+    ].sort((a, b) => a - b);
+  }
+  const n = activeCourtCount(session, now);
+  return Array.from({ length: n }, (_, i) => i + 1);
+}
+
+/**
  * Billing time blocks: two 1-hour blocks (19-20, 20-21) then 30-min blocks up
  * to 23:00 ICT. Each = [start, end) as UTC instants + its length in hours.
  */

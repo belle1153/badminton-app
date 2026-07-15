@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { balanceTeams, diffPenalty, type Player, type SkillLevel } from "@/lib/matching";
-import { activeCourtCount } from "@/lib/billing";
+import { openCourtNumbers } from "@/lib/billing";
 
 export interface QueuePlayer {
   id: string; // signUp id
@@ -151,7 +151,7 @@ export async function fillCourt(sessionId: string, court: number): Promise<FillR
   ]);
   const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 
-  if (session && court > activeCourtCount(session)) return { ok: false, reason: "not_open" };
+  if (session && !openCourtNumbers(session).includes(court)) return { ok: false, reason: "not_open" };
   if (state.currentByCourt.has(court)) return { ok: false, reason: "court_taken" };
   if (state.queue.length < 4) return { ok: false, reason: "not_enough" };
 

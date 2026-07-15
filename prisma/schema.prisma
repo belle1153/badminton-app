@@ -54,6 +54,7 @@ model Session {
   closedAt             DateTime?
   registrationClosedAt DateTime?
   lateOpenedAt         DateTime?
+  openCourts           String? // comma-separated open court numbers; null = auto by clock
   courtRateId          String?
   courtRate            CourtRate?       @relation(fields: [courtRateId], references: [id])
   courtHours           Float?

@@ -41,10 +41,9 @@ export interface FinishedGame {
  */
 export default function LiveCourts({
   sessionId,
-  courts,
-  activeCourts,
-  courtsLate,
-  lateOpened = false,
+  openCourts,
+  maxCourts,
+  isAuto,
   activeMatches,
   upcomingMatches = [],
   queue,
@@ -52,13 +51,12 @@ export default function LiveCourts({
   substitutes = [],
 }: {
   sessionId: string;
-  courts: number;
-  /** Courts open to fill right now (early courts before 20:00, all from 20:00). */
-  activeCourts: number;
-  /** Total courts once the 2-ทุ่ม block opens. */
-  courtsLate: number;
-  /** Admin already pressed "open 2-ทุ่ม courts early". */
-  lateOpened?: boolean;
+  /** Court numbers open to fill right now (a subset of 1..maxCourts). */
+  openCourts: number[];
+  /** Ceiling of courts the venue has this session (toggle covers 1..maxCourts). */
+  maxCourts: number;
+  /** true = open set is the clock default (openCourts field not overridden). */
+  isAuto: boolean;
   activeMatches: LiveMatch[];
   upcomingMatches?: LiveMatch[];
   queue: P[];
@@ -104,25 +102,26 @@ export default function LiveCourts({
     list.push(m);
     upcomingByCourt.set(m.court, list);
   }
-  const courtList = Array.from({ length: courts }, (_, i) => i + 1);
-  // Courts open right now to start a game (early block before 20:00). Extra
-  // 2-ทุ่ม courts stay locked until 20:00 or the admin opens them early.
-  const emptyCourts = courtList.filter((c) => !byCourt.has(c) && c <= activeCourts);
+  const openSet = new Set(openCourts);
+  // Show every open court plus any court that still has a live/queued game
+  // (so a court closed mid-play isn't hidden), sorted ascending.
+  const occupied = new Set<number>([...byCourt.keys(), ...upcomingByCourt.keys()]);
+  const courtList = [...new Set([...openCourts, ...occupied])].sort((a, b) => a - b);
+  const emptyCourts = courtList.filter((c) => !byCourt.has(c) && openSet.has(c));
   const canFill = queue.length >= 4;
-  const canOpenLate = activeCourts < courtsLate;
 
-  async function handleOpenLate() {
+  async function setOpenCourts(nums: number[] | null) {
     setError(null);
-    setLoading("open-late");
+    setLoading("courts-open");
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/open-late`, {
+      const res = await fetch(`/api/sessions/${sessionId}/courts-open`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ open: true }),
+        body: JSON.stringify({ openCourts: nums }),
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error ?? "เปิดคอร์ทไม่สำเร็จ");
+        throw new Error(data.error ?? "ตั้งค่าคอร์ทไม่สำเร็จ");
       }
       router.refresh();
     } catch (err) {
@@ -130,6 +129,13 @@ export default function LiveCourts({
     } finally {
       setLoading(null);
     }
+  }
+
+  function toggleCourt(court: number) {
+    const next = new Set(openSet);
+    if (next.has(court)) next.delete(court);
+    else next.add(court);
+    setOpenCourts([...next].sort((a, b) => a - b));
   }
 
   async function handleFill(court: number) {
@@ -277,21 +283,41 @@ export default function LiveCourts({
         <span className="text-xs text-gray-500">คิว {queue.length} คน</span>
       </div>
 
-      {canOpenLate ? (
-        <button
-          onClick={handleOpenLate}
-          disabled={loading === "open-late"}
-          className="rounded-md border-2 border-brand-600 text-brand-700 text-sm font-medium py-2 hover:bg-brand-50 disabled:opacity-50"
-        >
-          {loading === "open-late"
-            ? "กำลังเปิด..."
-            : `🔓 เปิดคอร์ท 2 ทุ่มเลย (ตอนนี้เปิด ${activeCourts} → ${courtsLate} สนาม)`}
-        </button>
-      ) : (
-        lateOpened && (
-          <p className="text-xs text-brand-600">🔓 เปิดคอร์ท 2 ทุ่มแล้ว ({courtsLate} สนาม)</p>
-        )
-      )}
+      <div className="rounded-lg border border-gray-200 p-2.5 flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-gray-600">
+            เปิด/ปิดสนาม {isAuto && <span className="text-gray-400">(อัตโนมัติตามเวลา)</span>}
+          </span>
+          {!isAuto && (
+            <button
+              onClick={() => setOpenCourts(null)}
+              disabled={loading === "courts-open"}
+              className="text-[11px] text-brand-700 hover:underline disabled:opacity-50"
+            >
+              กลับเป็นอัตโนมัติ
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {Array.from({ length: maxCourts }, (_, i) => i + 1).map((c) => {
+            const on = openSet.has(c);
+            return (
+              <button
+                key={c}
+                onClick={() => toggleCourt(c)}
+                disabled={loading === "courts-open"}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                  on
+                    ? "bg-brand-600 text-white border-brand-600"
+                    : "bg-white text-gray-400 border-gray-300 line-through"
+                }`}
+              >
+                สนาม {c}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {emptyCourts.length > 0 && (
         <button
@@ -332,7 +358,7 @@ export default function LiveCourts({
                       จบเกม
                     </button>
                   </>
-                ) : (
+                ) : openSet.has(court) ? (
                   <div className="flex-1 flex flex-col items-center justify-center gap-2">
                     <p className="text-white/50 text-sm">ว่าง</p>
                     <button
@@ -342,6 +368,10 @@ export default function LiveCourts({
                     >
                       {loading === `fill-${court}` ? "กำลังดึง..." : "ดึงคิวลงสนาม"}
                     </button>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-white/50 text-sm">🔒 ปิดอยู่</p>
                   </div>
                 )}
                 {nexts.slice(0, 2).map((n) => (

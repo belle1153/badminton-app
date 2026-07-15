@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { deriveCourtState } from "@/lib/queue";
-import { activeCourtCount } from "@/lib/billing";
+import { openCourtNumbers } from "@/lib/billing";
 import { balanceTeams, type Player, type SkillLevel } from "@/lib/matching";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
@@ -82,14 +82,14 @@ export default async function SessionCourtsPage({
   // court's current game plus up to two pre-queued next games.
   const allMatches = session.matches.map(toTeamMatch);
   const matchById = new Map(session.matches.map((m) => [m.id, m]));
-  // Show courts open right now (early block before 20:00, all from 20:00), but
-  // never hide a court that still has a live game.
-  const courtsToShow = [...liveState.currentByCourt.keys()].reduce(
-    (max, c) => Math.max(max, c),
-    activeCourtCount(session)
-  );
-  const courts = Array.from({ length: courtsToShow }, (_, i) => {
-    const court = i + 1;
+  // Show the courts open right now (admin's open set, or the clock default),
+  // plus any court that still has a live/queued game so it's never hidden.
+  const occupied = new Set<number>([
+    ...liveState.currentByCourt.keys(),
+    ...liveState.upcomingByCourt.keys(),
+  ]);
+  const courtNums = [...new Set([...openCourtNumbers(session), ...occupied])].sort((a, b) => a - b);
+  const courts = courtNums.map((court) => {
     const cur = liveState.currentByCourt.get(court);
     const ups = (liveState.upcomingByCourt.get(court) ?? []).slice(0, 2);
     return {
