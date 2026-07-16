@@ -1,14 +1,7 @@
 import { cookies } from "next/headers";
+import { ADMIN_COOKIE_NAME, adminPin } from "./adminCookie";
 
-export const ADMIN_COOKIE_NAME = "badminton_admin_pin";
-
-function adminPin(): string {
-  return process.env.ADMIN_PIN ?? "1234";
-}
-
-export function isValidPin(pin: string): boolean {
-  return pin === adminPin();
-}
+export { ADMIN_COOKIE_NAME, isValidPin } from "./adminCookie";
 
 export async function isAdmin(): Promise<boolean> {
   const store = await cookies();
