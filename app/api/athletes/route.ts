@@ -11,10 +11,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
+  // Name-search feeds type-ahead pickers only — never send photoUrl here, it's a
+  // base64 data URL and would ship tens of KB per suggestion on every keystroke.
   const athletes = await prisma.athlete.findMany({
     where: { name: { contains: q, mode: "insensitive" } },
     orderBy: { name: "asc" },
     take: 10,
+    select: { id: true, name: true, skillLevel: true },
   });
 
   return NextResponse.json(athletes);
