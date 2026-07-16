@@ -47,6 +47,7 @@ export default function LiveCourts({
   isAuto,
   activeMatches,
   queue,
+  readyPendingCount,
   recentFinished,
   substitutes = [],
 }: {
@@ -61,6 +62,8 @@ export default function LiveCourts({
   isAuto: boolean;
   activeMatches: LiveMatch[];
   queue: P[];
+  /** คู่เตรียม that can go down right now — the fill buttons draw from these. */
+  readyPendingCount: number;
   recentFinished: FinishedGame[];
   substitutes?: Substitute[];
 }) {
@@ -104,7 +107,9 @@ export default function LiveCourts({
   const playing = new Set(activeMatches.map((m) => m.court));
   const courtList = [...new Set([...openCourts, ...playing])].sort((a, b) => a - b);
   const emptyCourts = courtList.filter((c) => !byCourt.has(c) && openSet.has(c));
-  const canFill = queue.length >= 4;
+  // Courts are filled from คู่เตรียม, not from raw queue names — so what enables
+  // the fill buttons is "is a คู่เตรียม ready to go", not "are 4 people waiting".
+  const canFill = readyPendingCount > 0;
 
   async function setOpenCourts(nums: number[] | null) {
     setError(null);
@@ -337,15 +342,22 @@ export default function LiveCourts({
       </div>
 
       {emptyCourts.length > 0 && (
-        <button
-          onClick={handleFillAll}
-          disabled={!canFill || loading === "fill-all"}
-          className="rounded-md bg-brand-600 text-white text-sm font-medium py-2 hover:bg-brand-700 disabled:opacity-50"
-        >
-          {loading === "fill-all"
-            ? "กำลังเริ่ม..."
-            : `▶ เริ่มเกมในสนามว่าง (${emptyCourts.length} สนาม)`}
-        </button>
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={handleFillAll}
+            disabled={!canFill || loading === "fill-all"}
+            className="rounded-md bg-brand-600 text-white text-sm font-medium py-2 hover:bg-brand-700 disabled:opacity-50"
+          >
+            {loading === "fill-all"
+              ? "กำลังเริ่ม..."
+              : `▶ ส่งคู่เตรียมลงสนามว่าง (ว่าง ${emptyCourts.length} · พร้อมลง ${readyPendingCount} คู่)`}
+          </button>
+          {!canFill && (
+            <p className="text-xs text-gray-400">
+              ยังไม่มีคู่เตรียมที่พร้อมลง — กด &quot;จัดคู่เตรียมจากคิว&quot; ด้านล่าง หรือรอคนในคู่เตรียมจบเกม
+            </p>
+          )}
+        </div>
       )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}

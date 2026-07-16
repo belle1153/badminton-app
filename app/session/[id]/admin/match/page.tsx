@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { deriveCourtState } from "@/lib/queue";
+import { deriveCourtState, readyPendingCount } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
 import { type SkillLevel } from "@/lib/matching";
 import CourtCountEditor from "../CourtCountEditor";
@@ -145,11 +145,14 @@ export default async function SessionMatchPage({
   const freeUnqueuedIds = state.queue.map((q) => q.id).filter((qid) => !queuedIds.has(qid));
   const freeUnqueuedSignature = [...freeUnqueuedIds].sort().join(",");
 
-  // The admin "คิวรอลงสนาม" list = genuinely-waiting players (not already lined
-  // up in a คู่เตรียม), so it and fillCourt agree on who's fillable.
+  // The admin "คิวรอลงสนาม" list = genuinely-waiting players, i.e. those not yet
+  // lined up in a คู่เตรียม — the ones "จัดคู่เตรียมจากคิว" would pick up.
   const liveQueue = state.queue
     .filter((q) => !queuedIds.has(q.id))
     .map((q) => ({ id: q.id, name: q.name }));
+
+  // Courts are filled from คู่เตรียม — this is what the fill buttons act on.
+  const readyCount = await readyPendingCount(id);
 
   const recentFinished: FinishedGame[] = matches
     .filter((m) => m.finishedAt != null)
@@ -185,6 +188,7 @@ export default async function SessionMatchPage({
           isAuto={session.openCourts == null}
           activeMatches={liveMatches}
           queue={liveQueue}
+          readyPendingCount={readyCount}
           recentFinished={recentFinished}
           substitutes={substitutes}
         />

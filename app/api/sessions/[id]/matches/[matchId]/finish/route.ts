@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { bookFoursome, syncPendingQueue } from "@/lib/queue";
+import { dropReadyPending, syncPendingQueue } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
 
 export async function POST(
@@ -66,36 +66,10 @@ export async function POST(
   //      they don't go straight onto a court.
   // There is deliberately no auto-fill fallback here: if no คู่เตรียม is ready the
   // court just stays empty until the admin sends one down.
-  const pendings = await prisma.pendingPair.findMany({
-    where: { sessionId: id },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  });
-  let fromPending = false;
-  if (pendings.length > 0) {
-    const unfinished = await prisma.match.findMany({
-      where: { sessionId: id, finishedAt: null },
-      include: { players: { select: { signUpId: true } } },
-    });
-    const reserved = new Set(unfinished.flatMap((m) => m.players.map((p) => p.signUpId)));
-    const allMembers = pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]);
-    const present = await prisma.signUp.findMany({
-      where: { id: { in: allMembers }, checkedInAt: { not: null } },
-      select: { id: true },
-    });
-    const presentIds = new Set(present.map((s) => s.id));
-    const ready = pendings.find((p) =>
-      [...p.team1Ids, ...p.team2Ids].every((pid) => !reserved.has(pid) && presentIds.has(pid))
-    );
-    if (ready) {
-      const booked = await bookFoursome(id, ready.team1Ids, ready.team2Ids, match.court);
-      if (booked.ok) {
-        await prisma.pendingPair.delete({ where: { id: ready.id } });
-        fromPending = true;
-      }
-      // A stale คู่เตรียม that won't book (e.g. someone withdrew) is left alone
-      // for the admin to fix — the court stays empty rather than filling itself.
-    }
-  }
+  // A stale คู่เตรียม that won't book (e.g. someone withdrew) is left alone for
+  // the admin to fix — the court stays empty rather than filling itself.
+  const dropped = await dropReadyPending(id, match.court);
+  const fromPending = dropped.ok;
 
   // Re-stock คู่เตรียม AFTER the drop, so the four who just finished line up for
   // the next round instead of being sent straight back onto this court.

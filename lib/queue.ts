@@ -129,6 +129,58 @@ export async function loadCourtState(sessionId: string): Promise<CourtState> {
   return deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 }
 
+/**
+ * The คู่เตรียม that could go down right now: every member free (not in a live
+ * game) and checked in. Front of the queue first — that's the one that plays
+ * next, whether a game finishing pulls it or the admin sends it down.
+ */
+async function readyPendings(sessionId: string) {
+  const pendings = await prisma.pendingPair.findMany({
+    where: { sessionId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  if (pendings.length === 0) return [];
+
+  const unfinished = await prisma.match.findMany({
+    where: { sessionId, finishedAt: null },
+    include: { players: { select: { signUpId: true } } },
+  });
+  const reserved = new Set(unfinished.flatMap((m) => m.players.map((p) => p.signUpId)));
+  const members = pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]);
+  const present = await prisma.signUp.findMany({
+    where: { id: { in: members }, checkedInAt: { not: null } },
+    select: { id: true },
+  });
+  const presentIds = new Set(present.map((s) => s.id));
+  return pendings.filter((p) =>
+    [...p.team1Ids, ...p.team2Ids].every((pid) => !reserved.has(pid) && presentIds.has(pid))
+  );
+}
+
+/** How many คู่เตรียม can go down right now — drives the fill buttons. */
+export async function readyPendingCount(sessionId: string): Promise<number> {
+  return (await readyPendings(sessionId)).length;
+}
+
+/**
+ * Send the front-most ready คู่เตรียม onto a court. This is the ONLY way a
+ * foursome reaches a court from the queue: it has been sitting in คู่เตรียม
+ * where the admin could see and ✎ it, so nobody is ever surprised by a line-up.
+ */
+export async function dropReadyPending(
+  sessionId: string,
+  court: number
+): Promise<{ ok: true; matchId: string; round: number } | { ok: false; reason: string }> {
+  const ready = (await readyPendings(sessionId))[0];
+  if (!ready) return { ok: false, reason: "none_ready" };
+
+  const booked = await bookFoursome(sessionId, ready.team1Ids, ready.team2Ids, court);
+  if (!booked.ok) return { ok: false, reason: booked.error };
+
+  await prisma.pendingPair.delete({ where: { id: ready.id } });
+  return { ok: true, matchId: booked.matchId, round: booked.round };
+}
+
 /** Every way to choose `k` of `items`. Pools here are one session's players, so
  *  the counts stay tiny (a dozen choose three). */
 function combinations<T>(items: T[], k: number): T[][] {
@@ -243,10 +295,6 @@ export async function syncPendingQueue(sessionId: string): Promise<number> {
 
   return created;
 }
-
-export type FillResult =
-  | { ok: true; matchId: string; round: number; court: number; playerIds: string[] }
-  | { ok: false; reason: "court_taken" | "not_enough" | "not_open" };
 
 export type BookResult =
   | { ok: true; matchId: string; round: number; court: number }
@@ -535,84 +583,4 @@ export function partitionFoursomes(window: Player[], finishedSets: Set<string>[]
   return groups;
 }
 
-/**
- * The next games the queue will produce (คู่เตรียม), up to `max`. Uses the same
- * global partition fillCourt draws from, so the preview matches what runs.
- */
-export function previewFoursomes(
-  queue: Player[],
-  finishedSets: Set<string>[],
-  max: number
-): Player[][] {
-  const n = Math.min(max, Math.floor(queue.length / 4));
-  if (n === 0) return [];
-  return partitionFoursomes(queue.slice(0, n * 4), finishedSets);
-}
 
-/**
- * Start the next game on an idle court with the four pickFoursome chooses:
- * closest skill first, then queue fairness, then team balance. The person who
- * has waited longest is always in the game.
- */
-export async function fillCourt(sessionId: string, court: number): Promise<FillResult> {
-  const [session, signups, matches, pendings] = await Promise.all([
-    prisma.session.findUnique({ where: { id: sessionId } }),
-    prisma.signUp.findMany({ where: { sessionId }, select: SIGNUP_SELECT }),
-    prisma.match.findMany({ where: { sessionId }, select: MATCH_SELECT }),
-    prisma.pendingPair.findMany({ where: { sessionId }, select: { team1Ids: true, team2Ids: true } }),
-  ]);
-  const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
-
-  if (session && !openCourtNumbers(session).includes(court)) return { ok: false, reason: "not_open" };
-  if (state.currentByCourt.has(court)) return { ok: false, reason: "court_taken" };
-
-  // Don't auto-pull anyone already lined up in a คู่เตรียม — they leave the free
-  // queue when their prepared game is booked, not by a random fill.
-  const queuedInPending = new Set(pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]));
-  const freeQueue = state.queue.filter((q) => !queuedInPending.has(q.id));
-  if (freeQueue.length < 4) return { ok: false, reason: "not_enough" };
-
-  const byId = new Map((signups as SignUpRow[]).map((s) => [s.id, s]));
-  const toPlayer = (id: string): Player => {
-    const s = byId.get(id)!;
-    return { id: s.id, name: s.name, skillLevel: s.skillLevel, fixedPartnerId: s.fixedPartnerId };
-  };
-
-  const windowPlayers = freeQueue.map((q) => toPlayer(q.id));
-  const finishedSets = (matches as MatchRow[])
-    .filter((m) => m.finishedAt != null)
-    .map((m) => new Set(m.players.map((p) => p.signUpId)));
-
-  // Fill this court with the front cluster of the global partition, so a single
-  // fill and the คู่เตรียม preview stay consistent and well balanced.
-  const four = partitionFoursomes(windowPlayers, finishedSets)[0];
-  if (!four) return { ok: false, reason: "not_enough" };
-  const { team1, team2 } = balanceTeams(four);
-
-  const maxRoundForCourt = (matches as MatchRow[])
-    .filter((m) => m.court === court)
-    .reduce((max, m) => Math.max(max, m.round), 0);
-  const round = maxRoundForCourt + 1;
-
-  const created = await prisma.match.create({
-    data: {
-      sessionId,
-      round,
-      court,
-      players: {
-        create: [
-          ...team1.map((p) => ({ signUpId: p.id, team: 1 })),
-          ...team2.map((p) => ({ signUpId: p.id, team: 2 })),
-        ],
-      },
-    },
-  });
-
-  return {
-    ok: true,
-    matchId: created.id,
-    round,
-    court,
-    playerIds: [...team1, ...team2].map((p) => p.id),
-  };
-}
