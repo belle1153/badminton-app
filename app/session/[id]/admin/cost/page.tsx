@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { blockStart, billedHours, formatHours, courtCostByPerson } from "@/lib/billing";
+import { formatHours } from "@/lib/billing";
+import { buildCostRows, sessionPrices } from "@/lib/costing";
 import CostPanel from "../CostPanel";
 
 export const dynamic = "force-dynamic";
@@ -31,54 +32,26 @@ export default async function SessionCostPage({
   ]);
   if (!session) return null;
 
-  const ballPrice = shuttlecockTypes[0]?.pricePerPiece ?? 0;
   const feePerPerson = settings?.feePerPerson ?? 0;
-  // Court rate/hr: the session's chosen rate if set, else the first master rate.
-  const rate =
-    (session.courtRateId
-      ? courtRates.find((c) => c.id === session.courtRateId)
-      : courtRates[0])?.pricePerHour ?? 0;
+  const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
 
-  const attendees = session.signUps.filter(
-    (s) => s.checkedInAt != null || s.checkedOutAt != null
-  );
-
-  // Per-person court split (same block model the day total uses), so the table
-  // and the close-day total reconcile.
-  const { perPerson: courtShare, units: courtHourUnits } = courtCostByPerson(
+  // Everyone who actually showed up (checked in or out) — same rows the players'
+  // own cost tab renders, so both sides always agree.
+  const { rows, courtHourUnits } = buildCostRows(
     session,
-    attendees.map((s) => ({
-      id: s.id,
-      timeSlot: s.timeSlot as "EARLY" | "LATE",
-      checkedOutAt: s.checkedOutAt,
-    })),
-    rate
-  );
-
-  // Per-person day summary: everyone who actually showed up (checked in or out).
-  const rows = attendees
-    .map((s) => {
-      const games = s.matchSlots.filter((ms) => ms.match.finishedAt != null).length;
-      const start = blockStart(session.date, s.timeSlot as "EARLY" | "LATE");
-      const hours = s.checkedOutAt ? billedHours(start, s.checkedOutAt) : null;
-      // 1 ball per game shared by 4 players → each pays a quarter of a ball.
-      const ballShareBaht = Math.ceil((games / 4) * ballPrice);
-      const courtBaht = Math.ceil(courtShare.get(s.id) ?? 0);
-      return {
+    session.signUps
+      .filter((s) => s.checkedInAt != null || s.checkedOutAt != null)
+      .map((s) => ({
         id: s.id,
         name: s.name,
-        slot: s.timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม",
-        out: s.checkedOutAt,
-        hours,
-        games,
-        ballShareBaht,
-        courtBaht,
-        feeBaht: feePerPerson,
-        live: s.checkedOutAt == null,
-        totalBaht: courtBaht + ballShareBaht + feePerPerson,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+        timeSlot: s.timeSlot as "EARLY" | "LATE",
+        checkedOutAt: s.checkedOutAt,
+        gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
+      })),
+    rate,
+    ballPrice,
+    feePerPerson
+  );
 
   return (
     <>

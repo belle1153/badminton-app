@@ -285,9 +285,23 @@ export async function bookFoursome(
   return { ok: true, matchId: created.id, round, court: finalCourt };
 }
 
-/** Cost of one foursome: skill spread dominates; avoid replaying a finished
- *  game (>2 shared); keep a fixed pair whose partner is waiting together. */
-function foursomeCost(four: Player[], finishedSets: Set<string>[], windowIds: Set<string>): number {
+/**
+ * Splitting a คู่ซ้อมแข่ง is not a preference, it's forbidden: a fixed pair plays
+ * together every game. Skill spread is scored at courtSkillCost × 1000 and tops
+ * out around 300k, so this has to sit well above that or "just a bit tighter on
+ * skill" would buy the pair apart (which is exactly what a 40-point nudge did).
+ */
+const SPLIT_FIXED_PAIR = 1_000_000;
+
+/** Cost of one foursome: a fixed pair may never be split; then skill spread
+ *  dominates; then avoid replaying a finished game (>2 shared). `mutualPartner`
+ *  only holds pairs where BOTH are in the window — a partner who isn't waiting
+ *  can't be played with, so there's nothing to keep together. */
+function foursomeCost(
+  four: Player[],
+  finishedSets: Set<string>[],
+  mutualPartner: Map<string, string>
+): number {
   let c = courtSkillCost(four) * 1000;
   const ids = new Set(four.map((p) => p.id));
   for (const fs of finishedSets) {
@@ -296,9 +310,70 @@ function foursomeCost(four: Player[], finishedSets: Set<string>[], windowIds: Se
     if (overlap > 2) c += 300;
   }
   for (const p of four) {
-    if (p.fixedPartnerId && windowIds.has(p.fixedPartnerId) && !ids.has(p.fixedPartnerId)) c += 40;
+    const partner = mutualPartner.get(p.id);
+    if (partner && !ids.has(partner)) c += SPLIT_FIXED_PAIR;
   }
   return c;
+}
+
+/**
+ * Mutual คู่ซ้อมแข่ง among these players. Only pairs where each side names the
+ * other count (the same rule balanceTeams uses), so half-set data can't quietly
+ * pin someone to a partner who doesn't claim them back.
+ */
+function mutualPairs(players: Player[]): Map<string, string> {
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const pairs = new Map<string, string>();
+  for (const p of players) {
+    const partner = p.fixedPartnerId ? byId.get(p.fixedPartnerId) : undefined;
+    if (partner && partner.fixedPartnerId === p.id) pairs.set(p.id, partner.id);
+  }
+  return pairs;
+}
+
+/**
+ * Queue order broken into units: a mutual fixed pair is ONE unit of two that can
+ * never be taken apart — the rest are units of one. A unit keeps the queue
+ * position of whichever of its members waited longer.
+ */
+function toUnits(players: Player[], pairs: Map<string, string>): Player[][] {
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const units: Player[][] = [];
+  const placed = new Set<string>();
+  for (const p of players) {
+    if (placed.has(p.id)) continue;
+    placed.add(p.id);
+    const partnerId = pairs.get(p.id);
+    const partner = partnerId ? byId.get(partnerId) : undefined;
+    if (partner && !placed.has(partner.id)) {
+      placed.add(partner.id);
+      units.push([p, partner]);
+    } else {
+      units.push([p]);
+    }
+  }
+  return units;
+}
+
+/**
+ * The players who actually get queued this round: whole units in wait order, up
+ * to a multiple of four. A fixed pair that won't fit in the slots left is passed
+ * over — it waits as a pair rather than sending half of it down — and any short
+ * tail is dropped a whole unit at a time, so the cut can never split a pair.
+ */
+function fillWindow(units: Player[][], capacity: number, pairs: Map<string, string>): Player[] {
+  const players: Player[] = [];
+  for (const u of units) {
+    if (players.length + u.length <= capacity) players.push(...u);
+    if (players.length === capacity) break;
+  }
+  while (players.length % 4 !== 0) {
+    const last = players[players.length - 1];
+    const partnerId = pairs.get(last.id);
+    if (partnerId && players[players.length - 2]?.id === partnerId) players.splice(-2);
+    else players.pop();
+  }
+  return players;
 }
 
 /**
@@ -315,14 +390,44 @@ function foursomeCost(four: Player[], finishedSets: Set<string>[], windowIds: Se
  * the next free court.
  */
 export function partitionFoursomes(window: Player[], finishedSets: Set<string>[] = []): Player[][] {
-  const n = Math.floor(window.length / 4);
+  if (window.length < 4) return [];
+  const windowPairs = mutualPairs(window);
+  const players = fillWindow(
+    toUnits(window, windowPairs),
+    Math.floor(window.length / 4) * 4,
+    windowPairs
+  );
+  const n = players.length / 4;
   if (n === 0) return [];
-  const players = window.slice(0, n * 4);
   const queueIndex = new Map(players.map((p, i) => [p.id, i]));
-  const windowIds = new Set(players.map((p) => p.id));
-  const cost = (g: Player[]) => foursomeCost(g, finishedSets, windowIds);
+  const mutualPartner = mutualPairs(players);
+  const cost = (g: Player[]) => foursomeCost(g, finishedSets, mutualPartner);
 
-  const sorted = [...players].sort((a, b) => SKILL_RANK[a.skillLevel] - SKILL_RANK[b.skillLevel]);
+  // Seed by skill so same-tier players cluster — but sort a fixed pair as ONE
+  // block (by its average rank) instead of two loose players, or the chunking
+  // below would deal them into different foursomes and leave the hill-climb to
+  // undo it. Anything still split after this the swap loop fixes, since
+  // SPLIT_FIXED_PAIR outweighs every skill gain.
+  const units: Player[][] = [];
+  const seeded = new Set<string>();
+  const byId = new Map(players.map((p) => [p.id, p]));
+  for (const p of players) {
+    if (seeded.has(p.id)) continue;
+    const partnerId = mutualPartner.get(p.id);
+    const partner = partnerId ? byId.get(partnerId) : undefined;
+    seeded.add(p.id);
+    if (partner && !seeded.has(partner.id)) {
+      seeded.add(partner.id);
+      units.push([p, partner]);
+    } else {
+      units.push([p]);
+    }
+  }
+  const unitRank = (u: Player[]) =>
+    u.reduce((s, p) => s + SKILL_RANK[p.skillLevel], 0) / u.length;
+  units.sort((a, b) => unitRank(a) - unitRank(b));
+  const sorted = units.flat();
+
   const groups: Player[][] = [];
   for (let g = 0; g < n; g++) groups.push(sorted.slice(g * 4, g * 4 + 4));
 
