@@ -77,18 +77,29 @@ export default function WithdrawForm({
   return (
     <section className="rounded-lg border border-gray-200 p-4 flex flex-col gap-2">
       <h2 className="font-semibold text-sm">ถอนชื่อ</h2>
+      {/* The withdraw rules live here, per day — and they cost money, so they get
+          a red frame rather than a note the eye slides past. */}
       {deadlinePassed ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 flex flex-col gap-1">
-          <p>• ถอนชื่อเองได้ถึง <strong>12.00 น. ของวันที่ตี</strong> เท่านั้น — ตอนนี้เลยเวลาแล้ว</p>
+        <div className="rounded-lg border-2 border-red-400 bg-red-50 p-3 text-sm text-red-900 flex flex-col gap-1.5">
+          <p className="font-bold">⚠️ เลยเวลาถอนชื่อเองแล้ว</p>
+          <p>• ถอนชื่อเองได้ถึง <strong>12.00 น. ของวันที่ตี</strong> เท่านั้น</p>
           <p>
             • ถอนหลัง 12.00 น. <strong>ขออนุญาตหารค่าคอร์ท 100 บาท</strong> (ยกเว้นหาคนมาแทนได้) —
             ติดต่อแอดมินเพื่อกด accept การถอนชื่อครับ
           </p>
         </div>
       ) : (
-        <p className="text-xs text-gray-400">
-          พิมพ์ชื่อของคุณให้ตรงกับในรายชื่อ แล้วกด &quot;ถอนชื่อ&quot; — ถอนได้เฉพาะชื่อที่ลงจากเครื่องนี้
-        </p>
+        <div className="rounded-lg border-2 border-red-400 bg-red-50 p-3 text-sm text-red-900 flex flex-col gap-1.5">
+          <p className="font-bold">📌 กติกาการถอนชื่อ</p>
+          <p>• ถอนชื่อเองได้ถึง <strong>12.00 น. ของวันที่ตี</strong> เท่านั้น</p>
+          <p>
+            • ถอนหลัง 12.00 น. <strong>ขออนุญาตหารค่าคอร์ท 100 บาท</strong> (ยกเว้นหาคนมาแทนได้) —
+            ติดต่อแอดมินเพื่อกด accept การถอนชื่อครับ
+          </p>
+          <p className="text-xs text-red-800/80">
+            พิมพ์ชื่อให้ตรงกับในรายชื่อ แล้วกด &quot;ถอนชื่อ&quot; — ถอนได้เฉพาะชื่อที่ลงจากเครื่องนี้
+          </p>
+        </div>
       )}
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input

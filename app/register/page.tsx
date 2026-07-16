@@ -20,8 +20,11 @@ export default async function RegisterPage() {
         <Link href="/" className="text-sm text-gray-500 hover:underline">
           ← กลับหน้าแรก
         </Link>
-        <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
+        <h1 className="text-xl font-bold">🏸 TUATUENG GO</h1>
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
+        <p className="text-gray-500 text-sm">
+          🕚 ระบบเปิดให้ลงชื่อทุกวันศุกร์ <strong>11.00 น.</strong> ครับ
+        </p>
       </main>
     );
   }
@@ -63,26 +66,19 @@ export default async function RegisterPage() {
       <Link href="/" className="text-sm text-gray-500 hover:underline">
         ← กลับหน้าแรก
       </Link>
-      <h1 className="text-xl font-bold">🏸 TUATUENG REGISTER</h1>
+      <h1 className="text-xl font-bold">🏸 TUATUENG GO</h1>
 
       <p className="text-sm text-gray-600">
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
       </p>
 
-      <MultiSignUpForm days={days.map((d) => ({ id: d.id, label: d.shortLabel }))} />
-
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex flex-col gap-1.5">
-        <p className="font-semibold text-sm">📌 การถอนชื่อ</p>
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
         <p>
-          • ถอนชื่อเองได้ถึง <strong>12.00 น. ของวันที่ตี</strong> — พิมพ์ชื่อให้เหมือนตอนลงชื่อ
-          จากเครื่องที่ใช้ลงชื่อได้เลย
+          🕚 ระบบเปิดให้ลงชื่อ <strong>ทุกวันศุกร์ 11.00 น.</strong> — ก่อนเวลานี้ลงชื่อไม่ได้ครับ
         </p>
-        <p>
-          • ถอนหลัง 12.00 น. <strong>ขออนุญาตหารค่าคอร์ท 100 บาท</strong> (ยกเว้นหาคนมาแทนได้) —
-          ติดต่อแอดมินเพื่อกด accept การถอนชื่อครับ
-        </p>
-        <p>• ลงหลายวันได้ในครั้งเดียว แต่ <strong>ถอนชื่อต้องถอนแยกทีละวัน</strong> ในหน้าของวันนั้น</p>
       </div>
+
+      <MultiSignUpForm days={days.map((d) => ({ id: d.id, label: d.shortLabel }))} />
 
       <section className="flex flex-col gap-3">
         {days.map((d) => (

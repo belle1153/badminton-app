@@ -81,7 +81,7 @@ export default async function SessionCostPage({
           เวลาเริ่มนับตามช่วงที่ลง (1 ทุ่ม/2 ทุ่ม) · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) ·
           ค่าลูก = เกมละ 1 ลูก หาร 4 คน · ค่าคอร์ท = ค่าคอร์ทแต่ละครึ่งชม. หารคนที่อยู่ช่วงนั้น
           {rate > 0 && ` (เรท ${rate} ฿/ชม./สนาม)`}
-          {feePerPerson > 0 && ` · ค่าธรรมเนียม ${feePerPerson} ฿/คน`}
+          {feePerPerson > 0 && ` · ค่าคอร์ทรวมค่าธรรมเนียม ${feePerPerson} ฿/คน ไว้แล้ว`}
         </p>
         {rows.length === 0 ? (
           <p className="text-sm text-gray-400">ยังไม่มีคนเช็คอินวันนี้</p>
@@ -97,7 +97,6 @@ export default async function SessionCostPage({
                   <th className="px-2 py-1.5 font-medium text-right">เกม</th>
                   <th className="px-2 py-1.5 font-medium text-right">ค่าคอร์ท (฿)</th>
                   <th className="px-2 py-1.5 font-medium text-right">ค่าลูก (฿)</th>
-                  {feePerPerson > 0 && <th className="px-2 py-1.5 font-medium text-right">ค่าธรรมเนียม (฿)</th>}
                   <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
                 </tr>
               </thead>
@@ -124,7 +123,6 @@ export default async function SessionCostPage({
                       {r.live && <span className="text-[10px] text-amber-500"> *</span>}
                     </td>
                     <td className="px-2 py-1.5 text-right">{r.ballShareBaht}</td>
-                    {feePerPerson > 0 && <td className="px-2 py-1.5 text-right">{r.feeBaht}</td>}
                     <td className="px-2 py-1.5 text-right font-semibold">{r.totalBaht}</td>
                   </tr>
                 ))}

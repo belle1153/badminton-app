@@ -201,7 +201,8 @@ export default function MasterDataForm({
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">ค่าธรรมเนียม (บาท/คน)</h2>
         <p className="text-xs text-gray-400">
-          บวกเพิ่มต่อคนในหน้าคำนวณ (เช่น ค่าน้ำ/ค่าบริการ) — ปรับได้ตลอด ใช้ค่าล่าสุดกับทุกวัน
+          บวกรวมเข้ากับ<strong>ค่าคอร์ท</strong>ของแต่ละคนในหน้าคำนวณ — ไม่แสดงเป็นบรรทัดแยกให้ผู้เล่นเห็น
+          · ปรับได้ตลอด ใช้ค่าล่าสุดกับทุกวัน
         </p>
         <form onSubmit={saveFee} className="flex gap-2 items-center">
           <input

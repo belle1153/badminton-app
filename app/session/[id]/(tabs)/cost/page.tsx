@@ -62,7 +62,6 @@ export default async function SessionCostPage({
       <div className="text-sm flex flex-col gap-1 rounded-md bg-gray-50 border border-gray-100 p-2.5">
         <p>ค่าคอร์ททั้งวัน: {session.courtCost} บาท</p>
         <p>ค่าลูกแบดทั้งวัน: {session.shuttlecockCost} บาท</p>
-        {feePerPerson > 0 && <p>ค่าธรรมเนียม: {feePerPerson} บาท/คน</p>}
         <p className="font-semibold pt-0.5">รวมเก็บ: {grandTotal} บาท ({rows.length} คน)</p>
       </div>
 
@@ -85,7 +84,6 @@ export default async function SessionCostPage({
                 <th className="px-2 py-1.5 font-medium text-right">เกม</th>
                 <th className="px-2 py-1.5 font-medium text-right">ค่าคอร์ท</th>
                 <th className="px-2 py-1.5 font-medium text-right">ค่าลูก</th>
-                {feePerPerson > 0 && <th className="px-2 py-1.5 font-medium text-right">ค่าธรรมเนียม</th>}
                 <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
               </tr>
             </thead>
@@ -98,7 +96,6 @@ export default async function SessionCostPage({
                   <td className="px-2 py-1.5 text-right">{r.games}</td>
                   <td className="px-2 py-1.5 text-right">{r.courtBaht}</td>
                   <td className="px-2 py-1.5 text-right">{r.ballShareBaht}</td>
-                  {feePerPerson > 0 && <td className="px-2 py-1.5 text-right">{r.feeBaht}</td>}
                   <td className="px-2 py-1.5 text-right font-semibold">{r.totalBaht}</td>
                 </tr>
               ))}

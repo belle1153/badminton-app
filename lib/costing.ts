@@ -23,9 +23,10 @@ export interface CostRow {
   /** Billed hours — null while they're still playing (not checked out yet). */
   hours: number | null;
   games: number;
+  /** Court share with the per-head fee already folded in — the club bills the
+   *  fee as part of the court cost and doesn't itemise it. */
   courtBaht: number;
   ballShareBaht: number;
-  feeBaht: number;
   totalBaht: number;
   /** Still on the clock: their court share can still grow. */
   live: boolean;
@@ -60,7 +61,9 @@ export function buildCostRows(
       const hours = a.checkedOutAt ? billedHours(start, a.checkedOutAt) : null;
       // 1 ball per game shared by 4 players → each pays a quarter of a ball.
       const ballShareBaht = Math.ceil((a.gamesPlayed / 4) * ballPrice);
-      const courtBaht = Math.ceil(courtShare.get(a.id) ?? 0);
+      // The per-head fee rides along with the court cost — the club quotes one
+      // court number, so it is never shown as its own line.
+      const courtBaht = Math.ceil(courtShare.get(a.id) ?? 0) + feePerPerson;
       return {
         id: a.id,
         name: a.name,
@@ -70,8 +73,7 @@ export function buildCostRows(
         games: a.gamesPlayed,
         courtBaht,
         ballShareBaht,
-        feeBaht: feePerPerson,
-        totalBaht: courtBaht + ballShareBaht + feePerPerson,
+        totalBaht: courtBaht + ballShareBaht,
         live: a.checkedOutAt == null,
       };
     })

@@ -13,33 +13,37 @@ export default async function Home() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">🏸 TUATUENG REGISTER</h1>
+      <h1 className="text-2xl font-bold">🏸 TUATUENG GO</h1>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex flex-col gap-4">
+        {/* Signing up is what people come here to do — give it the whole row. */}
         <Link
           href="/register"
-          className="rounded-xl border-2 border-brand-200 bg-brand-50/60 p-4 flex flex-col items-center gap-1 text-center hover:border-brand-400 transition"
+          className="rounded-2xl border-2 border-brand-200 bg-brand-50/60 p-7 flex flex-col items-center gap-1.5 text-center hover:border-brand-400 transition"
         >
-          <span className="text-3xl">📝</span>
-          <span className="font-semibold text-brand-800">ลงทะเบียน</span>
-          <span className="text-xs text-gray-500">ลงชื่อตีแบด / เลือกวัน</span>
+          <span className="text-5xl">📝</span>
+          <span className="font-bold text-2xl text-brand-800">Register</span>
+          <span className="text-sm text-gray-500">ลงชื่อตีแบด / เลือกวัน</span>
         </Link>
-        <Link
-          href="/live"
-          className="rounded-xl border-2 border-blue-200 bg-blue-50/60 p-4 flex flex-col items-center gap-1 text-center hover:border-blue-400 transition"
-        >
-          <span className="text-3xl">🏸</span>
-          <span className="font-semibold text-blue-800">สนามที่กำลังเล่น</span>
-          <span className="text-xs text-gray-500">ดูทุกสนามหน้าเดียว</span>
-        </Link>
-        <Link
-          href="/rules"
-          className="rounded-xl border-2 border-gray-200 p-4 flex flex-col items-center gap-1 text-center hover:border-brand-400 transition"
-        >
-          <span className="text-3xl">📖</span>
-          <span className="font-semibold">กฎของก๊วน / สนาม</span>
-          <span className="text-xs text-gray-500">กติกา อ่านก่อนมาตี</span>
-        </Link>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Link
+            href="/live"
+            className="rounded-2xl border-2 border-blue-200 bg-blue-50/60 p-6 flex flex-col items-center gap-1.5 text-center hover:border-blue-400 transition"
+          >
+            <span className="text-4xl">🏸</span>
+            <span className="font-bold text-lg text-blue-800">Match Running</span>
+            <span className="text-xs text-gray-500">สนามที่กำลังเล่น / เช็คคิวตัวเอง</span>
+          </Link>
+          <Link
+            href="/rules"
+            className="rounded-2xl border-2 border-gray-200 p-6 flex flex-col items-center gap-1.5 text-center hover:border-brand-400 transition"
+          >
+            <span className="text-4xl">📖</span>
+            <span className="font-bold text-lg">กฎของก๊วน / สนาม</span>
+            <span className="text-xs text-gray-500">กติกา อ่านก่อนมาตี</span>
+          </Link>
+        </div>
       </div>
 
       <AnnouncementCarousel items={announcements} />

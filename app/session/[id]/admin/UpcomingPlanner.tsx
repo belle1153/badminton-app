@@ -199,8 +199,10 @@ export default function UpcomingPlanner({
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {/* On-demand generation — never auto-forms คู่เตรียม as people check in. */}
-      {waitingCount >= 4 ? (
+      {/* On-demand generation — never auto-forms คู่เตรียม as people check in.
+          Fewer than four waiting is fine: the rest of the court is reserved from
+          the people still playing, and it waits for them to finish. */}
+      {waitingCount > 0 && (
         <button
           onClick={generateFromQueue}
           disabled={loading === "generate"}
@@ -208,21 +210,15 @@ export default function UpcomingPlanner({
         >
           {loading === "generate" ? "กำลังจัด…" : `➕ จัดคู่เตรียมจากคิว (รออยู่ ${waitingCount} คน)`}
         </button>
-      ) : (
-        waitingCount > 0 && (
-          <p className="text-xs text-gray-400">คิวรออยู่ {waitingCount} คน — ครบ 4 คนถึงจัดคู่เตรียมได้</p>
-        )
       )}
 
       {pendingPairs.length === 0 ? (
         <p className="text-sm text-gray-400">
-          {waitingCount >= 4
+          {waitingCount > 0
             ? "กดปุ่มด้านบนเพื่อจัดคู่เตรียมจากคิว"
-            : waitingCount > 0
-              ? `คนรอมี ${waitingCount} คน — ยังไม่ถึง 4 รอเกมจบหรือคนมาเพิ่ม`
-              : candidates.length === 0
-                ? "ยังไม่มีคนเช็คอิน"
-                : "ทุกคนกำลังลงสนามอยู่ — พอมีเกมจบ คนจะว่างแล้วจัดคู่เตรียมได้"}
+            : candidates.length === 0
+              ? "ยังไม่มีคนเช็คอิน"
+              : "ทุกคนกำลังลงสนามอยู่ — พอมีเกมจบ คนจะว่างแล้วจัดคู่เตรียมได้"}
         </p>
       ) : (
         <ol className="flex flex-col gap-2">

@@ -129,15 +129,48 @@ export async function loadCourtState(sessionId: string): Promise<CourtState> {
   return deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
 }
 
+/** Every way to choose `k` of `items`. Pools here are one session's players, so
+ *  the counts stay tiny (a dozen choose three). */
+function combinations<T>(items: T[], k: number): T[][] {
+  if (k === 0) return [[]];
+  if (items.length < k) return [];
+  const [head, ...rest] = items;
+  return [...combinations(rest, k - 1).map((c) => [head, ...c]), ...combinations(rest, k)];
+}
+
+/**
+ * The `need` players who best complete `base` into a foursome — judged on the
+ * same skill cost the matchmaker uses everywhere else, so a short คู่เตรียม is
+ * filled with people of the right level rather than whoever is nearest.
+ */
+function bestFillers(
+  base: Player[],
+  candidates: Player[],
+  need: number,
+  finishedSets: Set<string>[],
+  mutualPartner: Map<string, string>
+): Player[] | null {
+  let best: { picked: Player[]; cost: number } | null = null;
+  for (const picked of combinations(candidates, need)) {
+    const four = [...base, ...picked];
+    const cost = foursomeCost(four, finishedSets, mutualPartner);
+    if (!best || cost < best.cost) best = { picked, cost };
+  }
+  return best?.picked ?? null;
+}
+
 /**
  * Top up the คู่เตรียม queue (PendingPair) so it stays a stable, ordered FIFO
- * list instead of a preview that reshuffles every render. Takes the checked-in
- * players who are free right now AND not already sitting in a คู่เตรียม, splits
- * them into skill-tight foursomes (the same partition the auto-preview used),
- * and APPENDS them to the back of the queue. Existing คู่เตรียม are never
- * touched — so once คู่ 1/2/3 are laid out they keep their members and order;
- * booking one just removes it and the rest slide up. Newcomers who check in
- * later are added behind them. Returns how many new foursomes were queued.
+ * list instead of a preview that reshuffles every render. Existing คู่เตรียม are
+ * never touched — once คู่ 1/2/3 are laid out they keep their members and order;
+ * booking one just removes it and the rest slide up.
+ *
+ * Whoever is free and not already queued gets split into skill-tight foursomes
+ * and appended. If 1–3 are left over (too few for a court of their own) they
+ * still get a คู่เตรียม of their own rather than sitting in limbo: the empty
+ * seats are filled with the best-matched players who are mid-game right now, so
+ * the row reads "⏳ รอ <name> (สนาม N) จบเกม" and can't go down until they're
+ * out. Returns how many new foursomes were queued.
  */
 export async function syncPendingQueue(sessionId: string): Promise<number> {
   const [session, signups, matches, pendings] = await Promise.all([
@@ -148,35 +181,66 @@ export async function syncPendingQueue(sessionId: string): Promise<number> {
   ]);
   if (!session || session.status === "CLOSED") return 0;
 
-  const state = deriveCourtState(signups as SignUpRow[], matches as MatchRow[]);
+  const rows = signups as SignUpRow[];
+  const state = deriveCourtState(rows, matches as MatchRow[]);
   const alreadyQueued = new Set(pendings.flatMap((p) => [...p.team1Ids, ...p.team2Ids]));
-  // state.queue = checked-in, not in any unfinished match, front (waited longest)
-  // first. Drop anyone already parked in a คู่เตรียม.
-  const freeUnqueued = state.queue.filter((q) => !alreadyQueued.has(q.id));
-  if (freeUnqueued.length < 4) return 0;
 
-  const byId = new Map((signups as SignUpRow[]).map((s) => [s.id, s]));
-  const players: Player[] = freeUnqueued.map((q) => {
-    const s = byId.get(q.id)!;
-    return { id: s.id, name: s.name, skillLevel: s.skillLevel, fixedPartnerId: s.fixedPartnerId };
+  const byId = new Map(rows.map((s) => [s.id, s]));
+  const toPlayer = (s: SignUpRow): Player => ({
+    id: s.id,
+    name: s.name,
+    skillLevel: s.skillLevel,
+    fixedPartnerId: s.fixedPartnerId,
   });
+  // state.queue = checked-in, not in any unfinished match, longest wait first.
+  const freeUnqueued = state.queue
+    .filter((q) => !alreadyQueued.has(q.id))
+    .map((q) => toPlayer(byId.get(q.id)!));
+  if (freeUnqueued.length === 0) return 0;
+
   const finishedSets = (matches as MatchRow[])
     .filter((m) => m.finishedAt != null)
     .map((m) => new Set(m.players.map((p) => p.signUpId)));
 
-  const foursomes = partitionFoursomes(players, finishedSets);
-  let created = 0;
-  for (const four of foursomes) {
+  const queue = async (four: Player[]) => {
     const { team1, team2 } = balanceTeams(four);
     await prisma.pendingPair.create({
-      data: {
-        sessionId,
-        team1Ids: team1.map((p) => p.id),
-        team2Ids: team2.map((p) => p.id),
-      },
+      data: { sessionId, team1Ids: team1.map((p) => p.id), team2Ids: team2.map((p) => p.id) },
     });
+  };
+
+  let created = 0;
+  const foursomes = partitionFoursomes(freeUnqueued, finishedSets);
+  for (const four of foursomes) {
+    await queue(four);
     created++;
   }
+
+  // 1–3 free players can't fill a court by themselves — hold the court for them
+  // and reserve the remaining seats from the people still playing.
+  const placed = new Set(foursomes.flat().map((p) => p.id));
+  const leftover = freeUnqueued.filter((p) => !placed.has(p.id));
+  if (leftover.length > 0 && leftover.length < 4) {
+    const allPairs = mutualPairs(rows.map(toPlayer));
+    // Don't earmark half of a คู่ซ้อมแข่ง: a fixed pair has to move as a unit,
+    // and picking one seat at a time can't honour that.
+    const busy = rows
+      .filter(
+        (s) =>
+          state.reservedIds.has(s.id) &&
+          s.checkedInAt != null &&
+          s.status !== "WITHDRAWN" &&
+          !alreadyQueued.has(s.id) &&
+          !allPairs.has(s.id)
+      )
+      .map(toPlayer);
+    const fillers = bestFillers(leftover, busy, 4 - leftover.length, finishedSets, allPairs);
+    if (fillers) {
+      await queue([...leftover, ...fillers]);
+      created++;
+    }
+  }
+
   return created;
 }
 

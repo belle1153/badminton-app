@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TUATUENG REGISTER",
+  title: "TUATUENG GO",
   description: "ระบบลงชื่อ จับคู่ และหารค่าใช้จ่ายเล่นแบด",
 };
 
