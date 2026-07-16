@@ -206,22 +206,24 @@ export default function LiveCourts({
     setFinishing(m);
   }
 
-  async function confirmFinish() {
+  // closeCourt = "จบแล้วปิดคอร์ท": end the game without refilling and close the
+  // court, so the four are free to check out (used to wind down at end of day).
+  async function confirmFinish(closeCourt = false) {
     if (!finishing || winner == null) return;
     setError(null);
-    setLoading("finish");
+    setLoading(closeCourt ? "finish-close" : "finish");
     try {
       const res = await fetch(`/api/sessions/${sessionId}/matches/${finishing.id}/finish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ winnerTeam: winner }),
+        body: JSON.stringify({ winnerTeam: winner, closeCourt }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "จบเกมไม่สำเร็จ");
       setFinishing(null);
       setWinner(null);
       // The server already dropped the front คู่เตรียม onto this court (or
-      // auto-filled) — just refresh to show the new game.
+      // auto-filled, or closed it) — just refresh to show the result.
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -490,19 +492,29 @@ export default function LiveCourts({
               </button>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex gap-2 mt-1">
+            <div className="flex flex-col gap-2 mt-1">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => confirmFinish(false)}
+                  disabled={winner == null || loading != null}
+                  className="flex-1 rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {loading === "finish" ? "กำลังบันทึก..." : "จบเกม (รันคู่ต่อไป)"}
+                </button>
+                <button
+                  onClick={() => setFinishing(null)}
+                  disabled={loading != null}
+                  className="rounded-md border border-gray-300 text-gray-600 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+              </div>
               <button
-                onClick={confirmFinish}
-                disabled={winner == null || loading === "finish"}
-                className="flex-1 rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+                onClick={() => confirmFinish(true)}
+                disabled={winner == null || loading != null}
+                className="rounded-md border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50"
               >
-                {loading === "finish" ? "กำลังบันทึก..." : "ยืนยัน"}
-              </button>
-              <button
-                onClick={() => setFinishing(null)}
-                className="rounded-md border border-gray-300 text-gray-600 px-4 py-2 text-sm font-medium hover:bg-gray-50"
-              >
-                ยกเลิก
+                {loading === "finish-close" ? "กำลังปิด..." : "🛑 จบแล้วปิดคอร์ท (ไม่รันต่อ)"}
               </button>
             </div>
           </div>
