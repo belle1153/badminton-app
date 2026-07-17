@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { BUILD_LABEL } from "@/lib/version";
 import AnnouncementCarousel from "./AnnouncementCarousel";
 
 // Always read fresh data — without this the page is frozen at build time.
@@ -13,7 +14,7 @@ export default async function Home() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">🏸 TUATUENG GO</h1>
+      <h1 className="text-2xl font-bold">🏸 TUATUENG GO!</h1>
 
       <div className="flex flex-col gap-4">
         {/* Signing up is what people come here to do — give it the whole row. */}
@@ -40,13 +41,15 @@ export default async function Home() {
             className="rounded-2xl border-2 border-gray-200 p-6 flex flex-col items-center gap-1.5 text-center hover:border-brand-400 transition"
           >
             <span className="text-4xl">📖</span>
-            <span className="font-bold text-lg">กฎของก๊วน / สนาม</span>
-            <span className="text-xs text-gray-500">กติกา อ่านก่อนมาตี</span>
+            <span className="font-bold text-lg">Tua Tueng Info</span>
+            <span className="text-xs text-gray-500">กฎของก๊วน / สนาม · อ่านก่อนมาตี</span>
           </Link>
         </div>
       </div>
 
       <AnnouncementCarousel items={announcements} />
+
+      <p className="text-right text-[11px] text-gray-400 mt-auto pt-2">{BUILD_LABEL}</p>
     </main>
   );
 }

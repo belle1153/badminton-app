@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/adminAuth";
 import PinGate from "../PinGate";
+import BackLink from "../../BackLink";
 
 export default async function AdminLoginPage() {
   if (await isAdmin()) {
@@ -10,9 +10,7 @@ export default async function AdminLoginPage() {
   return (
     <>
       <div className="max-w-sm mx-auto w-full px-6 pt-6">
-        <Link href="/" className="text-sm text-gray-500 hover:text-brand-700">
-          ← หน้าแรก
-        </Link>
+        <BackLink href="/" label="หน้าแรก" exact />
       </div>
       <PinGate redirectTo="/admin" />
     </>

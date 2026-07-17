@@ -1,6 +1,6 @@
 import TabBar from "./TabBar";
 import AutoRefresh from "./AutoRefresh";
-import BackLink from "./BackLink";
+import BackLink from "../BackLink";
 
 interface SessionInfo {
   venue: string;
@@ -29,7 +29,7 @@ export default function SessionShell({
     <div className="flex flex-col min-h-full">
       <AutoRefresh />
       <main className="max-w-2xl mx-auto w-full p-6 pb-24 flex flex-col gap-6 flex-1">
-        <BackLink fallbackHref={backHref} />
+        <BackLink href={backHref} />
 
         <div>
           <h1 className="text-xl font-bold">{session.venue}</h1>

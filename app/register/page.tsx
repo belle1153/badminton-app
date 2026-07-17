@@ -4,6 +4,7 @@ import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
 import MultiSignUpForm from "./MultiSignUpForm";
 import AutoRefresh from "../session/AutoRefresh";
+import BackLink from "../BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,8 @@ export default async function RegisterPage() {
   if (sessions.length === 0) {
     return (
       <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-4">
-        <Link href="/" className="text-sm text-gray-500 hover:underline">
-          ← กลับหน้าแรก
-        </Link>
-        <h1 className="text-xl font-bold">🏸 TUATUENG GO</h1>
+        <BackLink href="/" label="หน้าแรก" exact />
+        <h1 className="text-xl font-bold">🏸 TUATUENG GO!</h1>
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
         <p className="text-gray-500 text-sm">
           🕚 ระบบเปิดให้ลงชื่อทุกวันศุกร์ <strong>11.00 น.</strong> ครับ
@@ -63,10 +62,8 @@ export default async function RegisterPage() {
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
       <AutoRefresh />
-      <Link href="/" className="text-sm text-gray-500 hover:underline">
-        ← กลับหน้าแรก
-      </Link>
-      <h1 className="text-xl font-bold">🏸 TUATUENG GO</h1>
+      <BackLink href="/" label="หน้าแรก" exact />
+      <h1 className="text-xl font-bold">🏸 TUATUENG GO!</h1>
 
       <p className="text-sm text-gray-600">
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)

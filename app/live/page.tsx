@@ -6,6 +6,7 @@ import { buildCourtBoard } from "@/lib/courtBoard";
 import AutoRefresh from "../session/AutoRefresh";
 import CourtGrid from "../session/CourtGrid";
 import QueuePairs from "../session/QueuePairs";
+import BackLink from "../BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -63,9 +64,7 @@ export default async function LiveAllPage() {
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
       <AutoRefresh />
-      <Link href="/" className="text-sm text-gray-500 hover:underline">
-        ← กลับหน้าแรก
-      </Link>
+      <BackLink href="/" label="หน้าแรก" exact />
       <h1 className="text-xl font-bold">🏸 สนามที่กำลังเล่น</h1>
 
       {boards.length === 0 && <p className="text-sm text-gray-400">วันนี้ยังไม่มีรอบเล่น</p>}

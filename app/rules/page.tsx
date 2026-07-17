@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { prisma } from "@/lib/db";
+import BackLink from "../BackLink";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +11,9 @@ export default async function RulesPage() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-5">
-      <Link href="/" className="text-sm text-gray-500 hover:underline">
-        ← กลับหน้าแรก
-      </Link>
-      <h1 className="text-xl font-bold">📖 กฎของก๊วน / สนาม</h1>
+      <BackLink href="/" label="หน้าแรก" exact />
+      <h1 className="text-xl font-bold">📖 Tua Tueng Info</h1>
+      <p className="text-sm text-gray-500 -mt-4">กฎของก๊วน / สนาม</p>
 
       {rules.length === 0 ? (
         <p className="text-sm text-gray-400">ยังไม่มีกฎประกาศไว้ครับ</p>
