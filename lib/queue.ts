@@ -405,10 +405,23 @@ export async function bookFoursome(
  */
 const SPLIT_FIXED_PAIR = 1_000_000;
 
-/** Cost of one foursome: a fixed pair may never be split; then skill spread
- *  dominates; then avoid replaying a finished game (>2 shared). `mutualPartner`
- *  only holds pairs where BOTH are in the window — a partner who isn't waiting
- *  can't be played with, so there's nothing to keep together. */
+/**
+ * How much to punish reusing a group that has already played together, by how
+ * many of its four also shared an earlier game — charged once per prior game so
+ * a group that keeps recurring stacks up fast. courtSkillCost × 1000 tops out
+ * around 160k for a wildly-mixed court, so these sit on the same scale: the
+ * matchmaker will accept a bit of skill spread to break up "the same four every
+ * round" (the club's complaint), but won't force a lopsided game to do it.
+ *   - 4 shared = the exact same foursome → avoid unless there's no other option.
+ *   - 3 shared = three of them together again → strongly discouraged.
+ *   - 2 shared = a pair who've already met → nudged apart when easy.
+ */
+const REPEAT_PENALTY: Record<number, number> = { 2: 4_000, 3: 40_000, 4: 150_000 };
+
+/** Cost of one foursome: a fixed pair may never be split; then avoid replaying a
+ *  group that already met; then skill spread. `mutualPartner` only holds pairs
+ *  where BOTH are in the window — a partner who isn't waiting can't be played
+ *  with, so there's nothing to keep together. */
 function foursomeCost(
   four: Player[],
   finishedSets: Set<string>[],
@@ -419,7 +432,7 @@ function foursomeCost(
   for (const fs of finishedSets) {
     let overlap = 0;
     for (const id of ids) if (fs.has(id)) overlap++;
-    if (overlap > 2) c += 300;
+    c += REPEAT_PENALTY[overlap] ?? 0;
   }
   for (const p of four) {
     const partner = mutualPartner.get(p.id);

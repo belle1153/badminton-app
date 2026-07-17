@@ -36,8 +36,8 @@ export default function QueuePairs({
     return <p className="text-sm text-gray-400">ยังไม่มีคู่เตรียม</p>;
   }
 
-  const team = (players: P[]) => (
-    <div className="flex flex-col gap-0.5">
+  const team = (players: P[], align: "end" | "start") => (
+    <div className={`flex flex-col gap-0.5 ${align === "end" ? "items-end text-right" : "items-start text-left"}`}>
       {players.map((p) => (
         <span key={p.id} className={`truncate ${myIds.has(p.id) ? "font-bold text-brand-700" : ""}`}>
           {p.name}
@@ -56,10 +56,11 @@ export default function QueuePairs({
           }`}
         >
           <span className="text-[10px] text-orange-400 shrink-0 w-9">คู่ {i + 1}</span>
-          <div className="flex-1 flex items-center justify-around gap-1">
-            {team(m.teamA)}
+          {/* 3-col grid keeps VS dead-centre no matter how wide the names are. */}
+          <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            {team(m.teamA, "end")}
             <span className="text-xs font-bold text-orange-400 shrink-0">VS</span>
-            {team(m.teamB)}
+            {team(m.teamB, "start")}
           </div>
         </li>
       ))}

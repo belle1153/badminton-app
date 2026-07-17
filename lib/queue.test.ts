@@ -123,9 +123,39 @@ describe("partitionFoursomes — balance", () => {
     ];
     const justPlayed = new Set(["a", "b", "c", "d"]);
     const groups = partitionFoursomes(players, [justPlayed]);
-    const repeated = groups.some(
-      (g) => g.filter((p) => justPlayed.has(p.id)).length > 2
-    );
+    const repeated = groups.some((g) => g.filter((p) => justPlayed.has(p.id)).length > 2);
     expect(repeated).toBe(false);
+  });
+
+  it("does not reproduce the exact same foursome three rounds running (the club's report)", () => {
+    // Same-tier pool so skill never forces a repeat; the only thing steering the
+    // split is the repeat penalty. abcd played twice already — round 3 must differ.
+    const pool = ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => P(id, "N"));
+    const abcd = new Set(["a", "b", "c", "d"]);
+    const groups = partitionFoursomes(pool, [abcd, abcd]);
+    const reran = groups.some((g) => g.every((p) => abcd.has(p.id)));
+    expect(reran).toBe(false);
+  });
+
+  it("still tolerates a repeat when there's genuinely no alternative", () => {
+    // Only four waiting — a rerun is unavoidable and must not be dropped.
+    const pool = ["a", "b", "c", "d"].map((id) => P(id, "N"));
+    const groups = partitionFoursomes(pool, [new Set(["a", "b", "c", "d"])]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(4);
+  });
+
+  it("won't force a wildly-lopsided court just to avoid a repeat", () => {
+    // 4 RK + 4 P, and one RK foursome already played. Keeping tiers apart matters
+    // more than the repeat: no court should mix RK with P.
+    const pool = [
+      ...["a", "b", "c", "d"].map((id) => P(id, "RK")),
+      ...["e", "f", "g", "h"].map((id) => P(id, "P")),
+    ];
+    const groups = partitionFoursomes(pool, [new Set(["a", "b", "c", "d"])]);
+    for (const g of groups) {
+      const tiers = new Set(g.map((p) => p.skillLevel));
+      expect(tiers.has("RK") && tiers.has("P")).toBe(false);
+    }
   });
 });

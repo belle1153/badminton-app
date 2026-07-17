@@ -22,14 +22,17 @@ export async function DELETE(
 }
 
 /**
- * Swap one player in a คู่เตรียม for another checked-in person (the ✎ edit).
- * Persisted straight away so the edit survives — no separate "lock" step.
- *   - If the incoming player is sitting in ANOTHER คู่เตรียม, the two are
- *     exchanged (their slots trade), so nobody is dropped or duplicated.
- *   - Otherwise the incoming player takes the slot and the outgoing player goes
+ * Swap a player in a คู่เตรียม (the ✎ edit). Persisted straight away — no
+ * separate "lock" step. Three cases by who the incoming player is:
+ *   - Already in THIS คู่เตรียม → swap the two players' positions, moving them
+ *     across teams. This is how you re-pair within a foursome (e.g. Mozz ⇄ Tao)
+ *     without pulling both out and re-adding them.
+ *   - Sitting in ANOTHER คู่เตรียม → the two exchange slots between the pairs,
+ *     so nobody is dropped or duplicated.
+ *   - Otherwise → the incoming player takes the slot and the outgoing one goes
  *     back to the free queue (the next sync re-queues them at the back).
- * The incoming player may currently be mid-game — that just earmarks them; the
- * คู่เตรียม can't drop onto a court until everyone in it is free.
+ * The incoming player may be mid-game — that just earmarks them; the คู่เตรียม
+ * can't drop onto a court until everyone in it is free.
  */
 export async function PATCH(
   req: NextRequest,
@@ -55,8 +58,20 @@ export async function PATCH(
   if (!members.includes(outSignUpId)) {
     return NextResponse.json({ error: "ไม่พบผู้เล่นที่จะสลับออก" }, { status: 400 });
   }
+  if (outSignUpId === inSignUpId) {
+    return NextResponse.json({ error: "เลือกคนละคน" }, { status: 400 });
+  }
+
+  // Both already in this คู่เตรียม → exchange their positions (re-pair within the
+  // foursome). No check-in re-validation: they're existing members.
   if (members.includes(inSignUpId)) {
-    return NextResponse.json({ error: "ผู้เล่นคนนี้อยู่ในคู่นี้แล้ว" }, { status: 400 });
+    const exch = (ids: string[]) =>
+      ids.map((x) => (x === outSignUpId ? inSignUpId : x === inSignUpId ? outSignUpId : x));
+    await prisma.pendingPair.update({
+      where: { id: pendingId },
+      data: { team1Ids: exch(pending.team1Ids), team2Ids: exch(pending.team2Ids) },
+    });
+    return NextResponse.json({ ok: true, swappedInside: true });
   }
 
   const incoming = await prisma.signUp.findUnique({ where: { id: inSignUpId } });

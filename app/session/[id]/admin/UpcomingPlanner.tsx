@@ -137,7 +137,7 @@ export default function UpcomingPlanner({
     }
   }
 
-  const chip = (p: Lite, pairId: string, inThisPair: Set<string>) => {
+  const chip = (p: Lite, pairId: string, inThisPair: Set<string>, pairMembers: Lite[]) => {
     const slot = p.id;
     if (editing && editing.pairId === pairId && editing.slot === slot) {
       return (
@@ -152,14 +152,25 @@ export default function UpcomingPlanner({
           <option value="" disabled>
             แทน {p.name} ด้วย…
           </option>
-          {candidates
-            .filter((c) => !inThisPair.has(c.id))
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({SKILL_LABELS[c.skillLevel]})
-                {c.busyCourt ? ` — เล่นอยู่ สนาม ${c.busyCourt}` : ""}
-              </option>
-            ))}
+          <optgroup label="สลับตำแหน่งในคู่นี้">
+            {pairMembers
+              .filter((m) => m.id !== p.id)
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  ⇄ {m.name} ({SKILL_LABELS[m.skillLevel]})
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="เอาคนอื่นมาแทน">
+            {candidates
+              .filter((c) => !inThisPair.has(c.id))
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({SKILL_LABELS[c.skillLevel]})
+                  {c.busyCourt ? ` — เล่นอยู่ สนาม ${c.busyCourt}` : ""}
+                </option>
+              ))}
+          </optgroup>
         </select>
       );
     }
@@ -233,10 +244,15 @@ export default function UpcomingPlanner({
               <li key={pair.id} className="rounded-lg border border-gray-200 bg-white/60 p-2.5 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-gray-400 shrink-0 w-8">คู่ {i + 1}</span>
-                  <div className="flex-1 flex items-center justify-around gap-1 flex-wrap">
-                    <div className="flex flex-col gap-1">{pair.team1.map((p) => chip(p, pair.id, inThisPair))}</div>
+                  {/* 3-col grid keeps VS dead-centre regardless of chip widths. */}
+                  <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <div className="flex flex-col gap-1 items-end">
+                      {pair.team1.map((p) => chip(p, pair.id, inThisPair, members))}
+                    </div>
                     <span className="text-xs font-bold text-gray-400 shrink-0">VS</span>
-                    <div className="flex flex-col gap-1">{pair.team2.map((p) => chip(p, pair.id, inThisPair))}</div>
+                    <div className="flex flex-col gap-1 items-start">
+                      {pair.team2.map((p) => chip(p, pair.id, inThisPair, members))}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
