@@ -9,6 +9,8 @@ import Toast from "../session/Toast";
 interface DayOption {
   id: string;
   label: string;
+  /** null = sign-ups are open. Otherwise when they open, e.g. "ศุกร์ที่ 17 ก.ค. 11.00 น." */
+  opensAtLabel: string | null;
 }
 
 interface AthleteSuggestion {
@@ -24,8 +26,9 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const [name, setName] = useState("");
   const [athleteId, setAthleteId] = useState<string | null>(null);
   // Multi-select: sign up for several days at once with one tap on "ลงชื่อ".
+  const openDays = days.filter((d) => d.opensAtLabel == null);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(
-    () => new Set(days[0] ? [days[0].id] : [])
+    () => new Set(openDays[0] ? [openDays[0].id] : [])
   );
   const [timeSlot, setTimeSlot] = useState<Slot>("EARLY");
   const [doneDays, setDoneDays] = useState<Set<string>>(new Set());
@@ -160,19 +163,26 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
         <div className="grid grid-cols-1 gap-2">
           {days.map((d) => {
             const selected = selectedDays.has(d.id);
+            const locked = d.opensAtLabel != null;
             return (
               <button
                 key={d.id}
                 type="button"
+                disabled={locked}
                 onClick={() => toggleDay(d.id)}
                 className={`w-full rounded-md border px-3 py-2.5 text-sm font-medium text-center ${
-                  selected
-                    ? "bg-brand-600 text-white border-brand-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  locked
+                    ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
+                    : selected
+                      ? "bg-brand-600 text-white border-brand-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
               >
-                {doneDays.has(d.id) ? "✓ " : selected ? "☑ " : ""}
+                {locked ? "🔒 " : doneDays.has(d.id) ? "✓ " : selected ? "☑ " : ""}
                 {d.label}
+                {locked && (
+                  <span className="block text-xs font-normal">เปิดลงชื่อ {d.opensAtLabel}</span>
+                )}
               </button>
             );
           })}

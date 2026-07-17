@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getMySignups, removeMySignup } from "@/lib/mySignups";
 
@@ -10,10 +10,12 @@ interface ActiveSignUp {
 }
 
 /**
- * Self-withdrawal without a per-row button: type your own name and submit.
+ * Self-withdrawal without a per-row button: pick or type your own name.
  * Only names signed up from THIS device (localStorage) can be withdrawn, so
  * others can't remove your name from their own phone even though the list is
- * public. After the noon deadline this form is hidden and the admin handles it.
+ * public — which is also why the type-ahead only ever offers YOUR names, never
+ * the whole day's list. After the noon deadline this form is hidden and the
+ * admin handles it.
  */
 export default function WithdrawForm({
   sessionId,
@@ -28,6 +30,20 @@ export default function WithdrawForm({
   const [name, setName] = useState("");
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  // localStorage is client-only, so read it after mount.
+  const [myIds, setMyIds] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    setMyIds(new Set(getMySignups(sessionId)));
+  }, [sessionId]);
+
+  const myNames = myIds ? signUps.filter((s) => myIds.has(s.id)) : [];
+  const query = name.trim().toLowerCase();
+  const suggestions = query
+    ? myNames.filter((s) => s.name.toLowerCase().includes(query))
+    : myNames;
+  const nothingToWithdraw = myIds != null && myNames.length === 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +82,12 @@ export default function WithdrawForm({
         return;
       }
       removeMySignup(sessionId, match.id);
+      // Drop it from the picker too, or the name you just withdrew keeps showing.
+      setMyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(match.id);
+        return next;
+      });
       setMessage({ text: `ถอนชื่อ "${typed}" เรียบร้อยแล้วครับ`, ok: true });
       setName("");
       router.refresh();
@@ -101,22 +123,56 @@ export default function WithdrawForm({
           </p>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          placeholder="พิมพ์ชื่อของคุณ"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="input flex-1"
-          autoComplete="off"
-        />
-        <button
-          type="submit"
-          disabled={loading || deadlinePassed}
-          className="rounded-md border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50 whitespace-nowrap"
-        >
-          {loading ? "กำลังถอน..." : "ถอนชื่อ"}
-        </button>
-      </form>
+      {nothingToWithdraw ? (
+        <p className="text-xs text-gray-400">
+          ไม่พบชื่อที่ลงจากเครื่องนี้ — ถอนได้เฉพาะชื่อที่คุณลงเองจากเครื่องนี้ครับ
+          {" "}ถ้าลงจากเครื่องอื่น ติดต่อแอดมินได้เลย
+        </p>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              placeholder={myNames.length > 1 ? "แตะเพื่อเลือกชื่อ / พิมพ์ค้นหา" : "แตะเพื่อเลือกชื่อของคุณ"}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              className="input w-full"
+              autoComplete="off"
+              disabled={deadlinePassed}
+            />
+            {/* Only ever YOUR names from this device — never the day's full list. */}
+            {showSuggestions && !deadlinePassed && suggestions.length > 0 && (
+              <ul className="absolute z-10 top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-sm mt-1 max-h-48 overflow-y-auto">
+                {suggestions.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onMouseDown={() => {
+                        setName(s.name);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    >
+                      {s.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={loading || deadlinePassed || !name.trim()}
+            className="rounded-md border border-red-300 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 disabled:opacity-50 whitespace-nowrap"
+          >
+            {loading ? "กำลังถอน..." : "ถอนชื่อ"}
+          </button>
+        </form>
+      )}
       {message && (
         <p className={`text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
       )}

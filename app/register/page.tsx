@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
+import { registrationIsOpen, formatOpensAt } from "@/lib/registration";
 import MultiSignUpForm from "./MultiSignUpForm";
 import AutoRefresh from "../session/AutoRefresh";
 import BackLink from "../BackLink";
@@ -56,8 +57,11 @@ export default async function RegisterPage() {
       lateCapacity: Math.max(0, totalCapacity - earlyCapacity),
       waitlistCount,
       registrationClosed: s.registrationClosedAt != null,
+      // null once the Friday 11:00 gate has passed for this day.
+      opensAtLabel: registrationIsOpen(s.date) ? null : formatOpensAt(s.date),
     };
   });
+  const allLocked = days.length > 0 && days.every((d) => d.opensAtLabel != null);
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -69,13 +73,24 @@ export default async function RegisterPage() {
         ลงชื่อครั้งเดียว เลือกได้ทั้งสองวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
       </p>
 
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+      <div
+        className={`rounded-lg border p-3 text-xs ${
+          allLocked ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-900"
+        }`}
+      >
         <p>
           🕚 ระบบเปิดให้ลงชื่อ <strong>ทุกวันศุกร์ 11.00 น.</strong> — ก่อนเวลานี้ลงชื่อไม่ได้ครับ
         </p>
+        {allLocked && (
+          <p className="mt-1 font-semibold">
+            ตอนนี้ยังไม่เปิด — เปิด {days[0].opensAtLabel}
+          </p>
+        )}
       </div>
 
-      <MultiSignUpForm days={days.map((d) => ({ id: d.id, label: d.shortLabel }))} />
+      <MultiSignUpForm
+        days={days.map((d) => ({ id: d.id, label: d.shortLabel, opensAtLabel: d.opensAtLabel }))}
+      />
 
       <section className="flex flex-col gap-3">
         {days.map((d) => (
