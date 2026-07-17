@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import { ictInstant } from "@/lib/billing";
 import CheckInList from "./CheckInList";
 import RegistrationToggle from "./RegistrationToggle";
 import AddPlayerForm from "./AddPlayerForm";
@@ -32,7 +33,14 @@ export default async function SessionCheckInPage({
         <RegistrationToggle sessionId={id} registrationClosed={session.registrationClosedAt != null} />
       )}
 
-      {session.status === "OPEN" && <AddPlayerForm sessionId={id} />}
+      {session.status === "OPEN" && (
+        <AddPlayerForm
+          sessionId={id}
+          // Past 20:00 a walk-in is almost certainly a 2 ทุ่ม player — pre-pick
+          // that so the common case is right without the admin thinking about it.
+          defaultSlot={Date.now() >= ictInstant(session.date, 20).getTime() ? "LATE" : "EARLY"}
+        />
+      )}
 
       <CheckInList
         sessionId={id}

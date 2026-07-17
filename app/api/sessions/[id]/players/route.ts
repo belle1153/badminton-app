@@ -10,6 +10,9 @@ const VALID_SKILLS = new Set(Object.keys(SKILL_LABELS));
  * Admin quick-add: create a player straight into a session and check them in,
  * so they land in the waiting queue immediately (for walk-ins during play).
  * The admin sets the skill level here, which also updates the saved athlete.
+ *
+ * `timeSlot` is what they're billed from — 1 ทุ่ม bills from 19:00, 2 ทุ่ม from
+ * 20:00 — so it has to be the admin's call, not a fixed guess.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) {
@@ -20,6 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json();
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const skillLevel = body.skillLevel;
+  const timeSlot: "EARLY" | "LATE" = body.timeSlot === "EARLY" ? "EARLY" : "LATE";
 
   if (!name) return NextResponse.json({ error: "กรุณาใส่ชื่อ" }, { status: 400 });
   if (!VALID_SKILLS.has(skillLevel)) {
@@ -61,8 +65,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sessionId: id,
       name: athlete.name, // canonical spelling
       skillLevel,
-      timeSlot: "LATE",
-      preferredSlot: "LATE",
+      // rebalanceSession below reseats everyone from preferredSlot, so this is
+      // just the starting point it works from.
+      timeSlot,
+      preferredSlot: timeSlot,
       status: "CONFIRMED",
       slotNumber: null,
       checkedInAt: new Date(),

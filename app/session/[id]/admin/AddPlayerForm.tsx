@@ -6,6 +6,8 @@ import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
 const SKILLS = Object.keys(SKILL_LABELS) as SkillLevel[];
 
+type Slot = "EARLY" | "LATE";
+
 interface AthleteSuggestion {
   id: string;
   name: string;
@@ -18,11 +20,23 @@ interface AthleteSuggestion {
  * — picking someone fills in their canonical spelling and their assessed skill,
  * which keeps "NW"/"nw" from becoming two athletes and saves re-grading them.
  * A name that matches nobody is still fine: it creates a new athlete.
+ *
+ * The 1 ทุ่ม / 2 ทุ่ม choice is what they get billed from (19:00 vs 20:00), so it
+ * has to be here — `defaultSlot` is pre-picked from the clock (2 ทุ่ม once 20:00
+ * has passed) because that's almost always right for a walk-in, but the admin
+ * can flip it before adding.
  */
-export default function AddPlayerForm({ sessionId }: { sessionId: string }) {
+export default function AddPlayerForm({
+  sessionId,
+  defaultSlot,
+}: {
+  sessionId: string;
+  defaultSlot: Slot;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [skill, setSkill] = useState<SkillLevel>("RK");
+  const [slot, setSlot] = useState<Slot>(defaultSlot);
   const [suggestions, setSuggestions] = useState<AthleteSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [picked, setPicked] = useState<AthleteSuggestion | null>(null);
@@ -62,7 +76,7 @@ export default function AddPlayerForm({ sessionId }: { sessionId: string }) {
       const res = await fetch(`/api/sessions/${sessionId}/players`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), skillLevel: skill }),
+        body: JSON.stringify({ name: name.trim(), skillLevel: skill, timeSlot: slot }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -71,8 +85,10 @@ export default function AddPlayerForm({ sessionId }: { sessionId: string }) {
       }
       setMessage({
         text: data.alreadyExisted
-          ? `"${name.trim()}" มีอยู่แล้ว — เช็คอินให้แล้ว`
-          : `เพิ่ม "${name.trim()}" (${SKILL_LABELS[skill]}) เข้าคิวแล้ว`,
+          ? `"${name.trim()}" มีอยู่แล้ว — เช็คอินให้แล้ว (ใช้ช่วงเวลาเดิมที่เขาลงไว้)`
+          : `เพิ่ม "${name.trim()}" (${SKILL_LABELS[skill]}) ${
+              slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"
+            } เข้าคิวแล้ว`,
         ok: true,
       });
       setName("");
@@ -126,6 +142,20 @@ export default function AddPlayerForm({ sessionId }: { sessionId: string }) {
             name.trim() !== "" &&
             suggestions.length === 0 && <p className="text-xs text-gray-400 mt-1">คนใหม่ — จะเพิ่มเข้าระบบให้</p>
           )}
+        </div>
+        <div className="flex rounded-md border border-gray-300 overflow-hidden shrink-0">
+          {(["EARLY", "LATE"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSlot(s)}
+              className={`px-3 py-2 text-sm font-medium whitespace-nowrap ${
+                slot === s ? "bg-brand-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {s === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+            </button>
+          ))}
         </div>
         <select
           value={skill}
