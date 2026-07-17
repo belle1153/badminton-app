@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
+import { isAdmin } from "@/lib/adminAuth";
+import AdminSwitch from "./AdminSwitch";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,11 +20,12 @@ export const metadata: Metadata = {
   description: "ระบบลงชื่อ จับคู่ และหารค่าใช้จ่ายเล่นแบด",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const admin = await isAdmin();
   return (
     <html
       lang="en"
@@ -32,6 +35,7 @@ export default function RootLayout({
         <header className="bg-brand-800 text-white flex items-center gap-3 px-4 py-2">
           <Image src="/logo.jpg" alt="TUATUENG LAEMCHABANG" width={56} height={56} className="rounded-full" />
           <span className="font-semibold text-base tracking-wide">TUATUENG LAEMCHABANG</span>
+          {admin && <AdminSwitch />}
         </header>
         {children}
       </body>

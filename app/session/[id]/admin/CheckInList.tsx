@@ -11,6 +11,9 @@ interface CheckInSignUp {
   name: string;
   skillLevel: string;
   status: "CONFIRMED" | "WAITLIST";
+  /** The seat they actually hold — when they play, and what they're billed from. */
+  timeSlot: "EARLY" | "LATE";
+  /** The block they asked for. Differs from timeSlot when their block was full. */
   preferredSlot: "EARLY" | "LATE";
   checkedInAt: string | null;
   checkedOutAt: string | null;
@@ -155,8 +158,11 @@ export default function CheckInList({
       <p className="text-xs text-gray-400">
         กดปุ่มสถานะเพื่อสลับ &quot;ยังไม่มา / มาแล้ว&quot; · ปรับระดับมือได้จาก dropdown
       </p>
+      {/* Group by the seat they hold, not the one they wanted — that's the block
+          they actually play in and get billed from. Someone bumped to 2 ทุ่ม
+          because 1 ทุ่ม was full is flagged below, not filed under 1 ทุ่ม. */}
       {(["EARLY", "LATE"] as const).map((slot) => {
-        const group = signUps.filter((s) => s.preferredSlot === slot);
+        const group = signUps.filter((s) => s.timeSlot === slot);
         if (group.length === 0) return null;
         const isHere = (s: CheckInSignUp) => optimistic.get(s.id) ?? s.checkedInAt != null;
         // Not-arrived on top; arrived sink down; checked-out at the very bottom.
@@ -217,6 +223,11 @@ export default function CheckInList({
               )}
               <span className={`flex-1 min-w-0 truncate ${here ? "font-medium" : "text-gray-500"}`}>
                 {s.name}
+                {s.preferredSlot !== s.timeSlot && (
+                  <span className="text-xs text-amber-600 ml-1.5">
+                    (จองคิว {s.preferredSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"})
+                  </span>
+                )}
               </span>
               {s.status === "WAITLIST" && (
                 <span className="text-xs rounded-full bg-gray-200 text-gray-600 px-1.5 py-0.5 shrink-0">

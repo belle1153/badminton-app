@@ -49,6 +49,7 @@ export default async function SessionCheckInPage({
           name: s.name,
           skillLevel: s.skillLevel,
           status: s.status as "CONFIRMED" | "WAITLIST",
+          timeSlot: s.timeSlot as "EARLY" | "LATE",
           preferredSlot: s.preferredSlot as "EARLY" | "LATE",
           checkedInAt: s.checkedInAt ? s.checkedInAt.toISOString() : null,
           checkedOutAt: s.checkedOutAt ? s.checkedOutAt.toISOString() : null,
