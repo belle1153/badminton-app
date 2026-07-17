@@ -32,7 +32,10 @@ export default async function SessionCostPage({
   ]);
   if (!session) return null;
 
-  const feePerPerson = settings?.feePerPerson ?? 0;
+  // Closed day → the fee frozen at close (what was actually charged). Still
+  // open → the club's current fee, since that's what closing it now would use.
+  const feePerPerson =
+    session.status === "CLOSED" ? (session.feePerPerson ?? 0) : (settings?.feePerPerson ?? 0);
   const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
 
   // Everyone who actually showed up (checked in or out) — same rows the players'

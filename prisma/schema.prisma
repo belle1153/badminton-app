@@ -64,6 +64,9 @@ model Session {
   courtCost            Int?
   shuttlecockCost      Int?
   totalCost            Int?
+  // Frozen at close, like the prices above: what people were actually charged
+  // must not move later when the club changes its current fee.
+  feePerPerson         Int?
   createdAt            DateTime         @default(now())
   signUps              SignUp[]
   matches              Match[]

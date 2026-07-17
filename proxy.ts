@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME, adminPin } from "@/lib/adminCookie";
+import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/adminCookie";
 
 /**
  * One choke point for the whole admin side (Next 16's `proxy`, formerly
@@ -15,12 +15,13 @@ import { ADMIN_COOKIE_NAME, adminPin } from "@/lib/adminCookie";
  */
 const OPEN_PATHS = new Set(["/admin/login", "/api/admin/login", "/api/admin/logout"]);
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (OPEN_PATHS.has(pathname)) return NextResponse.next();
 
-  const pin = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  if (pin && pin === adminPin()) return NextResponse.next();
+  if (await verifyAdminToken(req.cookies.get(ADMIN_COOKIE_NAME)?.value)) {
+    return NextResponse.next();
+  }
 
   return new NextResponse("Not Found", {
     status: 404,

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "รอบนี้ปิดไปแล้ว" }, { status: 400 });
   }
 
-  const [courtRate, shuttlecockType, signUps, gamesPlayed] = await Promise.all([
+  const [courtRate, shuttlecockType, signUps, gamesPlayed, settings] = await Promise.all([
     prisma.courtRate.findUnique({ where: { id: courtRateId } }),
     prisma.shuttlecockType.findUnique({ where: { id: shuttlecockTypeId } }),
     prisma.signUp.findMany({
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       select: { id: true, timeSlot: true, checkedInAt: true, checkedOutAt: true },
     }),
     prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
+    prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
 
   if (!courtRate || !shuttlecockType) {
@@ -59,6 +60,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       courtCost,
       shuttlecockCost,
       totalCost,
+      // Freeze the fee that applied today — the cost pages read this back
+      // instead of whatever the club's current fee happens to be later.
+      feePerPerson: settings?.feePerPerson ?? 0,
       status: "CLOSED",
       closedAt: new Date(),
     },

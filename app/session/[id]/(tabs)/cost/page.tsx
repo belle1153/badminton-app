@@ -32,7 +32,10 @@ export default async function SessionCostPage({
     return <p className="text-sm text-gray-500">ยังไม่ปิดยอด รอแอดมินปิดวันก่อนครับ</p>;
   }
 
-  const feePerPerson = settings?.feePerPerson ?? 0;
+  // The day is closed, so bill the fee that was frozen onto it — not the club's
+  // current fee, which may have changed since. (Days closed before the fee
+  // existed have none, and charged none.)
+  const feePerPerson = session.feePerPerson ?? 0;
   const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
 
   // Charged per person on what they actually played — the same rows the admin
