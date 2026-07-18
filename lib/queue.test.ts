@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { partitionFoursomes } from "./queue";
+import { partitionFoursomes, planPendingAdditions } from "./queue";
 import { balanceTeams, courtSkillCost, type Player, type SkillLevel } from "./matching";
 
 const P = (id: string, skill: SkillLevel, partner: string | null = null): Player => ({
@@ -157,5 +157,45 @@ describe("partitionFoursomes — balance", () => {
       const tiers = new Set(g.map((p) => p.skillLevel));
       expect(tiers.has("RK") && tiers.has("P")).toBe(false);
     }
+  });
+});
+
+describe("planPendingAdditions — the four finishers must not lock back in together", () => {
+  const four = ["a", "b", "c", "d"].map((id) => P(id, "N"));
+  const played = new Set(["a", "b", "c", "d"]);
+
+  it("holds an exact-rerun four back while other คู่เตรียม can feed the courts", () => {
+    const plan = planPendingAdditions(four, [played], 2);
+    expect(plan.toQueue).toEqual([]);
+    expect(plan.leftover).toEqual([]); // held, not leftover — no earmark pair for them
+  });
+
+  it("re-queues them rather than leaving courts idle when no คู่เตรียม is left", () => {
+    const plan = planPendingAdditions(four, [played], 0);
+    expect(plan.toQueue).toHaveLength(1);
+  });
+
+  it("queues them when the admin forces it (explicit จัดคู่เตรียมจากคิว press)", () => {
+    const plan = planPendingAdditions(four, [played], 2, true);
+    expect(plan.toQueue).toHaveLength(1);
+  });
+
+  it("mixes two finished foursomes instead of re-queuing either intact", () => {
+    const eight = ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => P(id, "N"));
+    const g1 = new Set(["a", "b", "c", "d"]);
+    const g2 = new Set(["e", "f", "g", "h"]);
+    const plan = planPendingAdditions(eight, [g1, g2], 1);
+    expect(plan.toQueue).toHaveLength(2);
+    for (const g of plan.toQueue) {
+      expect(g.every((p) => g1.has(p.id))).toBe(false);
+      expect(g.every((p) => g2.has(p.id))).toBe(false);
+    }
+  });
+
+  it("still hands the sub-four tail to the earmark path as leftover", () => {
+    const six = ["a", "b", "c", "d", "e", "f"].map((id) => P(id, "N"));
+    const plan = planPendingAdditions(six, [], 0);
+    expect(plan.toQueue).toHaveLength(1);
+    expect(plan.leftover).toHaveLength(2);
   });
 });

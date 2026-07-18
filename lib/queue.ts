@@ -212,19 +212,53 @@ function bestFillers(
 }
 
 /**
+ * Decide what the sync should add to the คู่เตรียม queue from the free players.
+ * Foursomes come from the usual skill partition — but a four that would exactly
+ * replay a finished game is HELD BACK in the waiting queue instead of being
+ * locked in again. This kills the club's "same four every round" loop: after a
+ * game the four finishers are usually the only free players, so without this
+ * they'd be re-queued together forever regardless of any repeat penalty (there
+ * is no alternative grouping among just four people). Held players wait until
+ * the next game frees another batch, and the two batches mix.
+ *
+ * The hold only applies while other คู่เตรียม exist to feed the courts — with an
+ * empty queue a rerun beats an idle court. `force` (the admin explicitly
+ * pressing "จัดคู่เตรียมจากคิว") also overrides it: an explicit press must act.
+ */
+export function planPendingAdditions(
+  free: Player[],
+  finishedSets: Set<string>[],
+  pendingCount: number,
+  force = false
+): { toQueue: Player[][]; leftover: Player[] } {
+  const foursomes = partitionFoursomes(free, finishedSets);
+  const handled = new Set<string>();
+  const toQueue: Player[][] = [];
+  for (const four of foursomes) {
+    for (const p of four) handled.add(p.id);
+    const exactRerun = finishedSets.some((fs) => four.every((p) => fs.has(p.id)));
+    if (exactRerun && !force && pendingCount + toQueue.length > 0) continue;
+    toQueue.push(four);
+  }
+  return { toQueue, leftover: free.filter((p) => !handled.has(p.id)) };
+}
+
+/**
  * Top up the คู่เตรียม queue (PendingPair) so it stays a stable, ordered FIFO
  * list instead of a preview that reshuffles every render. Existing คู่เตรียม are
  * never touched — once คู่ 1/2/3 are laid out they keep their members and order;
  * booking one just removes it and the rest slide up.
  *
  * Whoever is free and not already queued gets split into skill-tight foursomes
- * and appended. If 1–3 are left over (too few for a court of their own) they
- * still get a คู่เตรียม of their own rather than sitting in limbo: the empty
- * seats are filled with the best-matched players who are mid-game right now, so
- * the row reads "⏳ รอ <name> (สนาม N) จบเกม" and can't go down until they're
- * out. Returns how many new foursomes were queued.
+ * and appended — except a four that would exactly rerun a finished game, which
+ * waits to be mixed with the next batch (see planPendingAdditions). If 1–3 are
+ * left over (too few for a court of their own) they still get a คู่เตรียม of
+ * their own rather than sitting in limbo: the empty seats are filled with the
+ * best-matched players who are mid-game right now, so the row reads
+ * "⏳ รอ <name> (สนาม N) จบเกม" and can't go down until they're out.
+ * Returns how many new foursomes were queued.
  */
-export async function syncPendingQueue(sessionId: string): Promise<number> {
+export async function syncPendingQueue(sessionId: string, force = false): Promise<number> {
   const [session, signups, matches, pendings] = await Promise.all([
     prisma.session.findUnique({ where: { id: sessionId } }),
     prisma.signUp.findMany({ where: { sessionId }, select: SIGNUP_SELECT }),
@@ -261,17 +295,16 @@ export async function syncPendingQueue(sessionId: string): Promise<number> {
     });
   };
 
+  const plan = planPendingAdditions(freeUnqueued, finishedSets, pendings.length, force);
   let created = 0;
-  const foursomes = partitionFoursomes(freeUnqueued, finishedSets);
-  for (const four of foursomes) {
+  for (const four of plan.toQueue) {
     await queue(four);
     created++;
   }
 
   // 1–3 free players can't fill a court by themselves — hold the court for them
   // and reserve the remaining seats from the people still playing.
-  const placed = new Set(foursomes.flat().map((p) => p.id));
-  const leftover = freeUnqueued.filter((p) => !placed.has(p.id));
+  const leftover = plan.leftover;
   if (leftover.length > 0 && leftover.length < 4) {
     const allPairs = mutualPairs(rows.map(toPlayer));
     // Don't earmark half of a คู่ซ้อมแข่ง: a fixed pair has to move as a unit,

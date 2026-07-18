@@ -69,7 +69,13 @@ export default function UpcomingPlanner({
     setError(null);
     setLoading("generate");
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/sync`, { method: "POST" });
+      const res = await fetch(`/api/sessions/${sessionId}/pending-pairs/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // force: an explicit press must queue people even if the grouping would
+        // be a rerun — the auto-sync hold is for the background path only.
+        body: JSON.stringify({ force: true }),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "จัดคู่เตรียมไม่สำเร็จ");
       router.refresh();
