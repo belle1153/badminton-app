@@ -139,6 +139,33 @@ export function courtSkillCost(four: Player[]): number {
   return cost;
 }
 
+/**
+ * The single worst pairing on a court, from the same table. Used as a hard
+ * gate: the club's line is "RK never meets N-and-up opponents' tier gap"
+ * — a sum like courtSkillCost can hide one terrible pairing inside an
+ * otherwise-cheap total, so gates must look at the worst pair, not the sum.
+ */
+export function worstPairCost(four: Player[]): number {
+  let worst = 0;
+  for (let a = 0; a < four.length; a++) {
+    for (let b = a + 1; b < four.length; b++) {
+      worst = Math.max(
+        worst,
+        GROUP_PAIR_COST[SKILL_TIER[four[a].skillLevel]][SKILL_TIER[four[b].skillLevel]]
+      );
+    }
+  }
+  return worst;
+}
+
+/**
+ * How many คู่เตรียม the system keeps queued ahead (the admin's own number).
+ * Small on purpose: players held back in the waiting pool give the matchmaker
+ * more people to choose from, which is what keeps the มือ on a court close.
+ * จัดคู่เตรียมเอง (hand-picked) is not counted against this.
+ */
+export const PENDING_QUEUE_CAP = 3;
+
 export interface CourtMatch {
   court: number;
   team1: Player[];

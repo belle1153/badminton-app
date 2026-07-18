@@ -1,5 +1,21 @@
 import { prisma } from "@/lib/db";
-import { balanceTeams, courtSkillCost, SKILL_RANK, type Player, type SkillLevel } from "@/lib/matching";
+import {
+  balanceTeams,
+  courtSkillCost,
+  worstPairCost,
+  PENDING_QUEUE_CAP,
+  SKILL_RANK,
+  type Player,
+  type SkillLevel,
+} from "@/lib/matching";
+
+/**
+ * Worst single pairing allowed when the system forms a court on its own:
+ * adjacent tiers only (RK+BG 20, BG+N 30, N+S/P 20). Anything above — RK with
+ * N-or-up (40/50), BG with S-or-up (40) — is the club's "ไม่มีทางเจอกัน" line
+ * and must wait for better company instead of being formed automatically.
+ */
+const MAX_MIX_PAIR_COST = 30;
 import { openCourtNumbers } from "@/lib/billing";
 
 export interface QueuePlayer {
@@ -192,10 +208,14 @@ function combinations<T>(items: T[], k: number): T[][] {
 
 /**
  * The `need` players who best complete `base` into a foursome — judged on the
- * same skill cost the matchmaker uses everywhere else, so a short คู่เตรียม is
- * filled with people of the right level rather than whoever is nearest.
+ * same cost the matchmaker uses everywhere else, so a short คู่เตรียม is filled
+ * with people of the right level rather than whoever is nearest. Combos whose
+ * worst pairing crosses the club line are refused outright: earmarking is a
+ * convenience, and "no pair at all, keep waiting" beats building an RK-vs-S
+ * court (which is exactly what the admin reported). Returns null when nothing
+ * qualifies.
  */
-function bestFillers(
+export function bestFillers(
   base: Player[],
   candidates: Player[],
   need: number,
@@ -205,6 +225,7 @@ function bestFillers(
   let best: { picked: Player[]; cost: number } | null = null;
   for (const picked of combinations(candidates, need)) {
     const four = [...base, ...picked];
+    if (worstPairCost(four) > MAX_MIX_PAIR_COST) continue;
     const cost = foursomeCost(four, finishedSets, mutualPartner);
     if (!best || cost < best.cost) best = { picked, cost };
   }
@@ -213,31 +234,46 @@ function bestFillers(
 
 /**
  * Decide what the sync should add to the คู่เตรียม queue from the free players.
- * Foursomes come from the usual skill partition — but a four that would exactly
- * replay a finished game is HELD BACK in the waiting queue instead of being
- * locked in again. This kills the club's "same four every round" loop: after a
- * game the four finishers are usually the only free players, so without this
- * they'd be re-queued together forever regardless of any repeat penalty (there
- * is no alternative grouping among just four people). Held players wait until
- * the next game frees another batch, and the two batches mix.
+ * Foursomes come from the usual skill partition, with two kinds of HOLD — a
+ * held four stays in the waiting queue instead of being locked in:
  *
- * The hold only applies while other คู่เตรียม exist to feed the courts — with an
- * empty queue a rerun beats an idle court. `force` (the admin explicitly
- * pressing "จัดคู่เตรียมจากคิว") also overrides it: an explicit press must act.
+ *   - exact rerun: a four that would replay a finished game. Kills the "same
+ *     four every round" loop — after a game the four finishers are usually the
+ *     only free players, so without this they'd re-queue together forever
+ *     (no alternative grouping exists among just four people).
+ *   - bad mix: a four whose worst pairing crosses the club line (RK with
+ *     N-or-up, BG with S-or-up). Better company frees up within a game or two;
+ *     a court the club would never arrange shouldn't be auto-arranged. A four
+ *     kept together by a คู่ซ้อมแข่ง is exempt — a pair spanning tiers is the
+ *     admin's own arrangement.
+ *
+ * Holds only apply while other คู่เตรียม exist to feed the courts — with an
+ * empty queue any game beats an idle court. `force` (the admin explicitly
+ * pressing "จัดคู่เตรียมจากคิว") overrides both: an explicit press must act.
+ * `capacity` caps how many foursomes may be queued this round (the queue-of-3
+ * policy); groups past the cap simply wait their turn.
  */
 export function planPendingAdditions(
   free: Player[],
   finishedSets: Set<string>[],
   pendingCount: number,
-  force = false
+  force = false,
+  capacity = Number.POSITIVE_INFINITY
 ): { toQueue: Player[][]; leftover: Player[] } {
   const foursomes = partitionFoursomes(free, finishedSets);
+  const pairs = mutualPairs(free);
   const handled = new Set<string>();
   const toQueue: Player[][] = [];
   for (const four of foursomes) {
     for (const p of four) handled.add(p.id);
+    if (toQueue.length >= capacity) continue;
     const exactRerun = finishedSets.some((fs) => four.every((p) => fs.has(p.id)));
-    if (exactRerun && !force && pendingCount + toQueue.length > 0) continue;
+    const keepsPairTogether = four.some((p) => {
+      const partner = pairs.get(p.id);
+      return partner != null && four.some((x) => x.id === partner);
+    });
+    const badMix = !keepsPairTogether && worstPairCost(four) > MAX_MIX_PAIR_COST;
+    if ((exactRerun || badMix) && !force && pendingCount + toQueue.length > 0) continue;
     toQueue.push(four);
   }
   return { toQueue, leftover: free.filter((p) => !handled.has(p.id)) };
@@ -249,13 +285,13 @@ export function planPendingAdditions(
  * never touched — once คู่ 1/2/3 are laid out they keep their members and order;
  * booking one just removes it and the rest slide up.
  *
- * Whoever is free and not already queued gets split into skill-tight foursomes
- * and appended — except a four that would exactly rerun a finished game, which
- * waits to be mixed with the next batch (see planPendingAdditions). If 1–3 are
- * left over (too few for a court of their own) they still get a คู่เตรียม of
- * their own rather than sitting in limbo: the empty seats are filled with the
- * best-matched players who are mid-game right now, so the row reads
- * "⏳ รอ <name> (สนาม N) จบเกม" and can't go down until they're out.
+ * The queue is topped up only to PENDING_QUEUE_CAP pairs — the admin's own
+ * policy: keeping the queue short leaves more players in the waiting pool, so
+ * each new คู่เตรียม is matched from many people instead of whatever four were
+ * left. Reruns and club-line skill mixes wait for better company (see
+ * planPendingAdditions). If 1–3 players are left over they get a คู่เตรียม with
+ * seats reserved from mid-game players ("⏳ รอ <name> จบเกม") — but only when a
+ * skill-appropriate filler exists; otherwise they wait in the visible queue.
  * Returns how many new foursomes were queued.
  */
 export async function syncPendingQueue(sessionId: string, force = false): Promise<number> {
@@ -295,7 +331,12 @@ export async function syncPendingQueue(sessionId: string, force = false): Promis
     });
   };
 
-  const plan = planPendingAdditions(freeUnqueued, finishedSets, pendings.length, force);
+  // The cap counts every pending pair, hand-picked ones included — they all
+  // feed courts, so a full queue means no auto-forming regardless of origin.
+  const capacity = Math.max(0, PENDING_QUEUE_CAP - pendings.length);
+  if (capacity === 0) return 0;
+
+  const plan = planPendingAdditions(freeUnqueued, finishedSets, pendings.length, force, capacity);
   let created = 0;
   for (const four of plan.toQueue) {
     await queue(four);
@@ -303,9 +344,10 @@ export async function syncPendingQueue(sessionId: string, force = false): Promis
   }
 
   // 1–3 free players can't fill a court by themselves — hold the court for them
-  // and reserve the remaining seats from the people still playing.
+  // and reserve the remaining seats from the people still playing (skill-gated
+  // inside bestFillers; a bad mix is never earmarked). Respects the cap.
   const leftover = plan.leftover;
-  if (leftover.length > 0 && leftover.length < 4) {
+  if (leftover.length > 0 && leftover.length < 4 && pendings.length + created < PENDING_QUEUE_CAP) {
     const allPairs = mutualPairs(rows.map(toPlayer));
     // Don't earmark half of a คู่ซ้อมแข่ง: a fixed pair has to move as a unit,
     // and picking one seat at a time can't honour that.

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { PENDING_QUEUE_CAP, SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
 type Lite = {
   id: string;
@@ -217,9 +217,9 @@ export default function UpcomingPlanner({
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {/* On-demand generation — never auto-forms คู่เตรียม as people check in.
-          Fewer than four waiting is fine: the rest of the court is reserved from
-          the people still playing, and it waits for them to finish. */}
-      {waitingCount > 0 && (
+          Hidden while the queue is at its cap: holding players back is what
+          gives the matchmaker enough people to keep the มือ on a court close. */}
+      {waitingCount > 0 && pendingPairs.length < PENDING_QUEUE_CAP && (
         <button
           onClick={generateFromQueue}
           disabled={loading === "generate"}
@@ -227,6 +227,12 @@ export default function UpcomingPlanner({
         >
           {loading === "generate" ? "กำลังจัด…" : `➕ จัดคู่เตรียมจากคิว (รออยู่ ${waitingCount} คน)`}
         </button>
+      )}
+      {waitingCount > 0 && pendingPairs.length >= PENDING_QUEUE_CAP && (
+        <p className="text-xs text-gray-400">
+          คู่เตรียมครบ {PENDING_QUEUE_CAP} คู่แล้ว — พอคู่หน้าลงสนาม ระบบจะจัดคู่ใหม่จากคนที่รอ ({waitingCount} คน)
+          ให้เอง มือจะได้ใกล้กัน
+        </p>
       )}
 
       {pendingPairs.length === 0 ? (

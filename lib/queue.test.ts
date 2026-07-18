@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { partitionFoursomes, planPendingAdditions } from "./queue";
+import { bestFillers, partitionFoursomes, planPendingAdditions } from "./queue";
 import { balanceTeams, courtSkillCost, type Player, type SkillLevel } from "./matching";
 
 const P = (id: string, skill: SkillLevel, partner: string | null = null): Player => ({
@@ -197,5 +197,47 @@ describe("planPendingAdditions — the four finishers must not lock back in toge
     const plan = planPendingAdditions(six, [], 0);
     expect(plan.toQueue).toHaveLength(1);
     expect(plan.leftover).toHaveLength(2);
+  });
+});
+
+describe("planPendingAdditions — queue cap and the club's skill line", () => {
+  it("queues only up to the given capacity; the rest wait (not leftover)", () => {
+    const eight = ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => P(id, "N"));
+    const plan = planPendingAdditions(eight, [], 0, false, 1);
+    expect(plan.toQueue).toHaveLength(1);
+    expect(plan.leftover).toEqual([]); // capped-out players wait, no earmark pair
+  });
+
+  it("holds a court that crosses the club line (RK with S) for better company", () => {
+    const mixed = [P("a", "RK"), P("b", "RK"), P("c", "S"), P("d", "S_PLUS")];
+    const plan = planPendingAdditions(mixed, [], 1);
+    expect(plan.toQueue).toEqual([]);
+  });
+
+  it("takes the bad mix anyway when the queue is empty — a game beats an idle court", () => {
+    const mixed = [P("a", "RK"), P("b", "RK"), P("c", "S"), P("d", "S_PLUS")];
+    expect(planPendingAdditions(mixed, [], 0).toQueue).toHaveLength(1);
+  });
+
+  it("lets a คู่ซ้อมแข่ง span tiers — that mix is the admin's own arrangement", () => {
+    const withPair = [P("a", "RK", "b"), P("b", "P", "a"), P("c", "RK"), P("d", "P")];
+    const plan = planPendingAdditions(withPair, [], 1);
+    expect(plan.toQueue).toHaveLength(1);
+  });
+});
+
+describe("bestFillers — never earmarks a court the club wouldn't arrange", () => {
+  it("skips fillers that would cross the club line", () => {
+    const base = [P("s", "S"), P("sp", "S_PLUS")];
+    const candidates = [P("rk", "RK"), P("p", "P"), P("n", "N"), P("s2", "S")];
+    const picked = bestFillers(base, candidates, 2, [], new Map());
+    expect(picked).not.toBeNull();
+    expect(picked!.some((x) => x.id === "rk")).toBe(false);
+  });
+
+  it("returns null (leave them waiting) when no sane filler exists", () => {
+    const base = [P("rk", "RK")];
+    const candidates = [P("s", "S"), P("sp", "S_PLUS"), P("p", "P")];
+    expect(bestFillers(base, candidates, 3, [], new Map())).toBeNull();
   });
 });
