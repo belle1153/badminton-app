@@ -100,6 +100,8 @@ model Athlete {
   skillLevel SkillLevel
   photoUrl   String? // small resized avatar stored as a data URL
   createdAt  DateTime   @default(now())
+  // Cache version for /api/athletes/[id]/photo — bumping on update busts the URL.
+  updatedAt  DateTime   @default(now()) @updatedAt
   signUps    SignUp[]
 }
 
@@ -111,6 +113,8 @@ model Announcement {
   active    Boolean  @default(true)
   kind      String   @default("announcement") // "announcement" | "rule" (กฎก๊วน)
   createdAt DateTime @default(now())
+  // Cache version for /api/announcements/[id]/image.
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model CourtRate {

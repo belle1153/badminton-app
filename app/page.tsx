@@ -7,10 +7,28 @@ import AnnouncementCarousel from "./AnnouncementCarousel";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const announcements = await prisma.announcement.findMany({
+  // Light select — the base64 image blobs stay in the DB and are served from
+  // /api/announcements/[id]/image with hard caching, instead of being inlined
+  // into every HTML response (this page used to weigh ~580 KB because of them).
+  const rows = await prisma.announcement.findMany({
     where: { active: true, kind: "announcement" },
     orderBy: { createdAt: "desc" },
+    select: { id: true, title: true, body: true, updatedAt: true },
   });
+  const withImage = new Set(
+    (
+      await prisma.announcement.findMany({
+        where: { active: true, kind: "announcement", imageUrl: { not: null } },
+        select: { id: true },
+      })
+    ).map((a) => a.id)
+  );
+  const announcements = rows.map((a) => ({
+    ...a,
+    imageUrl: withImage.has(a.id)
+      ? `/api/announcements/${a.id}/image?v=${a.updatedAt.getTime()}`
+      : null,
+  }));
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">

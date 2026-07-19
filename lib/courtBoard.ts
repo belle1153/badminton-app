@@ -58,7 +58,7 @@ interface BoardMatchRow {
   winnerTeam: number | null;
   players: {
     team: number;
-    signUp: { id: string; name: string; skillLevel: string; athlete: { photoUrl: string | null } | null };
+    signUp: { id: string; name: string; skillLevel: string; athlete: { id: string } | null };
   }[];
 }
 
@@ -84,8 +84,16 @@ export function buildCourtBoard(
   matches: BoardMatchRow[],
   openCourts: number[],
   pendingPairs: BoardPendingPair[] = [],
+  // athleteId -> updatedAt ms for athletes that HAVE a photo. Avatars render
+  // via /api/athletes/[id]/photo?v=… (cached hard) instead of inlined base64 —
+  // that inlining made busy court pages weigh megabytes per auto-refresh.
+  photoVersions: Map<string, number> = new Map(),
   matchupKeyPrefix = ""
 ): CourtBoard {
+  const photoSrc = (athlete: { id: string } | null) => {
+    const v = athlete ? photoVersions.get(athlete.id) : undefined;
+    return v != null ? `/api/athletes/${athlete!.id}/photo?v=${v}` : null;
+  };
   const state = deriveCourtState(
     signUps,
     matches.map((m) => ({
@@ -111,7 +119,7 @@ export function buildCourtBoard(
         id: p.signUp.id,
         name: p.signUp.name,
         skillLevel: p.signUp.skillLevel,
-        photoUrl: p.signUp.athlete?.photoUrl ?? null,
+        photoUrl: photoSrc(p.signUp.athlete),
       })),
     team2: m.players
       .filter((p) => p.team === 2)
@@ -119,7 +127,7 @@ export function buildCourtBoard(
         id: p.signUp.id,
         name: p.signUp.name,
         skillLevel: p.signUp.skillLevel,
-        photoUrl: p.signUp.athlete?.photoUrl ?? null,
+        photoUrl: photoSrc(p.signUp.athlete),
       })),
   });
 

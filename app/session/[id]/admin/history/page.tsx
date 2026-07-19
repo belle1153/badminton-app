@@ -61,9 +61,9 @@ export default async function SessionMatchHistoryPage({
 
   return (
     <>
-      <h1 className="font-semibold text-lg">ประวัติแมท</h1>
+      <h1 className="font-semibold text-lg">ประวัติแมตซ์</h1>
       <p className="text-sm text-gray-500 -mt-3">
-        บันทึกทุกเกมพร้อมผล เรียงตามเวลา · แก้ตัวผู้เล่นได้ที่หน้า &quot;จัดการแมท → สนามสด&quot; ·
+        บันทึกทุกเกมพร้อมผล เรียงตามเวลา · แก้ตัวผู้เล่นได้ที่หน้า &quot;จัดการแมตซ์ → สนามสด&quot; ·
         เกมที่รอคิวยกเลิกได้
       </p>
       <MatchHistory sessionId={id} games={games} readOnly={session.status === "CLOSED"} />

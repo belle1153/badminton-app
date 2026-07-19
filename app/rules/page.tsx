@@ -4,10 +4,27 @@ import BackLink from "../BackLink";
 export const dynamic = "force-dynamic";
 
 export default async function RulesPage() {
-  const rules = await prisma.announcement.findMany({
+  // Images served from /api/announcements/[id]/image (cached), not inlined —
+  // see the same pattern on the home page.
+  const rows = await prisma.announcement.findMany({
     where: { kind: "rule", active: true },
     orderBy: { createdAt: "asc" },
+    select: { id: true, title: true, body: true, updatedAt: true },
   });
+  const withImage = new Set(
+    (
+      await prisma.announcement.findMany({
+        where: { kind: "rule", active: true, imageUrl: { not: null } },
+        select: { id: true },
+      })
+    ).map((a) => a.id)
+  );
+  const rules = rows.map((r) => ({
+    ...r,
+    imageUrl: withImage.has(r.id)
+      ? `/api/announcements/${r.id}/image?v=${r.updatedAt.getTime()}`
+      : null,
+  }));
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-5">

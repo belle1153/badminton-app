@@ -31,7 +31,7 @@ export default async function LiveAllPage() {
       matches: {
         include: {
           players: {
-            include: { signUp: { include: { athlete: { select: { photoUrl: true } } } } },
+            include: { signUp: { include: { athlete: { select: { id: true } } } } },
           },
         },
         orderBy: { round: "asc" },
@@ -39,6 +39,17 @@ export default async function LiveAllPage() {
       pendingPairs: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
     },
   });
+
+  // Which athletes have a photo, and its cache version — buildCourtBoard turns
+  // these into /api/athletes/[id]/photo URLs instead of inlining the images.
+  const photoVersions = new Map(
+    (
+      await prisma.athlete.findMany({
+        where: { photoUrl: { not: null } },
+        select: { id: true, updatedAt: true },
+      })
+    ).map((a) => [a.id, a.updatedAt.getTime()])
+  );
 
   const boards = sessions.map((s) => {
     const signUps = s.signUps.map((x) => ({
@@ -50,7 +61,14 @@ export default async function LiveAllPage() {
       createdAt: x.createdAt,
       status: x.status,
     }));
-    const board = buildCourtBoard(signUps, s.matches, openCourtNumbers(s), s.pendingPairs, `${s.id}-`);
+    const board = buildCourtBoard(
+      signUps,
+      s.matches,
+      openCourtNumbers(s),
+      s.pendingPairs,
+      photoVersions,
+      `${s.id}-`
+    );
 
     return {
       id: s.id,

@@ -24,7 +24,7 @@ export default async function SessionCourtsPage({
       matches: {
         include: {
           players: {
-            include: { signUp: { include: { athlete: { select: { photoUrl: true } } } } },
+            include: { signUp: { include: { athlete: { select: { id: true } } } } },
           },
         },
         orderBy: { round: "asc" },
@@ -69,11 +69,21 @@ export default async function SessionCourtsPage({
     team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
   }));
 
+  const photoVersions = new Map(
+    (
+      await prisma.athlete.findMany({
+        where: { photoUrl: { not: null } },
+        select: { id: true, updatedAt: true },
+      })
+    ).map((a) => [a.id, a.updatedAt.getTime()])
+  );
+
   const board = buildCourtBoard(
     signUps,
     session.matches,
     openCourtNumbers(session),
-    session.pendingPairs
+    session.pendingPairs,
+    photoVersions
   );
 
   return (
