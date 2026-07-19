@@ -123,18 +123,9 @@ export default function WithdrawForm({
           </p>
         </div>
       )}
-      {nothingToWithdraw ? (
-        <div className="rounded-md border border-gray-200 bg-gray-50 p-2.5 text-xs text-gray-600 flex flex-col gap-1">
-          <p className="font-medium">ไม่พบชื่อที่ลงจากเครื่องนี้ — ถอนเองได้เฉพาะจากเครื่อง/เบราว์เซอร์ที่ใช้ลงชื่อครับ</p>
-          <p className="text-gray-500">
-            ที่เจอบ่อย: เพื่อนกดลงชื่อให้จากมือถือเพื่อน · ตอนลงชื่อเปิดผ่าน LINE
-            แต่ตอนนี้เปิดผ่านเบราว์เซอร์อื่น (ระบบจำคนละที่กัน)
-          </p>
-          <p className="text-gray-500">
-            วิธีแก้: กลับไปถอนจากเครื่อง/เบราว์เซอร์ที่ใช้ลงชื่อ หรือแจ้งแอดมินถอนให้ได้เลยครับ
-          </p>
-        </div>
-      ) : (
+      {/* No names signed up from this browser → nothing to withdraw here; the
+          form is simply omitted (withdrawal stays device-bound by design). */}
+      {nothingToWithdraw ? null : (
         <form onSubmit={handleSubmit} className="flex gap-2">
           <div className="relative flex-1">
             <input
