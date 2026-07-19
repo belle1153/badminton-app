@@ -23,9 +23,7 @@ export default function AdminNav() {
   }
 
   return (
-    // Orange on purpose: an unmissable "you are in admin mode" marker, matching
-    // the คู่เตรียม accent used across the admin tools.
-    <div className="border-b border-orange-600 bg-orange-500 sticky top-0 z-20">
+    <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
       <div className="max-w-5xl mx-auto w-full px-4 py-2 flex items-center gap-2">
         <nav className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV.map((item) => {
@@ -36,8 +34,8 @@ export default function AdminNav() {
                 href={item.href}
                 className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition ${
                   active
-                    ? "bg-white text-orange-700"
-                    : "bg-orange-400/60 text-white hover:bg-white/90 hover:text-orange-700"
+                    ? "bg-brand-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700"
                 }`}
               >
                 <span>{item.icon}</span>
@@ -49,7 +47,7 @@ export default function AdminNav() {
         <button
           onClick={handleLogout}
           title="ออกจากระบบ"
-          className="shrink-0 flex items-center gap-1.5 rounded-full border border-white/60 text-white px-3 py-1.5 text-sm font-medium hover:bg-white hover:text-red-600"
+          className="shrink-0 flex items-center gap-1.5 rounded-full border border-red-200 text-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-50"
         >
           🚪<span className="hidden sm:inline">ออกจากระบบ</span>
         </button>

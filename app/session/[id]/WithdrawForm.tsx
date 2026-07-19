@@ -123,9 +123,16 @@ export default function WithdrawForm({
           </p>
         </div>
       )}
-      {/* No names signed up from this browser → nothing to withdraw here; the
-          form is simply omitted (withdrawal stays device-bound by design). */}
-      {nothingToWithdraw ? null : (
+      {/* No names signed up from this browser → nothing to withdraw here.
+          Storage can still silently fail to record a real signup even after
+          the addMySignup fix (browser blocks the write without throwing) —
+          leaving this fully blank reads as broken with no way forward, so a
+          one-liner points to the admin instead. */}
+      {nothingToWithdraw ? (
+        <p className="text-xs text-gray-500">
+          ไม่พบชื่อที่ลงจากเครื่องนี้ — แจ้งแอดมินถอนให้ได้เลยครับ
+        </p>
+      ) : (
         <form onSubmit={handleSubmit} className="flex gap-2">
           <div className="relative flex-1">
             <input

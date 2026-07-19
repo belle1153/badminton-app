@@ -19,19 +19,36 @@ export function getMySignups(sessionId: string): string[] {
   }
 }
 
+/**
+ * Best-effort only: some browsers (Safari private mode, LINE's in-app
+ * WebView, storage-blocking settings) throw on `localStorage.setItem` even
+ * though `getItem` works fine. This used to throw straight out of signup —
+ * the POST had already succeeded server-side, but the client-side bookkeeping
+ * crash surfaced as a signup error, and because the write never completed,
+ * self-withdrawal silently failed afterward from every browser (there was
+ * nothing to find, not "wrong device"). Never let this break the caller.
+ */
 export function addMySignup(sessionId: string, signUpId: string): void {
   if (typeof window === "undefined") return;
-  const list = getMySignups(sessionId);
-  if (!list.includes(signUpId)) list.push(signUpId);
-  localStorage.setItem(keyFor(sessionId), JSON.stringify(list));
+  try {
+    const list = getMySignups(sessionId);
+    if (!list.includes(signUpId)) list.push(signUpId);
+    localStorage.setItem(keyFor(sessionId), JSON.stringify(list));
+  } catch {
+    // Storage unavailable — the signup itself already went through.
+  }
 }
 
 export function removeMySignup(sessionId: string, signUpId: string): void {
   if (typeof window === "undefined") return;
-  const list = getMySignups(sessionId).filter((id) => id !== signUpId);
-  localStorage.setItem(keyFor(sessionId), JSON.stringify(list));
-  if (localStorage.getItem(legacyKey(sessionId)) === signUpId) {
-    localStorage.removeItem(legacyKey(sessionId));
+  try {
+    const list = getMySignups(sessionId).filter((id) => id !== signUpId);
+    localStorage.setItem(keyFor(sessionId), JSON.stringify(list));
+    if (localStorage.getItem(legacyKey(sessionId)) === signUpId) {
+      localStorage.removeItem(legacyKey(sessionId));
+    }
+  } catch {
+    // As above.
   }
 }
 
