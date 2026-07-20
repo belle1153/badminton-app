@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Image from "next/image";
 import { isAdmin } from "@/lib/adminAuth";
-import AdminSwitch from "./AdminSwitch";
+import SiteHeader from "./SiteHeader";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,11 +31,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <header className="bg-brand-800 text-white flex items-center gap-3 px-4 py-2">
-          <Image src="/logo.jpg" alt="TUATUENG LAEMCHABANG" width={56} height={56} className="rounded-full" />
-          <span className="font-semibold text-base tracking-wide">TUATUENG LAEMCHABANG</span>
-          {admin && <AdminSwitch />}
-        </header>
+        <SiteHeader admin={admin} />
         {children}
       </body>
     </html>

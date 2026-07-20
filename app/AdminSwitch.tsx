@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isAdminPath } from "@/lib/adminPath";
 
 /**
  * Header shortcut for logged-in admins to hop between the player view and the
@@ -14,7 +15,7 @@ import { usePathname } from "next/navigation";
  */
 export default function AdminSwitch() {
   const pathname = usePathname();
-  const onAdmin = pathname.startsWith("/admin") || pathname.includes("/admin");
+  const onAdmin = isAdminPath(pathname);
 
   // /session/<id>/... → keep the id so we can return to this day's admin.
   const sessionMatch = pathname.match(/^\/session\/([^/]+)/);
