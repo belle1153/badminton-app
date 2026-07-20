@@ -273,7 +273,11 @@ export function planPendingAdditions(
       return partner != null && four.some((x) => x.id === partner);
     });
     const badMix = !keepsPairTogether && worstPairCost(four) > MAX_MIX_PAIR_COST;
-    if ((exactRerun || badMix) && !force && pendingCount + toQueue.length > 0) continue;
+    // An exact rerun of a finished game never auto-queues — not even to an idle
+    // court — so the same four are never sent straight back out (the admin can
+    // still force it). A bad-mix court only waits while other คู่เตรียม can feed
+    // the courts (an idle court beats none when nothing else is ready).
+    if (!force && (exactRerun || (badMix && pendingCount + toQueue.length > 0))) continue;
     toQueue.push(four);
   }
   return { toQueue, leftover: free.filter((p) => !handled.has(p.id)) };
@@ -491,7 +495,7 @@ const SPLIT_FIXED_PAIR = 1_000_000;
  *   - 3 shared = three of them together again → strongly discouraged.
  *   - 2 shared = a pair who've already met → nudged apart when easy.
  */
-const REPEAT_PENALTY: Record<number, number> = { 2: 4_000, 3: 40_000, 4: 150_000 };
+const REPEAT_PENALTY: Record<number, number> = { 2: 4_000, 3: 80_000, 4: 250_000 };
 
 /** Cost of one foursome: a fixed pair may never be split; then avoid replaying a
  *  group that already met; then skill spread. `mutualPartner` only holds pairs

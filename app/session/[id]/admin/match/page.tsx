@@ -85,7 +85,8 @@ export default async function SessionMatchPage({
       name: s.name,
       skillLevel: s.skillLevel,
       waitlist: s.status === "WAITLIST",
-    }));
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "th"));
 
   const liveMatches: LiveMatch[] = [...state.currentByCourt.entries()].map(([court, g]) =>
     toLive(g, court)
@@ -113,7 +114,14 @@ export default async function SessionMatchPage({
       name: s.name,
       skillLevel: s.skillLevel as SkillLevel,
       busyCourt: busyCourtBySignUp.get(s.id) ?? null,
-    }));
+    }))
+    // Free (not mid-game) players first, then A-Z — easy to pick from when
+    // editing a คู่เตรียม.
+    .sort(
+      (a, b) =>
+        (a.busyCourt == null ? 0 : 1) - (b.busyCourt == null ? 0 : 1) ||
+        a.name.localeCompare(b.name, "th")
+    );
 
   // คู่เตรียม is now a persisted, ordered FIFO queue (PendingPair). Render it in
   // order; each player carries their skill + the court they're mid-game on.
