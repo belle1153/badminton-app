@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/adminAuth";
 import { formatHours } from "@/lib/billing";
 import { buildCostRows, sessionPrices } from "@/lib/costing";
 import CostPanel from "../CostPanel";
+import CostImageExport from "../CostImageExport";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,30 @@ export default async function SessionCostPage({
         <p className="text-xs text-gray-400">
           * คนที่ยังไม่เช็คเอาท์ = ค่าคอร์ทยังไม่นิ่ง (คิดถึงตอนนี้) จะนิ่งเมื่อกดเช็คเอาท์
         </p>
+
+        {rows.length > 0 && (
+          <CostImageExport
+            venue={session.venue}
+            dateLabel={session.date.toLocaleDateString("th-TH", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              timeZone: "Asia/Bangkok",
+            })}
+            rows={rows.map((r) => ({
+              name: r.name,
+              slot: r.slot,
+              hours: r.hours != null ? formatHours(r.hours) : "—",
+              games: r.games,
+              courtBaht: r.courtBaht,
+              ballBaht: r.ballShareBaht,
+              totalBaht: r.totalBaht,
+              live: r.live,
+            }))}
+            note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
+          />
+        )}
       </section>
     </>
   );

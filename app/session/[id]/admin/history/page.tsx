@@ -59,6 +59,23 @@ export default async function SessionMatchHistoryPage({
     team2: m.players.filter((p) => p.team === 2).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),
   }));
 
+  // รอบตีรายคน — how many games each player has actually finished today, so the
+  // admin can see at a glance who has had few turns and who has had plenty.
+  const played = new Map<string, { name: string; count: number }>();
+  for (const m of matches) {
+    if (m.finishedAt == null) continue;
+    for (const p of m.players) {
+      const e = played.get(p.signUp.id) ?? { name: p.signUp.name, count: 0 };
+      e.count++;
+      played.set(p.signUp.id, e);
+    }
+  }
+  const rounds = [...played.entries()]
+    .map(([pid, v]) => ({ id: pid, ...v }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const finishedGames = matches.filter((m) => m.finishedAt != null).length;
+  const maxRounds = rounds[0]?.count ?? 0;
+
   return (
     <>
       <h1 className="font-semibold text-lg">ประวัติแมตซ์</h1>
@@ -66,6 +83,35 @@ export default async function SessionMatchHistoryPage({
         บันทึกทุกเกมพร้อมผล เรียงตามเวลา · แก้ตัวผู้เล่นได้ที่หน้า &quot;จัดการแมตซ์ → สนามสด&quot; ·
         เกมที่รอคิวยกเลิกได้
       </p>
+
+      {rounds.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="font-semibold">รอบตีรายคน</h2>
+            <span className="text-xs text-gray-400">
+              เล่นจบแล้ว {finishedGames} เกม · {rounds.length} คน
+            </span>
+          </div>
+          <ul className="flex flex-wrap gap-1.5">
+            {rounds.map((r) => (
+              <li
+                key={r.id}
+                className={`text-sm rounded-full px-3 py-1 border ${
+                  r.count === maxRounds
+                    ? "bg-brand-600 text-white border-brand-600 font-medium"
+                    : "bg-white text-gray-700 border-gray-300"
+                }`}
+              >
+                {r.name}
+                <span className={r.count === maxRounds ? "text-white/70 ml-1" : "text-gray-400 ml-1"}>
+                  {r.count} รอบ
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <MatchHistory sessionId={id} games={games} readOnly={session.status === "CLOSED"} />
     </>
   );
