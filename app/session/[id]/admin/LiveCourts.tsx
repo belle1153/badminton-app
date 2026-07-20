@@ -250,12 +250,30 @@ export default function LiveCourts({
                   className="text-gray-900 text-xs rounded max-w-[8.5rem]"
                   autoFocus
                 >
-                  <option value="">แทน {p.name} ด้วย...</option>
-                  {substitutes.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]}){s.waitlist ? " — สำรอง" : ""}
-                    </option>
-                  ))}
+                  <option value="">{p.name} → เลือก...</option>
+                  {(() => {
+                    // Opposite side of the same court: picking one swaps sides.
+                    const opponents = m.team1.some((x) => x.id === p.id) ? m.team2 : m.team1;
+                    return (
+                      <optgroup label="↔ สลับฝั่ง (ในสนาม)">
+                        {opponents.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name}
+                            {o.skillLevel ? ` (${SKILL_LABELS[o.skillLevel as SkillLevel] ?? o.skillLevel})` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })()}
+                  {substitutes.length > 0 && (
+                    <optgroup label="⇄ เปลี่ยนตัว (คนนอกสนาม)">
+                      {substitutes.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]}){s.waitlist ? " — สำรอง" : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <button
                   onClick={confirmSwap}
