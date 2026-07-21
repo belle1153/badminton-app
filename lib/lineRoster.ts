@@ -84,6 +84,30 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
 }
 
 /**
+ * Roster messages for the upcoming open days (soonest first), for the keyword
+ * lookup in the group ("รายชื่อ"). Only days from today onward, so a finished
+ * day doesn't get re-posted.
+ */
+export async function upcomingRosterMessages(max = 3): Promise<string[]> {
+  const nowIct = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  const todayMidnight = new Date(
+    Date.UTC(nowIct.getUTCFullYear(), nowIct.getUTCMonth(), nowIct.getUTCDate())
+  );
+  const sessions = await prisma.session.findMany({
+    where: { status: "OPEN", date: { gte: todayMidnight } },
+    orderBy: { date: "asc" },
+    take: max,
+    include: {
+      signUps: {
+        where: { status: { not: "WITHDRAWN" } },
+        orderBy: [{ slotNumber: "asc" }, { createdAt: "asc" }],
+      },
+    },
+  });
+  return sessions.map((s) => formatRosterMessage(s, s.signUps));
+}
+
+/**
  * Post the current roster for a session to the club LINE group. Silent no-op if
  * LINE isn't configured or the session is closed. Never throws — a failed post
  * must not break the sign-up/withdraw it was triggered by.

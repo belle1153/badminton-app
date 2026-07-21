@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { upcomingRosterMessages } from "@/lib/lineRoster";
 
 /**
- * LINE webhook. It just logs the source id of every event (find a new group id
- * in the Vercel function logs). It does NOT reply — the bot stays quiet in the
- * group and only speaks when the app posts a roster.
+ * LINE webhook.
  *
- * To recover a group id without reading logs, set LINE_ECHO_ID=1 temporarily
- * and the bot will reply with the id when someone types in the group; unset it
- * for normal use so the bot never chatters.
+ * - Types "รายชื่อ" (or "เช็คชื่อ" / "list") in the group → the bot replies with
+ *   the roster of the upcoming open days. Otherwise it stays quiet.
+ * - Logs the source id of every event (find a new group id in the Vercel logs).
+ *   Set LINE_ECHO_ID=1 temporarily to have it reply the id in chat, then unset.
  *
  * LINE calls this with a "Verify" ping on save (no events) — we just return 200.
  */
 const REPLY_URL = "https://api.line.me/v2/bot/message/reply";
+const ROSTER_KEYWORDS = ["รายชื่อ", "เช็คชื่อ", "list"];
+
+async function reply(replyToken: string, token: string, texts: string[]) {
+  try {
+    await fetch(REPLY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        replyToken,
+        messages: texts.slice(0, 5).map((t) => ({ type: "text", text: t.slice(0, 4900) })),
+      }),
+    });
+  } catch {
+    // ignore — a failed reply must never surface
+  }
+}
 
 export async function POST(req: NextRequest) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -29,21 +45,23 @@ export async function POST(req: NextRequest) {
     const kind = src.groupId ? "group" : src.roomId ? "room" : "user";
     console.log(`[LINE webhook] ${event.type} from ${kind} id=${id}`);
 
+    if (!token || event.type !== "message" || !event.replyToken) continue;
+    const text = (event.message?.text ?? "").trim();
+
+    // Keyword → roster of the upcoming open days.
+    if (ROSTER_KEYWORDS.some((k) => text.toLowerCase().includes(k.toLowerCase()))) {
+      const rosters = await upcomingRosterMessages(3);
+      await reply(event.replyToken, token, rosters.length ? rosters : ["ยังไม่มีรอบเปิดรับสมัครครับ 🙏"]);
+      continue;
+    }
+
     // Off by default — only echoes the id back when explicitly turned on.
-    if (echoId && token && event.type === "message" && event.replyToken) {
-      const text =
+    if (echoId) {
+      await reply(event.replyToken, token, [
         src.groupId || src.roomId
           ? `LINE_GROUP_ID = ${id}\n(เอาค่านี้ไปใส่ env บน Vercel)`
-          : `LINE user id = ${id}`;
-      try {
-        await fetch(REPLY_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ replyToken: event.replyToken, messages: [{ type: "text", text }] }),
-        });
-      } catch {
-        // ignore — logging above already captured the id
-      }
+          : `LINE user id = ${id}`,
+      ]);
     }
   }
 
@@ -53,5 +71,6 @@ export async function POST(req: NextRequest) {
 interface LineEvent {
   type: string;
   replyToken?: string;
+  message?: { type?: string; text?: string };
   source?: { type?: string; groupId?: string; roomId?: string; userId?: string };
 }
