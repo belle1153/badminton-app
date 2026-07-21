@@ -36,18 +36,35 @@ export default function MatchHistory({
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [editing, setEditing] = useState<string | null>(null);
   const ordered = [...games].sort((a, b) => a.seq - b.seq);
 
-  async function cancelGame(g: HistoryGame) {
-    if (!confirm(`ยกเลิก เกม ${g.seq} (สนาม ${g.court}) ใช่ไหมครับ?`)) return;
+  async function deleteGame(g: HistoryGame) {
+    if (!confirm(`ลบ เกม ${g.seq} (สนาม ${g.court}) ออกจากประวัติ? กู้คืนไม่ได้`)) return;
     setError(null);
     setLoading(`del-${g.id}`);
     try {
       const res = await fetch(`/api/sessions/${sessionId}/matches/${g.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "ยกเลิกไม่สำเร็จ");
-      }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "ลบไม่สำเร็จ");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function setResult(g: HistoryGame, winnerTeam: 0 | 1 | 2) {
+    setError(null);
+    setLoading(`edit-${g.id}`);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/matches/${g.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ winnerTeam }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "แก้ผลไม่สำเร็จ");
+      setEditing(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -70,29 +87,62 @@ export default function MatchHistory({
   }
 
   function resultCell(g: HistoryGame) {
-    if (g.status === "playing")
-      return <span className="rounded bg-green-100 text-green-700 px-2 py-0.5 text-xs">กำลังเล่น</span>;
-    if (g.status === "upcoming")
+    // Editing the result: pick the new outcome.
+    if (editing === g.id) {
       return (
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">รอคิว</span>
-          {!readOnly && (
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex gap-1">
+            {([1, 2, 0] as const).map((w) => (
+              <button
+                key={w}
+                onClick={() => setResult(g, w)}
+                disabled={loading === `edit-${g.id}`}
+                className="rounded border border-gray-300 px-1.5 py-0.5 text-[11px] hover:bg-gray-50 disabled:opacity-50"
+              >
+                {w === 0 ? "เสมอ" : `ทีม ${w === 1 ? "A" : "B"}`}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setEditing(null)} className="text-[10px] text-gray-400">
+            ยกเลิก
+          </button>
+        </div>
+      );
+    }
+
+    const badge =
+      g.status === "playing" ? (
+        <span className="rounded bg-green-100 text-green-700 px-2 py-0.5 text-xs">กำลังเล่น</span>
+      ) : g.status === "upcoming" ? (
+        <span className="rounded bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">รอคิว</span>
+      ) : g.winnerTeam == null ? (
+        <span className="rounded bg-amber-500 text-white px-2 py-1 text-xs font-medium">เสมอ</span>
+      ) : (
+        <span className="rounded bg-green-500 text-white px-2 py-1 text-xs font-medium whitespace-nowrap">
+          ทีม {g.winnerTeam === 1 ? "A" : "B"} ชนะ!
+        </span>
+      );
+
+    return (
+      <div className="flex flex-col items-center gap-1">
+        {badge}
+        {!readOnly && (
+          <div className="flex gap-2">
+            {g.status === "finished" && (
+              <button onClick={() => setEditing(g.id)} className="text-[11px] text-brand-600 hover:underline">
+                แก้ผล
+              </button>
+            )}
             <button
-              onClick={() => cancelGame(g)}
+              onClick={() => deleteGame(g)}
               disabled={loading === `del-${g.id}`}
               className="text-[11px] text-red-500 hover:underline disabled:opacity-50"
             >
-              ยกเลิก
+              ลบ
             </button>
-          )}
-        </div>
-      );
-    if (g.winnerTeam == null)
-      return <span className="rounded bg-amber-500 text-white px-2 py-1 text-xs font-medium">เสมอ</span>;
-    return (
-      <span className="rounded bg-green-500 text-white px-2 py-1 text-xs font-medium whitespace-nowrap">
-        ทีม {g.winnerTeam === 1 ? "A" : "B"} ชนะ!
-      </span>
+          </div>
+        )}
+      </div>
     );
   }
 

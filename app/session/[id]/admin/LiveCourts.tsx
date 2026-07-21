@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
@@ -15,6 +15,7 @@ export interface Substitute {
   name: string;
   skillLevel: string;
   waitlist?: boolean;
+  busyCourt?: number | null; // court they're mid-game on, else free
 }
 
 export interface LiveMatch {
@@ -77,21 +78,23 @@ export default function LiveCourts({
   // Player being swapped out of a live game (edit-in-place on the court card).
   const [swapping, setSwapping] = useState<{ matchId: string; playerId: string } | null>(null);
   const [replacement, setReplacement] = useState("");
-  // Live elapsed clock per court, so the admin can eyeball which game is likely
-  // to finish first and get its คู่เตรียม ready (ticks every 30s).
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, []);
-  const elapsedMin = (iso?: string) =>
-    iso ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000)) : null;
-  const longestCourt = activeMatches.reduce(
+  // Show each court's game start time (when the four went on), so the admin can
+  // see which court started first — that one is likely to finish first and its
+  // คู่เตรียม should be ready.
+  const startClock = (iso?: string) =>
+    iso
+      ? new Date(iso).toLocaleTimeString("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Asia/Bangkok",
+        })
+      : null;
+  const earliestCourt = activeMatches.reduce(
     (best, m) => {
-      const e = elapsedMin(m.startedAt) ?? -1;
-      return e > best.e ? { court: m.court, e } : best;
+      const t = m.startedAt ? new Date(m.startedAt).getTime() : Infinity;
+      return t < best.t ? { court: m.court, t } : best;
     },
-    { court: -1, e: -1 }
+    { court: -1, t: Infinity }
   ).court;
 
   async function confirmSwap() {
@@ -282,15 +285,25 @@ export default function LiveCourts({
                       </optgroup>
                     );
                   })()}
-                  {substitutes.length > 0 && (
-                    <optgroup label="⇄ เปลี่ยนตัว (คนนอกสนาม)">
-                      {substitutes.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]}){s.waitlist ? " — สำรอง" : ""}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
+                  {(() => {
+                    // Everyone not on THIS court (this court's four are in the
+                    // สลับฝั่ง group above): free players first, then people
+                    // mid-game on another court (ว่าง A-Z, then เล่นอยู่ A-Z —
+                    // already sorted that way). Picking a busy one swaps courts.
+                    const here = new Set([...m.team1, ...m.team2].map((x) => x.id));
+                    const pool = substitutes.filter((s) => !here.has(s.id));
+                    if (pool.length === 0) return null;
+                    return (
+                      <optgroup label="⇄ เปลี่ยนตัว / ดึงคนในสนาม">
+                        {pool.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({SKILL_LABELS[s.skillLevel as SkillLevel]})
+                            {s.busyCourt ? ` — เล่นอยู่ สนาม ${s.busyCourt}` : s.waitlist ? " — สำรอง" : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })()}
                 </select>
                 <button
                   onClick={confirmSwap}
@@ -405,14 +418,14 @@ export default function LiveCourts({
               <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
                 สนาม {court}
                 {m && <span className="text-white/60 font-normal"> — เกมที่ {m.round}</span>}
-                {m && elapsedMin(m.startedAt) != null && (
+                {m && startClock(m.startedAt) && (
                   <span
                     className={`ml-1 font-normal ${
-                      court === longestCourt ? "text-amber-300" : "text-white/60"
+                      court === earliestCourt ? "text-amber-300" : "text-white/60"
                     }`}
                   >
-                    · ⏱ {elapsedMin(m.startedAt)}น.
-                    {court === longestCourt && elapsedMin(m.startedAt)! > 0 && " (นานสุด)"}
+                    · 🕐 {startClock(m.startedAt)}
+                    {court === earliestCourt && " (ลงก่อน)"}
                   </span>
                 )}
               </div>

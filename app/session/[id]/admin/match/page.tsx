@@ -74,20 +74,27 @@ export default async function SessionMatchPage({
     };
   };
 
-  // Swap pool for editing live games: present and not booked in any pending game.
+  // Court a person is playing on RIGHT NOW (for the swap pool tag / pull).
+  const currentCourtBySignUp = new Map<string, number>();
+  for (const [court, g] of state.currentByCourt) for (const pid of g.playerIds) currentCourtBySignUp.set(pid, court);
+
+  // Swap pool for editing live games: everyone checked in. Free players first
+  // (A-Z), then people mid-game (A-Z) so the admin can pull someone off a court
+  // that's about to finish into another game — the two just swap courts.
   const substitutes = session.signUps
-    .filter(
-      (s) =>
-        (s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null)) &&
-        !state.reservedIds.has(s.id)
-    )
+    .filter((s) => s.status === "CONFIRMED" || (s.status === "WAITLIST" && s.checkedInAt != null))
     .map((s) => ({
       id: s.id,
       name: s.name,
       skillLevel: s.skillLevel,
       waitlist: s.status === "WAITLIST",
+      busyCourt: currentCourtBySignUp.get(s.id) ?? null,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name, "th"));
+    .sort(
+      (a, b) =>
+        (a.busyCourt == null ? 0 : 1) - (b.busyCourt == null ? 0 : 1) ||
+        a.name.localeCompare(b.name, "th")
+    );
 
   const liveMatches: LiveMatch[] = [...state.currentByCourt.entries()].map(([court, g]) =>
     toLive(g, court)

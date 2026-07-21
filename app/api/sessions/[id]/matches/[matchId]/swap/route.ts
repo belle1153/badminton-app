@@ -42,22 +42,28 @@ export async function POST(
     return NextResponse.json({ error: "ไม่พบคนที่จะสลับในแมทช์นี้" }, { status: 404 });
   }
 
-  // Both already on this court → swap sides (exchange their teams) instead of
-  // substituting. Lets the admin rebalance a court directly, without shuffling
-  // someone out to an outsider and back in.
-  const inPlayer = match.players.find((p) => p.signUpId === inSignUpId);
-  if (inPlayer) {
-    if (inPlayer.team === outPlayer.team) {
+  // If the incoming player is already in a game (this court or another), swap
+  // the two players' slots instead of substituting. Same court = swap sides;
+  // different court = swap courts. Both games keep four — lets the admin pull an
+  // in-court player into a game that's about to end without breaking either.
+  const inSlot = await prisma.matchPlayer.findFirst({
+    where: { signUpId: inSignUpId, match: { sessionId: id, finishedAt: null } },
+  });
+  if (inSlot) {
+    if (inSlot.id === outPlayer.id) {
+      return NextResponse.json({ error: "เลือกคนใหม่ที่ไม่ใช่คนเดิม" }, { status: 400 });
+    }
+    if (inSlot.matchId === matchId && inSlot.team === outPlayer.team) {
       return NextResponse.json(
         { error: "อยู่ทีมเดียวกันอยู่แล้ว — เลือกคนจากอีกฝั่ง" },
         { status: 400 }
       );
     }
     await prisma.$transaction([
-      prisma.matchPlayer.update({ where: { id: outPlayer.id }, data: { team: inPlayer.team } }),
-      prisma.matchPlayer.update({ where: { id: inPlayer.id }, data: { team: outPlayer.team } }),
+      prisma.matchPlayer.update({ where: { id: outPlayer.id }, data: { signUpId: inSignUpId } }),
+      prisma.matchPlayer.update({ where: { id: inSlot.id }, data: { signUpId: outSignUpId } }),
     ]);
-    return NextResponse.json({ ok: true, swappedSides: true });
+    return NextResponse.json({ ok: true, swapped: true });
   }
 
   const inSignUp = await prisma.signUp.findUnique({ where: { id: inSignUpId } });

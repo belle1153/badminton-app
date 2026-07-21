@@ -7,6 +7,7 @@ import { buildCourtBoard } from "@/lib/courtBoard";
 import SelfCourtBanner from "../../../SelfCourtBanner";
 import CourtGrid from "../../../CourtGrid";
 import QueuePairs from "../../../QueuePairs";
+import GameHistoryTable, { type HistoryRow } from "../../../GameHistoryTable";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,20 @@ export default async function SessionCourtsPage({
     photoVersions
   );
 
+  // Finished games as a table, numbered 1..N in play order (chronological) —
+  // the same layout as the admin ประวัติแมตซ์.
+  const historyRows: HistoryRow[] = [...session.matches]
+    .filter((m) => m.finishedAt != null)
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .map((m, i) => ({
+      id: m.id,
+      seq: i + 1,
+      court: m.court,
+      winnerTeam: m.winnerTeam,
+      team1: m.players.filter((p) => p.team === 1).map((p) => p.signUp.name),
+      team2: m.players.filter((p) => p.team === 2).map((p) => p.signUp.name),
+    }));
+
   return (
     <>
       <SelfCourtBanner matches={allMatches} />
@@ -111,41 +126,10 @@ export default async function SessionCourtsPage({
         <QueuePairs sessionId={id} matchups={board.matchups} />
       </section>
 
-      {board.finished.length > 0 && (
+      {historyRows.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">ประวัติเกม</h2>
-          {board.historyCourts.map((court) => (
-            <div key={court} className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium text-gray-600">สนาม {court}</h3>
-              <ul className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
-                {board.finished
-                  .filter((m) => m.court === court)
-                  .map((m) => {
-                    const t1 = m.team1.map((p) => p.name);
-                    const t2 = m.team2.map((p) => p.name);
-                    return (
-                      <li key={m.id} className="px-2.5 py-1.5 text-sm flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-400 shrink-0 w-12">เกม {m.round}</span>
-                        <span className={m.winnerTeam === 1 ? "font-semibold text-brand-700" : "text-gray-600"}>
-                          {t1.join(" + ")}
-                          {m.winnerTeam === 1 && " ✓"}
-                        </span>
-                        <span className="text-gray-300 text-xs">vs</span>
-                        <span className={m.winnerTeam === 2 ? "font-semibold text-brand-700" : "text-gray-600"}>
-                          {t2.join(" + ")}
-                          {m.winnerTeam === 2 && " ✓"}
-                        </span>
-                        {m.winnerTeam == null && (
-                          <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
-                            🤝 เสมอ
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
-          ))}
+          <GameHistoryTable rows={historyRows} />
         </section>
       )}
     </>
