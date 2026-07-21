@@ -46,13 +46,15 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   const lateUsed = confirmed.filter((s) => s.timeSlot === "LATE").length;
   const waitlist = signups.filter((s) => s.status === "WAITLIST").length;
 
+  const DIVIDER = "_______________________";
   const lines: string[] = [
-    "รายชื่อตีแบดก๊วนตัวตึงแหลมฉบัง 🏸",
+    "📣 อัปเดต! รายชื่อลงตีแบดก๊วนตัวตึงแหลมฉบัง 🏸",
     "",
     `🗓 ${dateLabel(session.date)}`,
     `🏸 จำนวนสนาม : 1 ทุ่ม ${session.courtsEarly} คอร์ท / 2 ทุ่ม ${session.courtsLate} คอร์ท`,
     `👥️ เปิดรับ ${totalCapacity} คน`,
     "",
+    "🔸รอบ 1 ทุ่ม🔸",
   ];
 
   for (let n = 1; n <= earlyCapacity; n++) {
@@ -70,10 +72,11 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
 
   lines.push(
     "",
+    DIVIDER,
     `🟢 ว่างรอบ 1 ทุ่ม = ${Math.max(0, earlyCapacity - earlyUsed)} คน`,
     `🟢 ว่างรอบ 2 ทุ่ม = ${Math.max(0, lateCapacity - lateUsed)} คน`,
     `🟠 สำรอง = ${waitlist} คน`,
-    "",
+    DIVIDER,
     `🗒 ลงชื่อผ่านเว็บแอป "Tua Tueng Go!" Click ที่นี่ ▶️ ${SIGNUP_URL}`
   );
 
