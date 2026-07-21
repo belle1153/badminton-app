@@ -83,12 +83,25 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   return lines.join("\n");
 }
 
+// Thai weekday word → getUTCDay() index (session dates read in UTC, same as the
+// label). "พฤหัส" covers "พฤหัสบดี" too.
+const WEEKDAY_WORDS: [string, number][] = [
+  ["อาทิตย์", 0],
+  ["จันทร์", 1],
+  ["อังคาร", 2],
+  ["พุธ", 3],
+  ["พฤหัส", 4],
+  ["ศุกร์", 5],
+  ["เสาร์", 6],
+];
+
 /**
- * Roster messages for the upcoming open days (soonest first), for the keyword
- * lookup in the group ("รายชื่อ"). Only days from today onward, so a finished
- * day doesn't get re-posted.
+ * Roster messages for the keyword lookup in the group. Bare "รายชื่อ" → the
+ * single nearest upcoming open day. If the text names a day (จันทร์ / พุธ …) or
+ * a date number (20, 21), only that day's roster is returned. Only days from
+ * today onward, so a finished day doesn't get re-posted.
  */
-export async function upcomingRosterMessages(max = 3): Promise<string[]> {
+export async function rosterMessagesForText(text: string): Promise<string[]> {
   const nowIct = new Date(Date.now() + 7 * 60 * 60 * 1000);
   const todayMidnight = new Date(
     Date.UTC(nowIct.getUTCFullYear(), nowIct.getUTCMonth(), nowIct.getUTCDate())
@@ -96,7 +109,7 @@ export async function upcomingRosterMessages(max = 3): Promise<string[]> {
   const sessions = await prisma.session.findMany({
     where: { status: "OPEN", date: { gte: todayMidnight } },
     orderBy: { date: "asc" },
-    take: max,
+    take: 14,
     include: {
       signUps: {
         where: { status: { not: "WITHDRAWN" } },
@@ -104,7 +117,31 @@ export async function upcomingRosterMessages(max = 3): Promise<string[]> {
       },
     },
   });
-  return sessions.map((s) => formatRosterMessage(s, s.signUps));
+  if (sessions.length === 0) return ["ยังไม่มีรอบเปิดรับสมัครครับ 🙏"];
+
+  // Did the message pin a specific day? Weekday word first, else a date number.
+  let specified = false;
+  let matched = sessions;
+  const weekday = WEEKDAY_WORDS.find(([w]) => text.includes(w));
+  if (weekday) {
+    specified = true;
+    matched = sessions.filter((s) => new Date(s.date).getUTCDay() === weekday[1]);
+  } else {
+    const num = text.match(/\d{1,2}/);
+    if (num) {
+      specified = true;
+      const day = Number(num[0]);
+      matched = sessions.filter((s) => new Date(s.date).getUTCDate() === day);
+    }
+  }
+
+  if (specified) {
+    return matched.length
+      ? matched.map((s) => formatRosterMessage(s, s.signUps))
+      : ["ไม่พบรอบของวันที่ระบุครับ 🙏"];
+  }
+  // Bare keyword → just the nearest day.
+  return [formatRosterMessage(sessions[0], sessions[0].signUps)];
 }
 
 /**

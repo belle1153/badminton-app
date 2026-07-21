@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upcomingRosterMessages } from "@/lib/lineRoster";
+import { rosterMessagesForText } from "@/lib/lineRoster";
 
 /**
  * LINE webhook.
  *
- * - Types "รายชื่อ" (or "เช็คชื่อ" / "list") in the group → the bot replies with
- *   the roster of the upcoming open days. Otherwise it stays quiet.
+ * - Types "รายชื่อ" (or "เช็คชื่อ" / "list") → the bot replies with the nearest
+ *   upcoming day's roster; add a day (จันทร์ / พุธ …) or a date number (20) and
+ *   it replies just that day. Otherwise it stays quiet.
  * - Logs the source id of every event (find a new group id in the Vercel logs).
  *   Set LINE_ECHO_ID=1 temporarily to have it reply the id in chat, then unset.
  *
@@ -48,10 +49,9 @@ export async function POST(req: NextRequest) {
     if (!token || event.type !== "message" || !event.replyToken) continue;
     const text = (event.message?.text ?? "").trim();
 
-    // Keyword → roster of the upcoming open days.
+    // Keyword → nearest day's roster, or a specific day if named.
     if (ROSTER_KEYWORDS.some((k) => text.toLowerCase().includes(k.toLowerCase()))) {
-      const rosters = await upcomingRosterMessages(3);
-      await reply(event.replyToken, token, rosters.length ? rosters : ["ยังไม่มีรอบเปิดรับสมัครครับ 🙏"]);
+      await reply(event.replyToken, token, await rosterMessagesForText(text));
       continue;
     }
 
