@@ -149,10 +149,21 @@ export default async function SessionMatchPage({
         }
       : { id: pid, name: "(ไม่พบชื่อ)", skillLevel: "RK" as SkillLevel, busyCourt: null, present: false };
   };
+  // Rematch check: how many of a คู่เตรียม's four already met in one finished
+  // game — flag 3 or 4 so the admin can swap someone.
+  const finishedSets = matches
+    .filter((m) => m.finishedAt != null)
+    .map((m) => new Set(m.players.map((p) => p.signUpId)));
+  const maxOverlap = (ids: string[]) =>
+    finishedSets.reduce((mx, fs) => {
+      const o = ids.filter((id) => fs.has(id)).length;
+      return o > mx ? o : mx;
+    }, 0);
   const pendingPairs = pendingPairRows.map((p) => ({
     id: p.id,
     team1: p.team1Ids.map(toLite),
     team2: p.team2Ids.map(toLite),
+    repeat: maxOverlap([...p.team1Ids, ...p.team2Ids]),
   }));
 
   // Free (checked-in, not playing) players who aren't parked in a คู่เตรียม yet

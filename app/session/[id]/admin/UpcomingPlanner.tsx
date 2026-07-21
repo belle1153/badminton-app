@@ -24,6 +24,9 @@ export interface PersistedPending {
   id: string;
   team1: Lite[];
   team2: Lite[];
+  /** Most players this foursome shares with a single finished game (0–4) — a
+   *  rematch warning when 3 or 4. */
+  repeat?: number;
 }
 
 /**
@@ -267,6 +270,15 @@ export default function UpcomingPlanner({
                     </div>
                   </div>
                 </div>
+                {(pair.repeat ?? 0) >= 3 && (
+                  <div className="rounded-md bg-amber-50 border border-amber-300 text-amber-800 text-[11px] px-2 py-1">
+                    ⚠️{" "}
+                    {pair.repeat === 4
+                      ? "4 คนนี้เคยเล่นด้วยกันแล้ว"
+                      : "3 ใน 4 คนนี้เคยเล่นด้วยกันแล้ว"}{" "}
+                    — เปลี่ยนคนไหม? (กด ✎ ที่ชื่อ)
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <button
                     onClick={() => cancel(pair.id)}
