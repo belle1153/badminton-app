@@ -46,12 +46,12 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   const lateUsed = confirmed.filter((s) => s.timeSlot === "LATE").length;
   const waitlist = signups.filter((s) => s.status === "WAITLIST").length;
 
-  const DIVIDER = "_______________________";
+  const DIVIDER = "━━━━━━━━━━━━";
   const lines: string[] = [
     "📣 อัปเดต! รายชื่อลงตีแบดก๊วนตัวตึงแหลมฉบัง 🏸",
     "",
     `🗓 ${dateLabel(session.date)}`,
-    `🏸 จำนวนสนาม : 1 ทุ่ม ${session.courtsEarly} คอร์ท / 2 ทุ่ม ${session.courtsLate} คอร์ท`,
+    `🏸 สนาม : 1 ทุ่ม ${session.courtsEarly} คอร์ท / 2 ทุ่ม ${session.courtsLate} คอร์ท`,
     `👥️ เปิดรับ ${totalCapacity} คน`,
     "",
     "🔸รอบ 1 ทุ่ม🔸",

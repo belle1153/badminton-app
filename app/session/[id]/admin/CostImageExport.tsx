@@ -79,7 +79,7 @@ export default function CostImageExport({
       // Columns: [label, x, align]. Right-aligned columns give x as right edge.
       const cols: [string, number, CanvasTextAlign][] = [
         ["ชื่อ", pad, "left"],
-        ["ช่วง", 272, "left"],
+        ["เริ่ม", 272, "left"],
         ["ชม.", 400, "right"],
         ["เกม", 462, "right"],
         ["ค่าคอร์ท", 600, "right"],

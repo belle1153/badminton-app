@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 
@@ -23,6 +23,7 @@ export interface LiveMatch {
   round: number;
   team1: P[];
   team2: P[];
+  startedAt?: string; // ISO — when the game started, for the elapsed clock
 }
 
 export interface FinishedGame {
@@ -76,6 +77,22 @@ export default function LiveCourts({
   // Player being swapped out of a live game (edit-in-place on the court card).
   const [swapping, setSwapping] = useState<{ matchId: string; playerId: string } | null>(null);
   const [replacement, setReplacement] = useState("");
+  // Live elapsed clock per court, so the admin can eyeball which game is likely
+  // to finish first and get its คู่เตรียม ready (ticks every 30s).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsedMin = (iso?: string) =>
+    iso ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000)) : null;
+  const longestCourt = activeMatches.reduce(
+    (best, m) => {
+      const e = elapsedMin(m.startedAt) ?? -1;
+      return e > best.e ? { court: m.court, e } : best;
+    },
+    { court: -1, e: -1 }
+  ).court;
 
   async function confirmSwap() {
     if (!swapping || !replacement) return;
@@ -388,6 +405,16 @@ export default function LiveCourts({
               <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
                 สนาม {court}
                 {m && <span className="text-white/60 font-normal"> — เกมที่ {m.round}</span>}
+                {m && elapsedMin(m.startedAt) != null && (
+                  <span
+                    className={`ml-1 font-normal ${
+                      court === longestCourt ? "text-amber-300" : "text-white/60"
+                    }`}
+                  >
+                    · ⏱ {elapsedMin(m.startedAt)}น.
+                    {court === longestCourt && elapsedMin(m.startedAt)! > 0 && " (นานสุด)"}
+                  </span>
+                )}
               </div>
               <div className="bg-gradient-to-b from-blue-500 to-blue-700 p-3 flex flex-col gap-2 min-h-[150px]">
                 {m ? (

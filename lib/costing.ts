@@ -18,7 +18,8 @@ export interface CostAttendee {
 export interface CostRow {
   id: string;
   name: string;
-  slot: string;
+  slot: string; // "19.00" | "20.00" — the block start time
+  timeSlot: "EARLY" | "LATE";
   out: Date | null;
   /** Billed hours — null while they're still playing (not checked out yet). */
   hours: number | null;
@@ -67,7 +68,8 @@ export function buildCostRows(
       return {
         id: a.id,
         name: a.name,
-        slot: a.timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม",
+        slot: a.timeSlot === "EARLY" ? "19.00" : "20.00",
+        timeSlot: a.timeSlot,
         out: a.checkedOutAt,
         hours,
         games: a.gamesPlayed,
@@ -77,7 +79,12 @@ export function buildCostRows(
         live: a.checkedOutAt == null,
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    // 1 ทุ่ม (19.00) block first, then 2 ทุ่ม, each A-Z by name.
+    .sort(
+      (a, b) =>
+        (a.timeSlot === "EARLY" ? 0 : 1) - (b.timeSlot === "EARLY" ? 0 : 1) ||
+        a.name.localeCompare(b.name, "th")
+    );
 
   return { rows, courtHourUnits: units };
 }

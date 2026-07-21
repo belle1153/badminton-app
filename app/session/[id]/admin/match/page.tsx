@@ -70,6 +70,7 @@ export default async function SessionMatchPage({
       round: m.round,
       team1: m.players.filter((p) => p.team === 1).map(toP),
       team2: m.players.filter((p) => p.team === 2).map(toP),
+      startedAt: m.createdAt.toISOString(),
     };
   };
 

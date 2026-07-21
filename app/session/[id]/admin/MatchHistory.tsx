@@ -56,12 +56,42 @@ export default function MatchHistory({
     }
   }
 
-  function team(g: HistoryGame, players: P[], teamNo: number) {
-    const winner = g.status === "finished" && g.winnerTeam === teamNo;
+  function teamCell(g: HistoryGame, players: P[], teamNo: number) {
+    const won = g.status === "finished" && g.winnerTeam === teamNo;
     return (
-      <span className={winner ? "font-semibold text-brand-700" : "text-gray-700"}>
-        {players.map((p) => p.name).join(" + ")}
-        {winner && " ✓"}
+      <div className={`flex flex-col ${won ? "text-green-600 font-semibold" : "text-gray-700"}`}>
+        {players.map((p) => (
+          <span key={p.id} className="whitespace-nowrap">
+            {p.name}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  function resultCell(g: HistoryGame) {
+    if (g.status === "playing")
+      return <span className="rounded bg-green-100 text-green-700 px-2 py-0.5 text-xs">กำลังเล่น</span>;
+    if (g.status === "upcoming")
+      return (
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">รอคิว</span>
+          {!readOnly && (
+            <button
+              onClick={() => cancelGame(g)}
+              disabled={loading === `del-${g.id}`}
+              className="text-[11px] text-red-500 hover:underline disabled:opacity-50"
+            >
+              ยกเลิก
+            </button>
+          )}
+        </div>
+      );
+    if (g.winnerTeam == null)
+      return <span className="rounded bg-amber-500 text-white px-2 py-1 text-xs font-medium">เสมอ</span>;
+    return (
+      <span className="rounded bg-green-500 text-white px-2 py-1 text-xs font-medium whitespace-nowrap">
+        ทีม {g.winnerTeam === 1 ? "A" : "B"} ชนะ!
       </span>
     );
   }
@@ -73,47 +103,32 @@ export default function MatchHistory({
   return (
     <div className="flex flex-col gap-2">
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <ul className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
-        {ordered.map((g) => (
-          <li key={g.id} className="px-2.5 py-2 text-sm flex flex-col gap-0.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500 shrink-0 w-12">เกม {g.seq}</span>
-              <span className="text-[10px] rounded-full bg-slate-100 text-slate-600 px-1.5 py-0.5 shrink-0">
-                สนาม {g.court}
-              </span>
-              {g.status === "playing" && (
-                <span className="text-[10px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">
-                  กำลังเล่น
-                </span>
-              )}
-              {g.status === "upcoming" && (
-                <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
-                  รอคิว
-                </span>
-              )}
-              {g.status === "finished" && g.winnerTeam == null && (
-                <span className="text-[10px] rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5">
-                  🤝 เสมอ
-                </span>
-              )}
-              {!readOnly && g.status === "upcoming" && (
-                <button
-                  onClick={() => cancelGame(g)}
-                  disabled={loading === `del-${g.id}`}
-                  className="ml-auto text-[11px] text-red-500 hover:underline disabled:opacity-50"
-                >
-                  ยกเลิกเกม
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {team(g, g.team1, 1)}
-              <span className="text-gray-300">vs</span>
-              {team(g, g.team2, 2)}
-            </div>
-          </li>
-        ))}
-      </ul>
+      <div className="overflow-x-auto border border-gray-200 rounded-md">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-slate-800 text-white text-xs">
+              <th className="px-2 py-2 font-medium text-center">เกม</th>
+              <th className="px-2 py-2 font-medium text-center">สนาม</th>
+              <th className="px-2 py-2 font-medium text-left">ทีม A</th>
+              <th className="px-2 py-2 font-medium text-center text-red-300">VS</th>
+              <th className="px-2 py-2 font-medium text-left">ทีม B</th>
+              <th className="px-2 py-2 font-medium text-center">ผล</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((g) => (
+              <tr key={g.id} className="border-t border-gray-100 align-top">
+                <td className="px-2 py-2 text-center font-medium text-gray-500">{g.seq}</td>
+                <td className="px-2 py-2 text-center text-gray-500">{g.court}</td>
+                <td className="px-2 py-2">{teamCell(g, g.team1, 1)}</td>
+                <td className="px-2 py-2 text-center text-red-400 text-xs">vs</td>
+                <td className="px-2 py-2">{teamCell(g, g.team2, 2)}</td>
+                <td className="px-2 py-2 text-center">{resultCell(g)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

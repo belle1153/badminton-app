@@ -95,7 +95,7 @@ export default async function SessionCostPage({
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                   <th className="px-2 py-1.5 font-medium">ชื่อ</th>
-                  <th className="px-2 py-1.5 font-medium">ช่วง</th>
+                  <th className="px-2 py-1.5 font-medium">เริ่ม</th>
                   <th className="px-2 py-1.5 font-medium">เช็คเอาท์</th>
                   <th className="px-2 py-1.5 font-medium text-right">ชม.คิด</th>
                   <th className="px-2 py-1.5 font-medium text-right">เกม</th>
