@@ -27,6 +27,8 @@ export interface PersistedPending {
   /** Most players this foursome shares with a single finished game (0–4) — a
    *  rematch warning when 3 or 4. */
   repeat?: number;
+  /** Names of the players who already played together (the shared ones). */
+  repeatNames?: string[];
 }
 
 /**
@@ -271,11 +273,11 @@ export default function UpcomingPlanner({
                   </div>
                 </div>
                 {(pair.repeat ?? 0) >= 3 && (
-                  <div className="rounded-md bg-amber-50 border border-amber-300 text-amber-800 text-[11px] px-2 py-1">
-                    ⚠️{" "}
-                    {pair.repeat === 4
-                      ? "4 คนนี้เคยเล่นด้วยกันแล้ว"
-                      : "3 ใน 4 คนนี้เคยเล่นด้วยกันแล้ว"}{" "}
+                  <div className="rounded-md bg-red-600 border-2 border-red-700 text-white text-[11px] font-medium px-2 py-1.5">
+                    ⚠️ {pair.repeat} คนนี้เคยเล่นด้วยกันแล้ว
+                    {pair.repeatNames && pair.repeatNames.length > 0 && (
+                      <span className="font-bold"> : {pair.repeatNames.join(", ")}</span>
+                    )}{" "}
                     — เปลี่ยนคนไหม? (กด ✎ ที่ชื่อ)
                   </div>
                 )}
