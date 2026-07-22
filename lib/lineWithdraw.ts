@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { rebalanceSession } from "@/lib/seating";
 import { formatRosterMessage } from "@/lib/lineRoster";
+import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 
 // Thai weekday word → getUTCDay() index (session dates read in UTC).
 const WEEKDAY_WORDS: [string, number][] = [
@@ -72,6 +73,15 @@ export async function withdrawFromLine(text: string): Promise<string[]> {
     session.signUps.find((s) => s.name.toLowerCase().includes(lower));
   if (!target) {
     return [`ไม่พบชื่อ "${name}" ในรายชื่อ ${dayLabel(session.date)} ครับ 🙏`];
+  }
+
+  // Same cutoff as the web self-withdraw: only until noon (ICT) on the play
+  // day. After that the bot won't withdraw — the admin must accept it (club
+  // charges a fee unless a replacement is found).
+  if (!selfWithdrawAllowed(session.date)) {
+    return [
+      `⛔ "${target.name}" ถอนชื่อผ่านไลน์ไม่ได้แล้ว (เลยเที่ยงวันเล่น ${dayLabel(session.date)})\nติดต่อแอดมินเพื่อกด accept การถอนชื่อครับ`,
+    ];
   }
 
   if (target.fixedPartnerId) {
