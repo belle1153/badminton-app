@@ -14,6 +14,44 @@ const WEEKDAY_WORDS: [string, number][] = [
   ["เสาร์", 6],
 ];
 
+/**
+ * Work out which rostered person a withdraw message refers to. Two passes:
+ *
+ *  1. Mention match — spot any roster name that appears verbatim in the raw
+ *     message, longest first. Robust against surrounding Thai particles
+ *     ("NW ถอนชื่อ ให้หน่อยดิ้" still finds "NW").
+ *  2. Stripped-leftover match — fall back to the text left after removing the
+ *     keywords / day words / numbers, matched both directions.
+ *
+ * `name` is the stripped leftover, used only for the "not found" reply.
+ */
+export function resolveWithdrawName<T extends { name: string }>(
+  signUps: T[],
+  text: string
+): { target?: T; name: string } {
+  const hay = text.toLowerCase();
+  let target: T | undefined = signUps
+    .filter((s) => s.name.trim().length >= 2 && hay.includes(s.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length)[0];
+
+  let name = text;
+  for (const [w] of WEEKDAY_WORDS) name = name.split(w).join(" ");
+  name = name
+    .replace(/ถอนชื่อ|ถอน|รายชื่อ|วันที่|วัน|ไม่ได้|ให้|ด้วย|หน่อย|ครับ|ค่ะ|คับ|จ้า|จ๊ะ|นะ|ที|ดิ้|ดิ/g, " ")
+    .replace(/\d{1,2}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!target && name) {
+    const lower = name.toLowerCase();
+    target =
+      signUps.find((s) => s.name.toLowerCase() === lower) ??
+      signUps.find((s) => s.name.toLowerCase().includes(lower)) ??
+      signUps.find((s) => s.name.trim().length >= 2 && lower.includes(s.name.toLowerCase()));
+  }
+  return { target, name };
+}
+
 function dayLabel(date: Date): string {
   const wd = date.toLocaleDateString("th-TH", { weekday: "long", timeZone: "UTC" });
   const d = String(date.getUTCDate()).padStart(2, "0");
@@ -57,21 +95,9 @@ export async function withdrawFromLine(text: string): Promise<string[]> {
     }
   }
 
-  // The name = whatever's left after stripping keywords, day words and numbers.
-  let name = text;
-  for (const [w] of WEEKDAY_WORDS) name = name.split(w).join(" ");
-  name = name
-    .replace(/ถอนชื่อ|ถอน|รายชื่อ|วันที่|วัน|ไม่ได้|ครับ|ค่ะ|คับ|นะ|หน่อย/g, " ")
-    .replace(/\d{1,2}/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!name) return ['พิมพ์ชื่อที่จะถอนด้วยครับ เช่น "Alex ถอนชื่อ จันทร์"'];
-
-  const lower = name.toLowerCase();
-  const target =
-    session.signUps.find((s) => s.name.toLowerCase() === lower) ??
-    session.signUps.find((s) => s.name.toLowerCase().includes(lower));
+  const { target, name } = resolveWithdrawName(session.signUps, text);
   if (!target) {
+    if (!name) return ['พิมพ์ชื่อที่จะถอนด้วยครับ เช่น "Alex ถอนชื่อ จันทร์"'];
     return [`ไม่พบชื่อ "${name}" ในรายชื่อ ${dayLabel(session.date)} ครับ 🙏`];
   }
 
