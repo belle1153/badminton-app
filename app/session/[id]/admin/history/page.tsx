@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/adminAuth";
 import { deriveCourtState } from "@/lib/queue";
 import { type SkillLevel } from "@/lib/matching";
 import MatchHistory, { type HistoryGame } from "../MatchHistory";
+import MatchImageExport from "../MatchImageExport";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,28 @@ export default async function SessionMatchHistoryPage({
             ))}
           </ul>
         </section>
+      )}
+
+      {games.some((g) => g.status === "finished") && (
+        <MatchImageExport
+          venue={session.venue}
+          dateLabel={session.date.toLocaleDateString("th-TH", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            timeZone: "Asia/Bangkok",
+          })}
+          rows={games
+            .filter((g) => g.status === "finished")
+            .map((g) => ({
+              seq: g.seq,
+              court: g.court,
+              team1: g.team1.map((p) => p.name),
+              team2: g.team2.map((p) => p.name),
+              winnerTeam: g.winnerTeam,
+            }))}
+        />
       )}
 
       <MatchHistory
