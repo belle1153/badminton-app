@@ -57,6 +57,14 @@ export default async function SessionMatchPage({
   );
 
   const matchById = new Map(matches.map((m) => [m.id, m]));
+  // Global game number: number every game 1..N by start time (tie → court), the
+  // same running count as ประวัติแมตซ์, so the live board doesn't restart per
+  // court.
+  const gameNoById = new Map(
+    [...matches]
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.court - b.court)
+      .map((m, i) => [m.id, i + 1] as const)
+  );
   const toLive = (game: { id: string; round: number }, court: number): LiveMatch => {
     const m = matchById.get(game.id)!;
     const toP = (p: (typeof m.players)[number]) => ({
@@ -68,6 +76,7 @@ export default async function SessionMatchPage({
       id: m.id,
       court,
       round: m.round,
+      gameNo: gameNoById.get(m.id) ?? m.round,
       team1: m.players.filter((p) => p.team === 1).map(toP),
       team2: m.players.filter((p) => p.team === 2).map(toP),
       startedAt: m.createdAt.toISOString(),

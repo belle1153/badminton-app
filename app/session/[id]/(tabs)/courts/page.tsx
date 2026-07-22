@@ -62,8 +62,16 @@ export default async function SessionCourtsPage({
     }))
   );
   const activeIds = new Set([...liveState.currentByCourt.values()].map((g) => g.id));
+  // Global game number (1..N by start time, tie → court) so the banner matches
+  // the board / history instead of showing a per-court round.
+  const gameNoById = new Map(
+    [...session.matches]
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.court - b.court)
+      .map((m, i) => [m.id, i + 1] as const)
+  );
   const allMatches = session.matches.map((m) => ({
     round: m.round,
+    gameNo: gameNoById.get(m.id) ?? m.round,
     court: m.court,
     active: activeIds.has(m.id),
     team1: m.players.filter((p) => p.team === 1).map((p) => ({ id: p.signUp.id, name: p.signUp.name })),

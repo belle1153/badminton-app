@@ -22,6 +22,7 @@ export interface LiveMatch {
   id: string;
   court: number;
   round: number;
+  gameNo?: number; // running game number across the day (not per court)
   team1: P[];
   team2: P[];
   startedAt?: string; // ISO — when the game started, for the elapsed clock
@@ -417,7 +418,7 @@ export default function LiveCourts({
             <div key={court} className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
               <div className="bg-slate-800 text-white text-center text-sm font-semibold py-1.5">
                 สนาม {court}
-                {m && <span className="text-white/60 font-normal"> — เกมที่ {m.round}</span>}
+                {m && <span className="text-white/60 font-normal"> — เกมที่ {m.gameNo ?? m.round}</span>}
                 {m && startClock(m.startedAt) && (
                   <span
                     className={`ml-1 font-normal ${

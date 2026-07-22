@@ -9,6 +9,7 @@ interface MatchPlayerInfo {
 
 interface MatchInfo {
   round: number;
+  gameNo?: number;
   court: number;
   active?: boolean;
   team1: MatchPlayerInfo[];
@@ -48,7 +49,8 @@ export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
   const match = useMemo(() => {
     const active = mine.filter((m) => m.active);
     if (active.length === 0) return null;
-    return active.reduce((latest, m) => (m.round > latest.round ? m : latest));
+    const no = (m: MatchInfo) => m.gameNo ?? m.round;
+    return active.reduce((latest, m) => (no(m) > no(latest) ? m : latest));
   }, [mine]);
 
   return (
@@ -98,7 +100,7 @@ export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
           return (
             <div className="rounded-md bg-brand-50 border border-brand-200 p-3 text-sm">
               <p className="font-semibold text-brand-800">
-                คุณอยู่คอร์ท {match.court} (รอบที่ {match.round})
+                คุณอยู่คอร์ท {match.court} (เกมที่ {match.gameNo ?? match.round})
               </p>
               <p className="text-brand-700">
                 ทีมคุณ: {myTeam.map((p) => p.name).join(" + ")} · คู่แข่ง: {oppTeam.map((p) => p.name).join(" + ")}

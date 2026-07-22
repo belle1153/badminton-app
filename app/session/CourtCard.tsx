@@ -15,6 +15,7 @@ interface PlayerInfo {
 interface TeamMatch {
   id: string;
   round?: number;
+  gameNo?: number;
   team1: PlayerInfo[];
   team2: PlayerInfo[];
 }
@@ -143,8 +144,8 @@ export default function CourtCard({
     >
       <div className="bg-slate-800 text-white text-center text-sm font-semibold py-2">
         สนาม {court}
-        {!editable && match?.round != null && (
-          <span className="text-white/60 font-normal"> — เกมที่ {match.round}</span>
+        {!editable && (match?.gameNo ?? match?.round) != null && (
+          <span className="text-white/60 font-normal"> — เกมที่ {match?.gameNo ?? match?.round}</span>
         )}
       </div>
       <div

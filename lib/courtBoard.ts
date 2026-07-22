@@ -11,6 +11,9 @@ export interface BoardPlayer {
 export interface BoardTeamMatch {
   id: string;
   round: number;
+  /** Running game number across the whole day (1..N by start time, not per
+   *  court) — the same numbering as ประวัติแมตซ์. */
+  gameNo: number;
   court: number;
   active: boolean;
   team1: BoardPlayer[];
@@ -54,6 +57,7 @@ interface BoardMatchRow {
   id: string;
   round: number;
   court: number;
+  createdAt: Date;
   finishedAt: Date | null;
   winnerTeam: number | null;
   players: {
@@ -108,9 +112,19 @@ export function buildCourtBoard(
   const matchById = new Map(matches.map((m) => [m.id, m]));
   const activeIds = new Set([...state.currentByCourt.values()].map((g) => g.id));
 
+  // Global game number: order every game of the day by when it started (tie →
+  // court) and number 1..N. Same running count as ประวัติแมตซ์, so the board
+  // and the history agree instead of resetting per court.
+  const gameNoById = new Map(
+    [...matches]
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.court - b.court)
+      .map((m, i) => [m.id, i + 1] as const)
+  );
+
   const toTeamMatch = (m: BoardMatchRow): BoardTeamMatch => ({
     id: m.id,
     round: m.round,
+    gameNo: gameNoById.get(m.id) ?? m.round,
     court: m.court,
     active: activeIds.has(m.id),
     team1: m.players

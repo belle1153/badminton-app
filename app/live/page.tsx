@@ -132,7 +132,7 @@ export default async function LiveAllPage() {
                         const t2 = m.team2.map((p) => p.name);
                         return (
                           <li key={m.id} className="px-2.5 py-1.5 text-sm flex items-center gap-2 flex-wrap">
-                            <span className="text-xs text-gray-400 shrink-0 w-12">เกม {m.round}</span>
+                            <span className="text-xs text-gray-400 shrink-0 w-12">เกม {m.gameNo}</span>
                             <span className={m.winnerTeam === 1 ? "font-semibold text-brand-700" : "text-gray-600"}>
                               {t1.join(" + ")}
                               {m.winnerTeam === 1 && " ✓"}
