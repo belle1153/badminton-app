@@ -4,6 +4,7 @@ import { formatHours } from "@/lib/billing";
 import { buildCostRows, sessionPrices } from "@/lib/costing";
 import CostPanel from "../CostPanel";
 import CostImageExport from "../CostImageExport";
+import CostExcelExport from "../CostExcelExport";
 
 export const dynamic = "force-dynamic";
 
@@ -138,17 +139,16 @@ export default async function SessionCostPage({
           * คนที่ยังไม่เช็คเอาท์ = ค่าคอร์ทยังไม่นิ่ง (คิดถึงตอนนี้) จะนิ่งเมื่อกดเช็คเอาท์
         </p>
 
-        {rows.length > 0 && (
-          <CostImageExport
-            venue={session.venue}
-            dateLabel={session.date.toLocaleDateString("th-TH", {
+        {rows.length > 0 &&
+          (() => {
+            const dateLabel = session.date.toLocaleDateString("th-TH", {
               weekday: "long",
               day: "numeric",
               month: "long",
               year: "numeric",
               timeZone: "Asia/Bangkok",
-            })}
-            rows={rows.map((r) => ({
+            });
+            const exportRows = rows.map((r) => ({
               name: r.name,
               slot: r.slot,
               hours: r.hours != null ? formatHours(r.hours) : "—",
@@ -157,10 +157,19 @@ export default async function SessionCostPage({
               ballBaht: r.ballShareBaht,
               totalBaht: r.totalBaht,
               live: r.live,
-            }))}
-            note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
-          />
-        )}
+            }));
+            return (
+              <div className="flex flex-wrap gap-2">
+                <CostImageExport
+                  venue={session.venue}
+                  dateLabel={dateLabel}
+                  rows={exportRows}
+                  note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
+                />
+                <CostExcelExport venue={session.venue} dateLabel={dateLabel} rows={exportRows} />
+              </div>
+            );
+          })()}
       </section>
     </>
   );

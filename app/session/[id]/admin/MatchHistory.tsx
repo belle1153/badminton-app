@@ -99,8 +99,13 @@ export default function MatchHistory({
   function teamCell(g: HistoryGame, teamPlayers: P[], teamNo: number) {
     const won = g.status === "finished" && g.winnerTeam === teamNo;
     const inThisGame = new Set([...g.team1, ...g.team2].map((p) => p.id));
+    const side = teamNo === 1 ? "items-end text-right" : "items-start text-left";
     return (
-      <div className={`flex flex-col gap-0.5 ${won ? "text-green-600 font-semibold" : "text-gray-700"}`}>
+      <div
+        className={`flex flex-col gap-0.5 ${side} ${
+          won ? "text-green-600 font-semibold" : "text-gray-700"
+        }`}
+      >
         {teamPlayers.map((p) => {
           if (editP && editP.gameId === g.id && editP.signUpId === p.id) {
             return (
@@ -132,7 +137,7 @@ export default function MatchHistory({
               key={p.id}
               type="button"
               onClick={() => setEditP({ gameId: g.id, signUpId: p.id })}
-              className="text-left whitespace-nowrap hover:underline decoration-dotted inline-flex items-center gap-0.5"
+              className="whitespace-nowrap hover:underline decoration-dotted inline-flex items-center gap-0.5"
             >
               {p.name}
               <span className="text-brand-400 text-[10px]">✎</span>
@@ -216,9 +221,9 @@ export default function MatchHistory({
             <tr className="bg-slate-800 text-white text-xs">
               <th className="px-2 py-2 font-medium text-center">เกม</th>
               <th className="px-2 py-2 font-medium text-center">สนาม</th>
-              <th className="px-2 py-2 font-medium text-left">ทีม A</th>
+              <th className="px-2 py-2 font-medium text-right w-[38%]">ทีม A</th>
               <th className="px-2 py-2 font-medium text-center text-red-300">VS</th>
-              <th className="px-2 py-2 font-medium text-left">ทีม B</th>
+              <th className="px-2 py-2 font-medium text-left w-[38%]">ทีม B</th>
               <th className="px-2 py-2 font-medium text-center">ผล</th>
             </tr>
           </thead>
@@ -227,9 +232,9 @@ export default function MatchHistory({
               <tr key={g.id} className="border-t border-gray-100 align-top">
                 <td className="px-2 py-2 text-center font-medium text-gray-500">{g.seq}</td>
                 <td className="px-2 py-2 text-center text-gray-500">{g.court}</td>
-                <td className="px-2 py-2">{teamCell(g, g.team1, 1)}</td>
+                <td className="px-2 py-2 w-[38%]">{teamCell(g, g.team1, 1)}</td>
                 <td className="px-2 py-2 text-center text-red-400 text-xs">vs</td>
-                <td className="px-2 py-2">{teamCell(g, g.team2, 2)}</td>
+                <td className="px-2 py-2 w-[38%]">{teamCell(g, g.team2, 2)}</td>
                 <td className="px-2 py-2 text-center">{resultCell(g)}</td>
               </tr>
             ))}
