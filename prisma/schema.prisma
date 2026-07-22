@@ -85,6 +85,8 @@ model SignUp {
   slotNumber     Int?
   checkedInAt    DateTime?
   checkedOutAt   DateTime? // when they left (per-person billing clock stops)
+  addedByAdmin   Boolean       @default(false) // true = admin quick-add, false = self sign-up
+  withdrawnAt    DateTime? // when the name was withdrawn (for the withdrawal log)
   createdAt      DateTime      @default(now())
   matchSlots     MatchPlayer[]
   fixedPartnerId String?       @unique

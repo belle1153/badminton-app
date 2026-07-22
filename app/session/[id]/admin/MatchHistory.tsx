@@ -26,10 +26,12 @@ export interface HistoryGame {
 export default function MatchHistory({
   sessionId,
   games,
+  players = [],
   readOnly,
 }: {
   sessionId: string;
   games: HistoryGame[];
+  players?: P[]; // whole roster, for replacing a player in a recorded game
   readOnly?: boolean;
 }) {
   const router = useRouter();
@@ -37,7 +39,28 @@ export default function MatchHistory({
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<string | null>(null);
+  // Which player slot (game + signUpId) is being replaced.
+  const [editP, setEditP] = useState<{ gameId: string; signUpId: string } | null>(null);
   const ordered = [...games].sort((a, b) => a.seq - b.seq);
+
+  async function replacePlayer(g: HistoryGame, outId: string, inId: string) {
+    setError(null);
+    setLoading(`p-${g.id}-${outId}`);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/matches/${g.id}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outSignUpId: outId, inSignUpId: inId }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "เปลี่ยนคนไม่สำเร็จ");
+      setEditP(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(null);
+    }
+  }
 
   async function deleteGame(g: HistoryGame) {
     if (!confirm(`ลบ เกม ${g.seq} (สนาม ${g.court}) ออกจากประวัติ? กู้คืนไม่ได้`)) return;
@@ -73,15 +96,49 @@ export default function MatchHistory({
     }
   }
 
-  function teamCell(g: HistoryGame, players: P[], teamNo: number) {
+  function teamCell(g: HistoryGame, teamPlayers: P[], teamNo: number) {
     const won = g.status === "finished" && g.winnerTeam === teamNo;
+    const inThisGame = new Set([...g.team1, ...g.team2].map((p) => p.id));
     return (
-      <div className={`flex flex-col ${won ? "text-green-600 font-semibold" : "text-gray-700"}`}>
-        {players.map((p) => (
-          <span key={p.id} className="whitespace-nowrap">
-            {p.name}
-          </span>
-        ))}
+      <div className={`flex flex-col gap-0.5 ${won ? "text-green-600 font-semibold" : "text-gray-700"}`}>
+        {teamPlayers.map((p) => {
+          if (editP && editP.gameId === g.id && editP.signUpId === p.id) {
+            return (
+              <select
+                key={p.id}
+                autoFocus
+                defaultValue=""
+                onChange={(e) => e.target.value && replacePlayer(g, p.id, e.target.value)}
+                onBlur={() => setEditP(null)}
+                className="text-gray-900 text-xs rounded border border-gray-300 max-w-[9rem] py-0.5"
+              >
+                <option value="">แทน {p.name} ด้วย…</option>
+                {players
+                  .filter((o) => !inThisGame.has(o.id))
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+              </select>
+            );
+          }
+          return readOnly ? (
+            <span key={p.id} className="whitespace-nowrap">
+              {p.name}
+            </span>
+          ) : (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setEditP({ gameId: g.id, signUpId: p.id })}
+              className="text-left whitespace-nowrap hover:underline decoration-dotted inline-flex items-center gap-0.5"
+            >
+              {p.name}
+              <span className="text-brand-400 text-[10px]">✎</span>
+            </button>
+          );
+        })}
       </div>
     );
   }

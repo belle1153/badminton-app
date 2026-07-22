@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rosterMessagesForText } from "@/lib/lineRoster";
+import { withdrawFromLine } from "@/lib/lineWithdraw";
 
 /**
  * LINE webhook.
  *
- * - Types "รายชื่อ" (or "เช็คชื่อ" / "list") → the bot replies with the nearest
+ * - "<ชื่อ> ถอนชื่อ <วัน>" → withdraws that name (anyone in the group can),
+ *   replies a confirmation + updated roster.
+ * - "รายชื่อ" (or "เช็คชื่อ" / "list") → the bot replies with the nearest
  *   upcoming day's roster; add a day (จันทร์ / พุธ …) or a date number (20) and
  *   it replies just that day. Otherwise it stays quiet.
  * - Logs the source id of every event (find a new group id in the Vercel logs).
@@ -48,6 +51,13 @@ export async function POST(req: NextRequest) {
 
     if (!token || event.type !== "message" || !event.replyToken) continue;
     const text = (event.message?.text ?? "").trim();
+
+    // "ถอน" → withdraw a name (checked before the roster keyword so a message
+    // like "ถอนชื่อ Alex" isn't treated as a roster lookup).
+    if (text.includes("ถอน")) {
+      await reply(event.replyToken, token, await withdrawFromLine(text));
+      continue;
+    }
 
     // Keyword → nearest day's roster, or a specific day if named.
     if (ROSTER_KEYWORDS.some((k) => text.toLowerCase().includes(k.toLowerCase()))) {

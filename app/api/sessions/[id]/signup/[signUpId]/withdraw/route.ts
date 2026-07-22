@@ -39,7 +39,7 @@ export async function POST(
 
   await prisma.signUp.update({
     where: { id: signUpId },
-    data: { status: "WITHDRAWN", slotNumber: null, fixedPartnerId: null },
+    data: { status: "WITHDRAWN", slotNumber: null, fixedPartnerId: null, withdrawnAt: new Date() },
   });
 
   // Recompute seats so a vacated 1 ทุ่ม pulls up the earliest person who wanted

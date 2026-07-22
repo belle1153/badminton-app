@@ -72,6 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       status: "CONFIRMED",
       slotNumber: null,
       checkedInAt: new Date(),
+      addedByAdmin: true, // admin quick-add, not a self sign-up
       athleteId: athlete.id,
     },
   });

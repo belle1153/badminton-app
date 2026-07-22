@@ -112,7 +112,14 @@ export default async function SessionMatchHistoryPage({
         </section>
       )}
 
-      <MatchHistory sessionId={id} games={games} readOnly={session.status === "CLOSED"} />
+      <MatchHistory
+        sessionId={id}
+        games={games}
+        players={session.signUps
+          .map((s) => ({ id: s.id, name: s.name }))
+          .sort((a, b) => a.name.localeCompare(b.name, "th"))}
+        readOnly={session.status === "CLOSED"}
+      />
     </>
   );
 }

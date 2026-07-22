@@ -9,6 +9,7 @@ const NAV = [
   { href: "/admin/announcements", label: "ประกาศ", icon: "📣" },
   { href: "/admin/rules", label: "กฎก๊วน", icon: "📖" },
   { href: "/admin/master", label: "Master ข้อมูล", icon: "💰" },
+  { href: "/admin/withdrawals", label: "ประวัติถอนชื่อ", icon: "🚫" },
   { href: "/admin/history", label: "ประวัติย้อนหลัง", icon: "🗂️" },
 ];
 
