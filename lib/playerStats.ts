@@ -162,3 +162,69 @@ export async function loadPlayerGames(athleteId: string): Promise<GameRecord[]> 
   }
   return games;
 }
+
+export interface PlayerMatchRow {
+  id: string;
+  /** Game number within its own day, matching what the day's own log shows. */
+  seq: number;
+  court: number;
+  winnerTeam: number | null;
+  team1: string[];
+  team2: string[];
+  date: Date;
+}
+
+/**
+ * The player's most recent finished games, newest first.
+ *
+ * Every finished game of the days they played is loaded, not just their own,
+ * because `seq` has to be the game's number within its day — the same number the
+ * day's log shows — which can only be known by counting that day's games in
+ * start order. Their own games are then picked out of that numbering.
+ */
+export async function loadPlayerMatchHistory(
+  athleteId: string,
+  limit = 10
+): Promise<PlayerMatchRow[]> {
+  const signUps = await prisma.signUp.findMany({
+    where: { athleteId, status: { not: "WITHDRAWN" } },
+    select: { sessionId: true, matchSlots: { select: { matchId: true } } },
+  });
+  if (signUps.length === 0) return [];
+
+  const sessionIds = [...new Set(signUps.map((s) => s.sessionId))];
+  const mine = new Set(signUps.flatMap((s) => s.matchSlots.map((m) => m.matchId)));
+  if (mine.size === 0) return [];
+
+  const matches = await prisma.match.findMany({
+    where: { sessionId: { in: sessionIds }, finishedAt: { not: null } },
+    orderBy: [{ createdAt: "asc" }],
+    select: {
+      id: true,
+      court: true,
+      winnerTeam: true,
+      sessionId: true,
+      session: { select: { date: true } },
+      players: { select: { team: true, signUp: { select: { name: true } } } },
+    },
+  });
+
+  const seqBySession = new Map<string, number>();
+  const rows: PlayerMatchRow[] = [];
+  for (const m of matches) {
+    const seq = (seqBySession.get(m.sessionId) ?? 0) + 1;
+    seqBySession.set(m.sessionId, seq);
+    if (!mine.has(m.id)) continue;
+    rows.push({
+      id: m.id,
+      seq,
+      court: m.court,
+      winnerTeam: m.winnerTeam,
+      team1: m.players.filter((p) => p.team === 1).map((p) => p.signUp.name),
+      team2: m.players.filter((p) => p.team === 2).map((p) => p.signUp.name),
+      date: m.session.date,
+    });
+  }
+
+  return rows.reverse().slice(0, limit);
+}

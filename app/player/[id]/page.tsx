@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
-import { computePlayerStats, loadPlayerGames } from "@/lib/playerStats";
+import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
+import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import BackLink from "../../BackLink";
 import RememberMe from "./RememberMe";
 
@@ -15,6 +17,16 @@ function thaiDate(date: Date): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** "จ. 20 ก.ค." — compact, for the match-log column. */
+function shortDate(date: Date): string {
+  return date.toLocaleDateString("th-TH", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
     timeZone: "UTC",
   });
 }
@@ -41,11 +53,28 @@ export default async function PlayerProfilePage({
   });
   if (!athlete) notFound();
 
-  const stats = computePlayerStats(await loadPlayerGames(id));
+  const [stats, recent] = await Promise.all([
+    loadPlayerGames(id).then((games) => computePlayerStats(games)),
+    loadPlayerMatchHistory(id, 10),
+  ]);
+
+  const historyRows: HistoryRow[] = recent.map((m) => ({
+    id: m.id,
+    seq: m.seq,
+    court: m.court,
+    winnerTeam: m.winnerTeam,
+    team1: m.team1,
+    team2: m.team2,
+    dateLabel: shortDate(m.date),
+    highlightName: athlete.name,
+  }));
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <BackLink href="/" label="หน้าแรก" exact />
+      {/* History-back: a profile is reached from the name search, the home card
+          and other players' partner lists, so "back" has to return where you
+          came from. `href` stays the no-JS / new-tab fallback. */}
+      <BackLink href="/player" />
 
       <section className="flex items-center gap-4">
         {athlete.photoUrl ? (
@@ -105,14 +134,24 @@ export default async function PlayerProfilePage({
               {stats.topPartners.map((p, i) => (
                 <li key={p.id} className="px-3 py-2 flex items-center gap-2 text-sm">
                   <span className="text-gray-400 w-5 shrink-0">{i + 1}</span>
-                  <a href={`/player/${p.id}`} className="font-medium text-brand-700 hover:underline">
+                  <Link href={`/player/${p.id}`} className="font-medium text-brand-700 hover:underline">
                     {p.name}
-                  </a>
+                  </Link>
                   <span className="ml-auto text-gray-500">{p.games} เกม</span>
                 </li>
               ))}
             </ul>
           </section>
+
+          {historyRows.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="font-semibold">ประวัติแมตซ์</h2>
+                <span className="text-xs text-gray-400">ล่าสุด {historyRows.length} เกม</span>
+              </div>
+              <GameHistoryTable rows={historyRows} />
+            </section>
+          )}
 
           <p className="text-xs text-gray-400">
             มาเล่นครั้งแรก {stats.firstPlayed ? thaiDate(stats.firstPlayed) : "—"} · ครั้งล่าสุด{" "}
