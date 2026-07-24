@@ -3,6 +3,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { BUILD_LABEL } from "@/lib/version";
 import AnnouncementCarousel from "./AnnouncementCarousel";
+import MyStatsCard from "./MyStatsCard";
 
 // Always read fresh data — without this the page is frozen at build time.
 export const dynamic = "force-dynamic";
@@ -73,6 +74,8 @@ export default async function Home() {
             <span className="text-xs text-gray-500">กฎของก๊วน / สนาม · อ่านก่อนมาตี</span>
           </Link>
         </div>
+
+        <MyStatsCard />
       </div>
 
       <AnnouncementCarousel items={announcements} />
