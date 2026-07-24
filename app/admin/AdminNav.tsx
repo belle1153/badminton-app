@@ -40,14 +40,23 @@ export default function AdminNav() {
     if (e.pointerType !== "mouse") return; // leave touch/pen to native scroll
     const el = navRef.current;
     if (!el) return;
-    el.setPointerCapture(e.pointerId);
+    // Deliberately NOT capturing the pointer here. Capture retargets pointerup
+    // to the <nav>, so the browser fires the click on the nav instead of the
+    // <Link> under the cursor and the menu stops navigating with a mouse
+    // entirely. Capture only once it's a real drag — see onPointerMove.
     drag.current = { down: true, startX: e.clientX, startLeft: el.scrollLeft, moved: false };
   }
   function onPointerMove(e: React.PointerEvent) {
     const el = navRef.current;
     if (!el || !drag.current.down) return;
     const dx = e.clientX - drag.current.startX;
-    if (Math.abs(dx) > 4) drag.current.moved = true;
+    if (Math.abs(dx) > 4 && !drag.current.moved) {
+      drag.current.moved = true;
+      // Past the threshold this is a pan, not a click: take the pointer so it
+      // keeps tracking if the cursor leaves the nav. The click it ends with is
+      // swallowed by onClickCapture below.
+      if (!el.hasPointerCapture(e.pointerId)) el.setPointerCapture(e.pointerId);
+    }
     el.scrollLeft = drag.current.startLeft - dx;
   }
   function endDrag(e: React.PointerEvent) {
