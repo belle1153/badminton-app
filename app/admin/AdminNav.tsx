@@ -7,8 +7,8 @@ import { useEffect, useRef } from "react";
 const NAV = [
   { href: "/admin", label: "จัดการการลงทะเบียน", icon: "📋" },
   { href: "/admin/athletes", label: "ข้อมูลผู้เล่น", icon: "🏸" },
-  { href: "/admin/announcements", label: "ประกาศ", icon: "📣" },
-  { href: "/admin/rules", label: "กฎก๊วน", icon: "📖" },
+  // ประกาศ + กฎ share one page, so the nav stays narrow enough to reach every item.
+  { href: "/admin/announcements", label: "ประกาศ & กฎ", icon: "📣" },
   { href: "/admin/master", label: "Master ข้อมูล", icon: "💰" },
   { href: "/admin/withdrawals", label: "ประวัติถอนชื่อ", icon: "🚫" },
   { href: "/admin/history", label: "ประวัติย้อนหลัง", icon: "🗂️" },
@@ -82,6 +82,10 @@ export default function AdminNav() {
   return (
     <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
       <div className="max-w-5xl mx-auto w-full px-4 py-2 flex items-center gap-2">
+        {/* Phone: one swipeable row (native touch scrolling). Desktop: wrap
+            instead, so every item is visible without scrolling — the scrollbar
+            is hidden there, leaving only drag/wheel, which isn't discoverable
+            and made the overflowing items feel unreachable. */}
         <nav
           ref={navRef}
           onPointerDown={onPointerDown}
@@ -89,7 +93,7 @@ export default function AdminNav() {
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onClickCapture={onClickCapture}
-          className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 cursor-grab active:cursor-grabbing select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 cursor-grab active:cursor-grabbing select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:cursor-auto"
         >
           {NAV.map((item) => {
             const active = pathname === item.href;
