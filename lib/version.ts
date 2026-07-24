@@ -7,5 +7,4 @@ import pkg from "../package.json";
  */
 const sha = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
 
-export const APP_VERSION = pkg.version;
 export const BUILD_LABEL = sha ? `v${pkg.version}+${sha}` : `v${pkg.version} (dev)`;

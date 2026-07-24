@@ -82,10 +82,11 @@ export default function AdminNav() {
   return (
     <div className="border-b border-gray-200 bg-white sticky top-0 z-20">
       <div className="max-w-5xl mx-auto w-full px-4 py-2 flex items-center gap-2">
-        {/* Phone: one swipeable row (native touch scrolling). Desktop: wrap
-            instead, so every item is visible without scrolling — the scrollbar
-            is hidden there, leaving only drag/wheel, which isn't discoverable
-            and made the overflowing items feel unreachable. */}
+        {/* Split on pointer type, not width: a big phone or a landscape tablet
+            is still touch. Touch keeps one swipeable row (native scrolling).
+            With a mouse it wraps instead — the scrollbar is hidden, so the only
+            ways to reach overflowing items were drag and wheel, neither
+            discoverable, which made the tail of the menu feel unreachable. */}
         <nav
           ref={navRef}
           onPointerDown={onPointerDown}
@@ -93,7 +94,7 @@ export default function AdminNav() {
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onClickCapture={onClickCapture}
-          className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 cursor-grab active:cursor-grabbing select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:cursor-auto"
+          className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 cursor-grab active:cursor-grabbing select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pointer-fine:flex-wrap pointer-fine:overflow-visible pointer-fine:cursor-auto"
         >
           {NAV.map((item) => {
             const active = pathname === item.href;

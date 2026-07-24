@@ -100,14 +100,6 @@ export function balanceTeams(four: Player[]): {
   return best!;
 }
 
-// Penalty for a match by team-weight difference, from the club's odds table:
-// diff 0 ≈ 50/50 (best), 1 ≈ 40%, 2 ≈ 8%, 3 ≈ 2% (avoid), 4+ never.
-export const DIFF_PENALTY = [0, 1, 8, 30, 100];
-
-export function diffPenalty(diff: number): number {
-  return DIFF_PENALTY[Math.min(diff, DIFF_PENALTY.length - 1)];
-}
-
 /**
  * Cost of putting two skill groups on the same court, from the club's pairing
  * table (lower = more suitable). Group = SKILL_TIER: 1=RK, 2=BG/BG+,
@@ -165,87 +157,3 @@ export function worstPairCost(four: Player[]): number {
  * จัดคู่เตรียมเอง (hand-picked) is not counted against this.
  */
 export const PENDING_QUEUE_CAP = 3;
-
-export interface CourtMatch {
-  court: number;
-  team1: Player[];
-  team2: Player[];
-}
-
-interface Team {
-  members: [Player, Player];
-  strength: number;
-}
-
-/**
- * Groups players into skill-balanced 2v2 courts, respecting admin-assigned
- * fixed practice pairs (they always play as one team together).
- *
- * 1. Mutual fixed pairs become pre-formed teams.
- * 2. Remaining singles are paired strongest+weakest (two-pointer) into ad
- *    hoc teams, same balancing intent as before, just applied once to form
- *    teams instead of directly seeding 4-player groups.
- * 3. A leftover single (odd count) benches directly.
- * 4. Teams are sorted by combined strength and matched against their
- *    strength-adjacent neighbor, so opposing teams are as close as possible.
- * `courtNumbers` are the specific physical courts the admin ticked as
- * available this round (e.g. [1, 3, 5]); teams beyond however many pairs
- * fit those courts bench for this round.
- */
-export function generateMatches(
-  players: Player[],
-  courtNumbers: number[]
-): { matches: CourtMatch[]; bench: Player[] } {
-  const byId = new Map(players.map((p) => [p.id, p]));
-  const visited = new Set<string>();
-  const teams: Team[] = [];
-  const leftoverSingles: Player[] = [];
-
-  for (const player of players) {
-    if (visited.has(player.id)) continue;
-    const partner = player.fixedPartnerId ? byId.get(player.fixedPartnerId) : undefined;
-    if (partner && !visited.has(partner.id) && partner.fixedPartnerId === player.id) {
-      visited.add(player.id);
-      visited.add(partner.id);
-      teams.push({
-        members: [player, partner],
-        strength: SKILL_RANK[player.skillLevel] + SKILL_RANK[partner.skillLevel],
-      });
-    }
-  }
-
-  const singles = players
-    .filter((p) => !visited.has(p.id))
-    .sort((a, b) => SKILL_RANK[b.skillLevel] - SKILL_RANK[a.skillLevel]);
-
-  let lo = 0;
-  let hi = singles.length - 1;
-  while (lo < hi) {
-    const a = singles[lo];
-    const b = singles[hi];
-    teams.push({ members: [a, b], strength: SKILL_RANK[a.skillLevel] + SKILL_RANK[b.skillLevel] });
-    lo++;
-    hi--;
-  }
-  if (lo === hi) leftoverSingles.push(singles[lo]);
-
-  teams.sort((a, b) => b.strength - a.strength);
-
-  const sortedCourtNumbers = [...courtNumbers].sort((a, b) => a - b);
-  const courts = Math.max(0, Math.min(sortedCourtNumbers.length, Math.floor(teams.length / 2)));
-  const activeTeams = teams.slice(0, courts * 2);
-  const benchTeams = teams.slice(courts * 2);
-
-  const matches: CourtMatch[] = [];
-  for (let i = 0; i < courts; i++) {
-    matches.push({
-      court: sortedCourtNumbers[i],
-      team1: activeTeams[2 * i].members,
-      team2: activeTeams[2 * i + 1].members,
-    });
-  }
-
-  const bench = [...benchTeams.flatMap((t) => t.members), ...leftoverSingles];
-
-  return { matches, bench };
-}

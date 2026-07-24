@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
-import { pushLineMessage, lineConfigured } from "@/lib/line";
 
 /** Where the LINE message tells people to sign up. Overridable so a new short
  *  link doesn't need a redeploy; defaults to the club's current link. */
@@ -142,28 +141,4 @@ export async function rosterMessagesForText(text: string): Promise<string[]> {
   }
   // Bare keyword → just the nearest day.
   return [formatRosterMessage(sessions[0], sessions[0].signUps)];
-}
-
-/**
- * Post the current roster for a session to the club LINE group. Silent no-op if
- * LINE isn't configured or the session is closed. Never throws — a failed post
- * must not break the sign-up/withdraw it was triggered by.
- */
-export async function pushSessionRoster(sessionId: string): Promise<void> {
-  if (!lineConfigured()) return;
-  try {
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
-      include: {
-        signUps: {
-          where: { status: { not: "WITHDRAWN" } },
-          orderBy: [{ slotNumber: "asc" }, { createdAt: "asc" }],
-        },
-      },
-    });
-    if (!session || session.status === "CLOSED") return;
-    await pushLineMessage(formatRosterMessage(session, session.signUps));
-  } catch {
-    // swallow — never let a notification failure surface to the user
-  }
 }
