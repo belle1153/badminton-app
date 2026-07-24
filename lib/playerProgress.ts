@@ -37,6 +37,7 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
               select: {
                 finishedAt: true,
                 winnerTeam: true,
+                court: true,
                 players: { select: { team: true, signUp: { select: { athleteId: true } } } },
               },
             },
@@ -63,11 +64,12 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
 
   // One entry per session the player actually finished a game in.
   const byDate = new Map<string, DayPlayed & { draws: number; nightGames: number }>();
-  let checkoutCount = 0;
+  // Across all days, for the achievement metrics.
+  const gamesPerPartner = new Map<string, number>();
+  const courts = new Set<number>();
   let isFoundingMember = false;
 
   for (const s of signUps) {
-    if (s.checkedOutAt) checkoutCount++;
     const dateKey = s.session.date.toISOString().slice(0, 10);
 
     for (const slot of s.matchSlots) {
@@ -80,7 +82,6 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
           date: s.session.date,
           games: 0,
           wins: 0,
-          checkedOut: s.checkedOutAt != null,
           partnerIds: [],
           draws: 0,
           nightGames: 0,
@@ -89,6 +90,7 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
       }
 
       entry.games++;
+      courts.add(m.court);
       if (m.winnerTeam == null) entry.draws++;
       else if (m.winnerTeam === slot.team) entry.wins++;
 
@@ -99,7 +101,9 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
       for (const p of m.players) {
         if (p.team !== slot.team) continue;
         const pid = p.signUp.athleteId;
-        if (pid && pid !== athleteId && !entry.partnerIds.includes(pid)) entry.partnerIds.push(pid);
+        if (!pid || pid === athleteId) continue;
+        if (!entry.partnerIds.includes(pid)) entry.partnerIds.push(pid);
+        gamesPerPartner.set(pid, (gamesPerPartner.get(pid) ?? 0) + 1);
       }
 
       if (foundingDates.has(dateKey)) isFoundingMember = true;
@@ -123,8 +127,10 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
     daysPlayed: days.length,
     longestStreakDays: streakDays,
     distinctPartners: partnerIds.size,
-    checkoutCount,
     nightGames: days.reduce((n, d) => n + d.nightGames, 0),
+    bestDayGames: days.reduce((n, d) => Math.max(n, d.games), 0),
+    bestPartnerGames: Math.max(0, ...gamesPerPartner.values()),
+    distinctCourts: courts.size,
     isFoundingMember,
   });
 

@@ -8,8 +8,10 @@ const ctx = (over: Partial<AchievementContext> = {}): AchievementContext => ({
   daysPlayed: 0,
   longestStreakDays: 0,
   distinctPartners: 0,
-  checkoutCount: 0,
   nightGames: 0,
+  bestDayGames: 0,
+  bestPartnerGames: 0,
+  distinctCourts: 0,
   isFoundingMember: false,
   ...over,
 });
@@ -61,5 +63,22 @@ describe("computeAchievements", () => {
     const all = computeAchievements(ctx());
     expect(new Set(all.map((a) => a.id)).size).toBe(all.length);
     expect(all.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it("rewards nothing the player cannot control themselves", () => {
+    // Checking out is admin-only, so no badge may depend on it.
+    const ids = computeAchievements(ctx()).map((a) => a.id);
+    expect(ids).not.toContain("disciplined");
+  });
+
+  it("tracks a favourite partner separately from partner variety", () => {
+    const all = computeAchievements(ctx({ distinctPartners: 2, bestPartnerGames: 10 }));
+    expect(byId(all, "duo-10").earned).toBe(true);
+    expect(byId(all, "partners-10").earned).toBe(false);
+  });
+
+  it("tracks the best single day", () => {
+    expect(byId(computeAchievements(ctx({ bestDayGames: 6 })), "day-6-games").earned).toBe(true);
+    expect(byId(computeAchievements(ctx({ bestDayGames: 6 })), "day-10-games").earned).toBe(false);
   });
 });

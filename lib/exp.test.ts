@@ -8,7 +8,6 @@ const day = (iso: string, over: Partial<DayPlayed> = {}): DayPlayed => ({
   date: d(iso),
   games: 0,
   wins: 0,
-  checkedOut: false,
   partnerIds: [],
   ...over,
 });
@@ -47,15 +46,17 @@ describe("computeExp — the point values", () => {
     expect(b.wins).toBe(20);
   });
 
-  it("awards 20 for checking out, and nothing when they didn't", () => {
-    expect(computeExp([day("2026-07-20", { checkedOut: true })], CLUB).checkouts).toBe(20);
-    expect(computeExp([day("2026-07-20")], CLUB).checkouts).toBe(0);
+  it("pays nothing for checking out — only the admin can do that", () => {
+    // The checkout endpoint is admin-only, so rewarding it would hand out EXP
+    // for someone else's action.
+    const b = computeExp([day("2026-07-20", { games: 5, wins: 2 })], CLUB);
+    expect(b).not.toHaveProperty("checkouts");
+    expect(b.total).toBe(220); // 100 attendance + 100 games + 20 wins, nothing else
   });
 
   it("totals every component", () => {
-    const b = computeExp([day("2026-07-20", { games: 5, wins: 2, checkedOut: true })], CLUB);
-    // 100 attendance + 100 games + 20 wins + 20 checkout, no streak, no partners
-    expect(b.total).toBe(240);
+    const b = computeExp([day("2026-07-20", { games: 5, wins: 2 })], CLUB);
+    expect(b.total).toBe(b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus);
   });
 });
 
@@ -87,9 +88,12 @@ describe("computeExp — new-partner bonus", () => {
     expect(b.newPartnerBonus).toBe(30);
   });
 
-  it("caps at 3 new partners per day", () => {
-    const b = computeExp([day("2026-07-20", { partnerIds: ["a", "b", "c", "d", "e"] })], CLUB);
-    expect(b.newPartnerBonus).toBe(45);
+  it("caps at 5 new partners per day", () => {
+    const b = computeExp(
+      [day("2026-07-20", { partnerIds: ["a", "b", "c", "d", "e", "f", "g"] })],
+      CLUB
+    );
+    expect(b.newPartnerBonus).toBe(75);
   });
 
   it("does not pay again for someone already partnered with", () => {
@@ -102,18 +106,17 @@ describe("computeExp — new-partner bonus", () => {
 });
 
 describe("computeExp — realistic shape", () => {
-  it("even a heavy single day stays under the level-2 threshold of 400", () => {
-    // Heavier than anything observed in real play: 6 games, all won, checked
-    // out, and the full new-partner bonus.
+  it("a realistic single day stays under the level-2 threshold of 400", () => {
+    // The heaviest real day observed was 6 games; assume every partner is new.
     const b = computeExp(
-      [day("2026-07-20", { games: 6, wins: 6, checkedOut: true, partnerIds: ["a", "b", "c", "d"] })],
+      [day("2026-07-20", { games: 6, wins: 3, partnerIds: ["a", "b", "c", "d", "e"] })],
       CLUB
     );
     expect(b.total).toBeLessThan(400);
   });
 
   it("coming back a second day clears level 2", () => {
-    const oneDay = { games: 5, wins: 2, checkedOut: true, partnerIds: ["a", "b"] };
+    const oneDay = { games: 5, wins: 2, partnerIds: ["a", "b"] };
     const b = computeExp([day("2026-07-20", oneDay), day("2026-07-22", oneDay)], CLUB);
     expect(b.total).toBeGreaterThanOrEqual(400);
   });
