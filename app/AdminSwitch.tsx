@@ -22,9 +22,14 @@ export default function AdminSwitch() {
   const adminHref = sessionMatch ? `/session/${sessionMatch[1]}/admin` : "/admin";
   const userHref = sessionMatch ? `/session/${sessionMatch[1]}` : "/";
 
+  // `replace`, not push: switching view is a mode toggle, not a place you'd
+  // "back" into. Replacing the entry keeps the admin↔user switch out of history,
+  // so a "ดูหน้า user" jump to a day page then Back returns to the user home —
+  // not the admin page you switched away from.
   return onAdmin ? (
     <Link
       href={userHref}
+      replace
       className="ml-auto shrink-0 rounded-full bg-white/15 hover:bg-white/25 px-3 py-1.5 text-xs font-medium text-white transition"
     >
       👁 ดูหน้า user
@@ -32,6 +37,7 @@ export default function AdminSwitch() {
   ) : (
     <Link
       href={adminHref}
+      replace
       className="ml-auto shrink-0 rounded-full bg-white/15 hover:bg-white/25 px-3 py-1.5 text-xs font-medium text-white transition"
     >
       ⚙️ แอดมิน

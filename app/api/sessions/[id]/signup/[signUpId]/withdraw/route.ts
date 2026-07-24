@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { rebalanceSession } from "@/lib/seating";
 import { isAdmin } from "@/lib/adminAuth";
 import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
-import { pushSessionRoster } from "@/lib/lineRoster";
 
 export async function POST(
   req: NextRequest,
@@ -49,6 +48,5 @@ export async function POST(
     await rebalanceSession(session);
   }
 
-  await pushSessionRoster(id);
   return NextResponse.json({ ok: true });
 }

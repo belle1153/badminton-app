@@ -29,7 +29,11 @@ export default function SessionShell({
     <div className="flex flex-col min-h-full">
       <AutoRefresh />
       <main className="max-w-2xl mx-auto w-full p-6 pb-24 flex flex-col gap-6 flex-1">
-        <BackLink href={backHref} />
+        {/* exact (not history-back): the day page is a top-level user
+            destination, so "back" always means the user home — including when an
+            admin lands here via "ดูหน้า user", where history-back would return
+            to the admin page they switched from. */}
+        <BackLink href={backHref} exact />
 
         <div>
           <h1 className="text-xl font-bold">{session.venue}</h1>

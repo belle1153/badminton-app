@@ -309,11 +309,16 @@ export default function LiveCourts({
                 <button
                   onClick={confirmSwap}
                   disabled={!replacement || loading === "swap"}
-                  className="text-brand-700 text-sm disabled:opacity-50"
+                  aria-label="ยืนยันเปลี่ยนตัว"
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-brand-600 text-white text-base leading-none shadow-sm disabled:opacity-40"
                 >
                   ✓
                 </button>
-                <button onClick={() => setSwapping(null)} className="text-gray-400 text-sm">
+                <button
+                  onClick={() => setSwapping(null)}
+                  aria-label="ยกเลิก"
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-100 text-gray-500 text-base leading-none"
+                >
                   ✕
                 </button>
               </span>

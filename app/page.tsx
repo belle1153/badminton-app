@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { BUILD_LABEL } from "@/lib/version";
 import AnnouncementCarousel from "./AnnouncementCarousel";
@@ -32,7 +33,16 @@ export default async function Home() {
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">🏸 TUATUENG GO!</h1>
+      <h1>
+        <Image
+          src="/logouser.png"
+          alt="TUATUENG GO!"
+          width={1500}
+          height={788}
+          priority
+          className="h-20 w-auto"
+        />
+      </h1>
 
       <div className="flex flex-col gap-4">
         {/* Signing up is what people come here to do — give it the whole row. */}

@@ -190,7 +190,7 @@ export default function UpcomingPlanner({
         key={p.id}
         type="button"
         onClick={() => setEditing({ pairId, slot })}
-        className={`text-gray-900 text-xs font-medium rounded-full px-2.5 py-1 border inline-flex items-center gap-1 ${
+        className={`text-gray-900 text-xs font-medium rounded-full px-3 py-1.5 border inline-flex items-center gap-1 ${
           !p.present
             ? "bg-red-50 border-red-300"
             : p.busyCourt
@@ -202,7 +202,7 @@ export default function UpcomingPlanner({
         <span className="text-gray-400">{SKILL_LABELS[p.skillLevel]}</span>
         {!p.present && <span className="text-red-600">⚠️ ยังไม่มา</span>}
         {p.present && p.busyCourt && <span className="text-amber-600">⏳ สนาม {p.busyCourt}</span>}
-        <span className="text-brand-500">✎</span>
+        <span className="text-brand-500 text-sm">✎</span>
       </button>
     );
   };

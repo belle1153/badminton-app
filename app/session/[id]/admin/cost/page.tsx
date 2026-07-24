@@ -83,7 +83,7 @@ export default async function SessionCostPage({
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">สรุปรายคน (วันนี้)</h2>
         <p className="text-xs text-gray-400">
-          เวลาเริ่มนับตามช่วงที่ลง (1 ทุ่ม/2 ทุ่ม) · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) ·
+          เวลาเริ่มนับตามช่วงที่ลง (1 ทุ่ม/2 ทุ่ม) · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) ·
           ค่าลูก = เกมละ 1 ลูก หาร 4 คน · ค่าคอร์ท = ค่าคอร์ทแต่ละครึ่งชม. หารคนที่อยู่ช่วงนั้น
           {rate > 0 && ` (เรท ${rate} ฿/ชม./สนาม)`}
           {feePerPerson > 0 && ` · ค่าคอร์ทรวมค่าธรรมเนียม ${feePerPerson} ฿/คน ไว้แล้ว`}
@@ -151,6 +151,13 @@ export default async function SessionCostPage({
             const exportRows = rows.map((r) => ({
               name: r.name,
               slot: r.slot,
+              out: r.out
+                ? r.out.toLocaleTimeString("th-TH", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Bangkok",
+                  })
+                : "ยังเล่นอยู่",
               hours: r.hours != null ? formatHours(r.hours) : "—",
               games: r.games,
               courtBaht: r.courtBaht,
@@ -164,7 +171,7 @@ export default async function SessionCostPage({
                   venue={session.venue}
                   dateLabel={dateLabel}
                   rows={exportRows}
-                  note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 10 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
+                  note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
                 />
                 <CostExcelExport venue={session.venue} dateLabel={dateLabel} rows={exportRows} />
               </div>

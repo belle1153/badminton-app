@@ -51,12 +51,12 @@ describe("buildCostRows", () => {
     expect(rows[0].hours).toBe(2);
   });
 
-  it("rounds up in half-hour steps with a 10-minute grace", () => {
+  it("rounds up in half-hour steps with a 15-minute grace", () => {
     const at = (h: number, m: number) => new Date(ict(h).getTime() + m * 60_000);
     const hoursFor = (out: Date) =>
       buildCostRows(session, [A("a", 0, out)], RATE, BALL, 0, ict(23)).rows[0].hours;
-    expect(hoursFor(at(21, 10))).toBe(2); // within grace -> 21:00
-    expect(hoursFor(at(21, 11))).toBe(2.5); // past grace -> 21:30
+    expect(hoursFor(at(21, 15))).toBe(2); // within grace -> 21:00
+    expect(hoursFor(at(21, 16))).toBe(2.5); // past grace -> 21:30
   });
 
   it("marks someone still on court as live, with hours not yet settled", () => {

@@ -137,10 +137,10 @@ export default function MatchHistory({
               key={p.id}
               type="button"
               onClick={() => setEditP({ gameId: g.id, signUpId: p.id })}
-              className="whitespace-nowrap hover:underline decoration-dotted inline-flex items-center gap-0.5"
+              className="whitespace-nowrap hover:underline decoration-dotted inline-flex items-center gap-1 rounded px-1.5 py-1 -my-0.5 hover:bg-gray-50"
             >
               {p.name}
-              <span className="text-brand-400 text-[10px]">✎</span>
+              <span className="text-brand-500 text-sm">✎</span>
             </button>
           );
         })}

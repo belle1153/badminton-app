@@ -4,7 +4,6 @@ import { assignSeats, WAITLIST_LIMIT, type SeatInput, type TimeSlot } from "@/li
 import { blockCapacities } from "@/lib/capacity";
 import { rebalanceSession } from "@/lib/seating";
 import { registrationIsOpen, formatOpensAt } from "@/lib/registration";
-import { pushSessionRoster } from "@/lib/lineRoster";
 
 const SLOT_LABEL: Record<TimeSlot, string> = { EARLY: "1 ทุ่ม", LATE: "2 ทุ่ม" };
 
@@ -96,7 +95,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await prisma.signUp.update({ where: { id: already.id }, data: { preferredSlot: timeSlot } });
     if (!registrationClosed) await rebalanceSession(session);
     const moved = await prisma.signUp.findUnique({ where: { id: already.id } });
-    await pushSessionRoster(id);
     return NextResponse.json(moved);
   }
 
@@ -118,7 +116,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         athleteId: athlete.id,
       },
     });
-    await pushSessionRoster(id);
     return NextResponse.json(signUp);
   }
 
@@ -153,6 +150,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
-  await pushSessionRoster(id);
   return NextResponse.json(signUp);
 }

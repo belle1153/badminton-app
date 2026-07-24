@@ -24,10 +24,11 @@ export default function CostExcelExport({
     if (rows.length === 0) return;
     setError(null);
     try {
-      const header: Cell[] = ["ชื่อ", "เริ่ม", "ชม.คิด", "เกม", "ค่าคอร์ท (฿)", "ค่าลูก (฿)", "รวม (฿)"];
+      const header: Cell[] = ["ชื่อ", "เริ่ม", "เช็คเอาท์", "ชม.คิด", "เกม", "ค่าคอร์ท (฿)", "ค่าลูก (฿)", "รวม (฿)"];
       const body: Cell[][] = rows.map((r) => [
         r.name,
         r.slot,
+        r.out,
         r.hours,
         r.games,
         r.courtBaht,
@@ -38,6 +39,7 @@ export default function CostExcelExport({
         `รวม ${rows.length} คน`,
         "",
         "",
+        "",
         rows.reduce((a, r) => a + r.games, 0),
         rows.reduce((a, r) => a + r.courtBaht, 0),
         rows.reduce((a, r) => a + r.ballBaht, 0),
@@ -45,7 +47,7 @@ export default function CostExcelExport({
       ];
 
       const blob = buildXlsxBlob(`สรุป ${dateLabel}`.slice(0, 31), [header, ...body, totalRow], {
-        colWidths: [18, 8, 9, 6, 13, 11, 11],
+        colWidths: [18, 8, 10, 9, 6, 13, 11, 11],
         boldFirstRow: true,
         boldLastRow: true,
       });
