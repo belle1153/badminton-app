@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
+import { loadPlayerProgress } from "@/lib/playerProgress";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import BackLink from "../../BackLink";
 import RememberMe from "./RememberMe";
@@ -53,10 +54,14 @@ export default async function PlayerProfilePage({
   });
   if (!athlete) notFound();
 
-  const [stats, recent] = await Promise.all([
+  const [stats, recent, progress] = await Promise.all([
     loadPlayerGames(id).then((games) => computePlayerStats(games)),
     loadPlayerMatchHistory(id, 10),
+    loadPlayerProgress(id),
   ]);
+
+  const earned = progress.achievements.filter((a) => a.earned);
+  const locked = progress.achievements.filter((a) => !a.earned);
 
   const historyRows: HistoryRow[] = recent.map((m) => ({
     id: m.id,
@@ -106,6 +111,37 @@ export default async function PlayerProfilePage({
         </p>
       ) : (
         <>
+          <section className="rounded-xl border-2 border-brand-200 bg-brand-50/50 p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-3xl font-bold text-brand-800 leading-none">
+                Lv.{progress.level.level}
+              </span>
+              <span className="rounded-full bg-brand-600 text-white text-sm font-medium px-3 py-1">
+                {progress.level.rank}
+              </span>
+              <span className="ml-auto text-sm text-gray-500 tabular-nums">
+                {progress.exp.total.toLocaleString()} EXP
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="h-2.5 rounded-full bg-white border border-brand-200 overflow-hidden">
+                <div
+                  className="h-full bg-brand-500 rounded-full"
+                  style={{ width: `${Math.round(progress.level.progress * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 tabular-nums">
+                อีก {progress.level.toNextLevel.toLocaleString()} EXP ถึง Lv.
+                {progress.level.level + 1}
+              </p>
+            </div>
+
+            <p className="text-[11px] text-gray-400">
+              เลเวลนับจากการมาเล่นและลงสนาม — คนละเรื่องกับระดับมือ
+            </p>
+          </section>
+
           <section className="grid grid-cols-3 gap-2">
             <Stat value={String(stats.days)} label="วันที่มาเล่น" />
             <Stat value={String(stats.games)} label="เกมที่เล่น" />
@@ -141,6 +177,43 @@ export default async function PlayerProfilePage({
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-semibold">เหรียญสะสม</h2>
+              <span className="text-xs text-gray-400 tabular-nums">
+                {earned.length}/{progress.achievements.length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {earned.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2"
+                >
+                  <span className="text-xl leading-none">{a.icon}</span>
+                  <span className="text-sm font-medium text-amber-900">{a.label}</span>
+                </div>
+              ))}
+              {locked.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 opacity-60"
+                >
+                  <span className="text-xl leading-none grayscale">{a.icon}</span>
+                  <span className="text-sm text-gray-500 min-w-0">
+                    {a.label}
+                    {a.progressLabel && (
+                      <span className="block text-[11px] text-gray-400 tabular-nums">
+                        {a.progressLabel}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
           </section>
 
           {historyRows.length > 0 && (
