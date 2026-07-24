@@ -40,7 +40,7 @@ export default async function Home() {
           width={1500}
           height={788}
           priority
-          className="w-4/5 h-auto"
+          className="w-4/5 h-auto mx-auto"
         />
       </h1>
 

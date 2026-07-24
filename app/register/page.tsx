@@ -22,7 +22,7 @@ export default async function RegisterPage() {
       <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-4">
         <BackLink href="/" label="หน้าแรก" exact />
         <h1>
-          <Image src="/logouser.png" alt="TUATUENG GO!" width={1500} height={788} className="h-16 w-auto" />
+          <Image src="/logouser.png" alt="TUATUENG GO!" width={1500} height={788} className="h-16 w-auto mx-auto" />
         </h1>
         <p className="text-gray-500 text-sm">ยังไม่มีรอบเล่นเปิดอยู่ตอนนี้ กลับมาดูใหม่เร็วๆ นี้ครับ</p>
         <p className="text-gray-500 text-sm">
@@ -71,7 +71,7 @@ export default async function RegisterPage() {
       <AutoRefresh />
       <BackLink href="/" label="หน้าแรก" exact />
       <h1>
-          <Image src="/logouser.png" alt="TUATUENG GO!" width={1500} height={788} className="h-16 w-auto" />
+          <Image src="/logouser.png" alt="TUATUENG GO!" width={1500} height={788} className="h-16 w-auto mx-auto" />
         </h1>
 
       <p className="text-sm text-gray-600">
