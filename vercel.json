@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/registration-open",
+      "schedule": "0 4 * * 5"
+    }
+  ]
+}

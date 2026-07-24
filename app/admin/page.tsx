@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import DeleteSessionButton from "./DeleteSessionButton";
+import AnnounceRegistrationButton from "./AnnounceRegistrationButton";
 
 export default async function AdminDashboardPage() {
   if (!(await isAdmin())) {
@@ -26,6 +27,8 @@ export default async function AdminDashboardPage() {
           + สร้างรอบใหม่
         </Link>
       </div>
+
+      <AnnounceRegistrationButton />
 
       {sessions.length === 0 && (
         <p className="text-gray-500 text-sm">

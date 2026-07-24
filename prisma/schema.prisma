@@ -53,6 +53,9 @@ model Session {
   status               SessionStatus    @default(OPEN)
   closedAt             DateTime?
   registrationClosedAt DateTime?
+  // When the one-time "sign-ups are open" LINE post went out for this day, so
+  // the Friday-11:00 cron and the admin button never announce it twice.
+  registrationOpenNotifiedAt DateTime?
   lateOpenedAt         DateTime?
   openCourts           String? // comma-separated open court numbers; null = auto by clock
   courtRateId          String?
