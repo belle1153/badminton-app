@@ -14,18 +14,27 @@ export function lineConfigured(): boolean {
   return !!process.env.LINE_CHANNEL_ACCESS_TOKEN && !!process.env.LINE_GROUP_ID;
 }
 
-export async function pushLineMessage(text: string): Promise<boolean> {
+/** What LINE said, so a failed push is diagnosable from the UI that triggered
+ *  it instead of only from the function logs. Never carries the token. */
+export interface PushResult {
+  ok: boolean;
+  status?: number;
+  /** LINE's error body, or why the call never went out. */
+  detail?: string;
+}
+
+export async function pushLineMessage(text: string): Promise<PushResult> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   const to = process.env.LINE_GROUP_ID;
   // Log why a push is skipped/failing (never the token itself) so it's
   // diagnosable from the Vercel function logs.
   if (!token) {
     console.warn("[LINE] push skipped: LINE_CHANNEL_ACCESS_TOKEN not set");
-    return false;
+    return { ok: false, detail: "LINE_CHANNEL_ACCESS_TOKEN not set" };
   }
   if (!to) {
     console.warn("[LINE] push skipped: LINE_GROUP_ID not set");
-    return false;
+    return { ok: false, detail: "LINE_GROUP_ID not set" };
   }
   try {
     const res = await fetch(PUSH_URL, {
@@ -35,12 +44,15 @@ export async function pushLineMessage(text: string): Promise<boolean> {
       body: JSON.stringify({ to, messages: [{ type: "text", text: text.slice(0, 4900) }] }),
     });
     if (!res.ok) {
-      // e.g. 403 = the bot isn't in that group / wrong LINE_GROUP_ID.
-      console.warn(`[LINE] push failed ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      // 401 = bad/expired token, 403 = bot not in that group / wrong group id,
+      // 429 = monthly push quota used up.
+      const detail = (await res.text()).slice(0, 300);
+      console.warn(`[LINE] push failed ${res.status}: ${detail}`);
+      return { ok: false, status: res.status, detail };
     }
-    return res.ok;
+    return { ok: true, status: res.status };
   } catch (e) {
     console.warn("[LINE] push error:", e);
-    return false;
+    return { ok: false, detail: String(e) };
   }
 }

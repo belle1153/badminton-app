@@ -53,6 +53,12 @@ export interface AnnounceResult {
   reason?: string;
   /** Day labels that were announced. */
   days: string[];
+  /**
+   * The composed announcement, returned when the push failed so the admin can
+   * paste it into the group by hand — typing in LINE is free, while push is
+   * capped by the monthly quota that just blocked it.
+   */
+  message?: string;
 }
 
 /**
@@ -76,8 +82,18 @@ export async function announceRegistrationOpen(now: Date = new Date()): Promise<
     return { sent: false, reason: "ยังไม่ถึงเวลาเปิด หรือแจ้งไปแล้ว", days: [] };
   }
 
-  const ok = await pushLineMessage(formatOpenMessage(fresh));
-  if (!ok) return { sent: false, reason: "ส่งข้อความ LINE ไม่สำเร็จ", days: [] };
+  const message = formatOpenMessage(fresh);
+  const push = await pushLineMessage(message);
+  if (!push.ok) {
+    // Surface exactly what LINE said — 401 bad token, 403 bot not in the group,
+    // 429 monthly quota — so the admin can fix it without reading server logs,
+    // and hand back the text to post manually in the meantime.
+    const parts = ["ส่ง LINE ไม่สำเร็จ"];
+    if (push.status) parts.push(`(${push.status})`);
+    if (push.status === 429) parts.push("— โควตา push รายเดือนหมด (reply ยังฟรี)");
+    else if (push.detail) parts.push(push.detail);
+    return { sent: false, reason: parts.join(" "), days: [], message };
+  }
 
   // Mark only after a successful push, so a failed send can be retried.
   await prisma.session.updateMany({

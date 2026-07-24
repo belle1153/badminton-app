@@ -40,7 +40,7 @@ export default async function Home() {
           width={1500}
           height={788}
           priority
-          className="h-32 w-auto max-w-full"
+          className="w-full h-auto"
         />
       </h1>
 

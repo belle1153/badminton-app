@@ -1,19 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/adminAuth";
 
 /**
- * Admin-only push tester. Open /api/line/test in the browser (logged in as
- * admin) — it pushes one test message to LINE_GROUP_ID and returns exactly what
- * LINE said, so a broken notification is diagnosable without reading logs:
- *   - ok:true, status:200 → works (a "🔔 ทดสอบ" message appears in the group)
- *   - status:403 → the bot isn't in the group this LINE_GROUP_ID points at
- *   - status:400 → the group id is malformed / wrong
- *   - reason:"no LINE_GROUP_ID" / "no token" → env not set (or not redeployed)
+ * Admin-only LINE diagnostics. Open /api/line/test logged in as admin.
+ *
+ * Read-only by default — it reports the token/group/quota state WITHOUT sending
+ * anything, because a push costs one of the monthly quota it is meant to
+ * diagnose (the old version always sent, so checking a "quota exhausted" problem
+ * spent quota). Add ?send=1 to actually push a test message.
+ *
+ *   quota.value / consumption.totalUsage → how much of the month is left
+ *   status 401 → bad/expired token
+ *   status 403 → the bot isn't in the group LINE_GROUP_ID points at
+ *   status 429 → monthly push limit reached (replies still work — they're free)
  * The token is never returned; the group id is masked.
  */
 const PUSH_URL = "https://api.line.me/v2/bot/message/push";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "ต้องเป็นแอดมิน" }, { status: 403 });
   }
@@ -23,10 +27,44 @@ export async function GET() {
   if (!to) return NextResponse.json({ ok: false, reason: "no LINE_GROUP_ID" });
 
   const mask = to.length > 8 ? `${to.slice(0, 5)}…${to.slice(-4)}` : "(too short)";
+  const auth = { Authorization: `Bearer ${token}` };
+  const read = async (url: string) => {
+    try {
+      const r = await fetch(url, { headers: auth });
+      const text = (await r.text()).slice(0, 300);
+      try {
+        return { status: r.status, ...JSON.parse(text) };
+      } catch {
+        return { status: r.status, body: text };
+      }
+    } catch (e) {
+      return { error: String(e) };
+    }
+  };
+
+  const [quota, consumption, botInfo] = await Promise.all([
+    read("https://api.line.me/v2/bot/message/quota"),
+    read("https://api.line.me/v2/bot/message/quota/consumption"),
+    read("https://api.line.me/v2/bot/info"),
+  ]);
+
+  const diagnostics = {
+    groupIdMasked: mask,
+    tokenLen: token.length,
+    quota,
+    consumption,
+    botInfo,
+    note: "reply messages are free and unlimited; only push/broadcast use the quota",
+  };
+
+  if (req.nextUrl.searchParams.get("send") !== "1") {
+    return NextResponse.json({ sentTestMessage: false, ...diagnostics });
+  }
+
   try {
     const res = await fetch(PUSH_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", ...auth },
       body: JSON.stringify({
         to,
         messages: [{ type: "text", text: "🔔 ทดสอบแจ้งเตือนจากระบบ Tua Tueng Go!" }],
@@ -34,13 +72,13 @@ export async function GET() {
     });
     const body = await res.text();
     return NextResponse.json({
+      sentTestMessage: true,
       ok: res.ok,
       status: res.status,
-      groupIdMasked: mask,
-      tokenLen: token.length,
       lineResponse: body.slice(0, 400),
+      ...diagnostics,
     });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e), groupIdMasked: mask });
+    return NextResponse.json({ sentTestMessage: true, ok: false, error: String(e), ...diagnostics });
   }
 }
