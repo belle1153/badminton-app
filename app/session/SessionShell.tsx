@@ -29,11 +29,12 @@ export default function SessionShell({
     <div className="flex flex-col min-h-full">
       <AutoRefresh />
       <main className="max-w-2xl mx-auto w-full p-6 pb-24 flex flex-col gap-6 flex-1">
-        {/* exact (not history-back): the day page is a top-level user
-            destination, so "back" always means the user home — including when an
-            admin lands here via "ดูหน้า user", where history-back would return
-            to the admin page they switched from. */}
-        <BackLink href={backHref} exact />
+        {/* History-back, not a fixed target: a day page is reached from several
+            places (the day list on /register, สนามที่กำลังเล่น, the home page),
+            so "back" has to return where you actually came from rather than
+            jumping to the home page and skipping a step. `href` stays the
+            no-JS / open-in-new-tab fallback. */}
+        <BackLink href={backHref} />
 
         <div>
           <h1 className="text-xl font-bold">{session.venue}</h1>
