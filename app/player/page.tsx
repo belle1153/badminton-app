@@ -57,7 +57,7 @@ export default function PlayerPickerPage() {
       <BackLink href="/" label="หน้าแรก" exact />
 
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-bold">📊 สถิติผู้เล่น</h1>
+        <h1 className="text-xl font-bold">📊 Mission โคตรตึง!</h1>
         <p className="text-sm text-gray-500">พิมพ์ชื่อเพื่อดูสถิติ — ดูของตัวเองหรือของเพื่อนก็ได้</p>
       </div>
 

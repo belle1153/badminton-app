@@ -21,7 +21,7 @@ export default function MyStatsCard() {
     >
       <span className="text-4xl">📊</span>
       <span className="font-bold text-lg text-amber-900">
-        {myId ? "สถิติของฉัน" : "สถิติผู้เล่น"}
+        {myId ? "สถิติของฉัน" : "Mission โคตรตึง!"}
       </span>
       <span className="text-xs text-gray-500">เกมที่เล่น / ชนะแพ้ / คู่ที่เล่นด้วย</span>
     </Link>

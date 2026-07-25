@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import { SKILL_LABELS } from "@/lib/matching";
+import { rankNameMatches } from "@/lib/nameSearch";
 
 const VALID_SKILLS = new Set(Object.keys(SKILL_LABELS));
 
@@ -13,14 +14,19 @@ export async function GET(req: NextRequest) {
 
   // Name-search feeds type-ahead pickers only — never send photoUrl here, it's a
   // base64 data URL and would ship tens of KB per suggestion on every keystroke.
-  const athletes = await prisma.athlete.findMany({
+  //
+  // Fetch every contains-match (the roster is small — well under a hundred
+  // people) rather than the first 10 alphabetically, then rank: a plain
+  // alphabetical take(10) can cut off an exact match entirely. "T" matches 21
+  // real names (anything containing the letter), and the athlete literally
+  // named "T" sorts after "Bank (Thaioil)", "First", "Note"… past the cutoff,
+  // so the person searching their own name got zero useful results.
+  const matches = await prisma.athlete.findMany({
     where: { name: { contains: q, mode: "insensitive" } },
-    orderBy: { name: "asc" },
-    take: 10,
     select: { id: true, name: true, skillLevel: true },
   });
 
-  return NextResponse.json(athletes);
+  return NextResponse.json(rankNameMatches(q, matches, 10));
 }
 
 // Admin adds a player to the roster (ข้อมูลผู้เล่น) with an assessed skill.
