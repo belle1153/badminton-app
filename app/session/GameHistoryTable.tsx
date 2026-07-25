@@ -6,7 +6,7 @@ export interface HistoryRow {
   team1: string[];
   team2: string[];
   /** Only set where the rows span several days (a player's profile); a single
-   *  day's log leaves it out and the วันที่ column disappears. */
+   *  day's log leaves it out and just shows เกม/สนาม instead. */
   dateLabel?: string;
   /** Highlights this person's own name — used on a player profile. */
   highlightName?: string;
@@ -21,32 +21,38 @@ const SKIN = {
     frame: "border border-gray-200 rounded-md",
     head: "bg-slate-800 text-white",
     row: "border-t border-gray-100",
+    divider: "border-l border-gray-200",
     muted: "text-gray-500",
     team: "text-gray-700",
     won: "text-green-600 font-semibold",
-    vs: "text-red-400",
-    vsHead: "text-red-300",
     draw: "bg-amber-500 text-white",
-    win: "bg-green-500 text-white",
+    winA: "bg-green-500 text-white",
+    winB: "bg-green-500 text-white",
   },
   dark: {
     frame: "border border-[#384a63] rounded",
     head: "bg-[#1a2433] text-[#e2e8f2]",
     row: "border-t border-[#384a63]",
+    divider: "border-l border-[#384a63]",
     muted: "text-[#54687e]",
     team: "text-[#a8b7c8]",
     won: "text-[#6fdc9a] font-semibold",
-    vs: "text-[#e06a6a]",
-    vsHead: "text-[#e08a8a]",
     draw: "bg-[#e8b93a] text-[#241d05]",
-    win: "bg-[#6fdc9a] text-[#052313]",
+    winA: "bg-[#6fdc9a] text-[#052313]",
+    winB: "bg-[#6fdc9a] text-[#052313]",
   },
 } as const;
 
 /**
- * Read-only game log table (เกม | สนาม | ทีม A | VS | ทีม B | ผล) with the
- * winning team highlighted — the same layout the admin sees, shared by the
+ * Read-only game log (วันที่/เกม/สนาม | ทีม A | ทีม B | ผล) with the winning
+ * team highlighted — the same information the admin sees, shared by the
  * players' courts tab and each player's profile.
+ *
+ * `table-layout: fixed` with explicit column widths, and no `whitespace-nowrap`
+ * on player names: some real names run past 20 characters
+ * ("Noah แค่ฟันเหลืองเคืองหรอ"), and nowrap on those forced the whole table
+ * wider than its container, which is what put a horizontal scrollbar under it
+ * on every screen size. Long names now wrap onto a second line instead.
  */
 export default function GameHistoryTable({
   rows,
@@ -60,12 +66,9 @@ export default function GameHistoryTable({
   const showDate = rows.some((r) => r.dateLabel);
 
   const teamCell = (names: string[], won: boolean, me?: string) => (
-    <div className={`flex flex-col ${won ? s.won : s.team}`}>
+    <div className={`flex flex-col gap-0.5 ${won ? s.won : s.team}`}>
       {names.map((n, i) => (
-        <span
-          key={i}
-          className={`whitespace-nowrap ${n === me ? "underline decoration-dotted" : ""}`}
-        >
+        <span key={i} className={n === me ? "underline decoration-dotted" : ""}>
           {n}
         </span>
       ))}
@@ -73,38 +76,49 @@ export default function GameHistoryTable({
   );
 
   return (
-    <div className={`overflow-x-auto ${s.frame}`}>
-      <table className="w-full text-sm border-collapse">
+    <div className={`overflow-hidden ${s.frame}`}>
+      <table className="w-full table-fixed border-collapse text-xs sm:text-sm">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[33%]" />
+          <col className="w-[33%]" />
+          <col className="w-[12%]" />
+        </colgroup>
         <thead>
-          <tr className={`text-xs ${s.head}`}>
-            {showDate && <th className="px-2 py-2 font-medium text-left">วันที่</th>}
-            <th className="px-2 py-2 font-medium text-center">เกม</th>
-            <th className="px-2 py-2 font-medium text-center">สนาม</th>
-            <th className="px-2 py-2 font-medium text-left">ทีม A</th>
-            <th className={`px-2 py-2 font-medium text-center ${s.vsHead}`}>VS</th>
-            <th className="px-2 py-2 font-medium text-left">ทีม B</th>
-            <th className="px-2 py-2 font-medium text-center">ผล</th>
+          <tr className={`text-[11px] sm:text-xs ${s.head}`}>
+            <th className="px-1.5 py-2 font-medium text-left sm:px-2">เกม</th>
+            <th className="px-1.5 py-2 font-medium text-left sm:px-2">ทีม A</th>
+            <th className={`px-1.5 py-2 font-medium text-left sm:px-2 ${s.divider}`}>ทีม B</th>
+            <th className="px-1 py-2 font-medium text-center sm:px-2">ผล</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((g) => (
             <tr key={g.id} className={`align-top ${s.row}`}>
-              {showDate && (
-                <td className={`px-2 py-2 whitespace-nowrap ${s.muted}`}>{g.dateLabel}</td>
-              )}
-              <td className={`px-2 py-2 text-center font-medium ${s.muted}`}>{g.seq}</td>
-              <td className={`px-2 py-2 text-center ${s.muted}`}>{g.court}</td>
-              <td className="px-2 py-2">{teamCell(g.team1, g.winnerTeam === 1, g.highlightName)}</td>
-              <td className={`px-2 py-2 text-center text-xs ${s.vs}`}>vs</td>
-              <td className="px-2 py-2">{teamCell(g.team2, g.winnerTeam === 2, g.highlightName)}</td>
-              <td className="px-2 py-2 text-center">
+              <td className={`px-1.5 py-2 sm:px-2 ${s.muted}`}>
+                {g.dateLabel && <div className="whitespace-nowrap">{g.dateLabel}</div>}
+                <div className="whitespace-nowrap">
+                  เกม {g.seq} · สนาม {g.court}
+                </div>
+              </td>
+              <td className="px-1.5 py-2 sm:px-2">
+                {teamCell(g.team1, g.winnerTeam === 1, g.highlightName)}
+              </td>
+              <td className={`px-1.5 py-2 sm:px-2 ${s.divider}`}>
+                {teamCell(g.team2, g.winnerTeam === 2, g.highlightName)}
+              </td>
+              <td className="px-1 py-2 text-center sm:px-2">
                 {g.winnerTeam == null ? (
-                  <span className={`rounded px-2 py-1 text-xs font-medium ${s.draw}`}>เสมอ</span>
+                  <span className={`inline-block rounded px-1.5 py-1 text-[10px] font-medium sm:text-xs ${s.draw}`}>
+                    เสมอ
+                  </span>
                 ) : (
                   <span
-                    className={`rounded px-2 py-1 text-xs font-medium whitespace-nowrap ${s.win}`}
+                    className={`inline-block rounded px-2 py-1 text-xs font-bold sm:text-sm ${
+                      g.winnerTeam === 1 ? s.winA : s.winB
+                    }`}
                   >
-                    ทีม {g.winnerTeam === 1 ? "A" : "B"} ชนะ!
+                    {g.winnerTeam === 1 ? "A" : "B"}
                   </span>
                 )}
               </td>

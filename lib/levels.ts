@@ -51,7 +51,7 @@ const RANKS: { maxLevel: number; theme: RankTheme }[] = [
     maxLevel: 3,
     theme: {
       key: "novice",
-      title: "มือใหม่",
+      title: "น้องใหม่",
       icon: "🌱",
       accent: "#6ee7a0",
       accentDim: "#2f5a41",

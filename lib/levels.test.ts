@@ -61,8 +61,8 @@ describe("levelProgress — thresholds", () => {
 
 describe("rankForLevel", () => {
   it("maps the four club ranks", () => {
-    expect(rankForLevel(1)).toBe("มือใหม่");
-    expect(rankForLevel(3)).toBe("มือใหม่");
+    expect(rankForLevel(1)).toBe("น้องใหม่");
+    expect(rankForLevel(3)).toBe("น้องใหม่");
     expect(rankForLevel(4)).toBe("ขาประจำ");
     expect(rankForLevel(9)).toBe("ขาประจำ");
     expect(rankForLevel(10)).toBe("ตัวตึง");
