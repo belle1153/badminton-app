@@ -4,13 +4,14 @@ import { assignSeats, WAITLIST_LIMIT, type SeatInput, type TimeSlot } from "@/li
 import { blockCapacities } from "@/lib/capacity";
 import { rebalanceSession } from "@/lib/seating";
 import { registrationIsOpen, formatOpensAt } from "@/lib/registration";
+import { findSimilarNames } from "@/lib/nameSimilarity";
 
 const SLOT_LABEL: Record<TimeSlot, string> = { EARLY: "1 ทุ่ม", LATE: "2 ทุ่ม" };
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { athleteId, confirmMove } = body;
+  const { athleteId, confirmMove, confirmNewPlayer } = body;
   const timeSlot: TimeSlot = body.timeSlot === "LATE" ? "LATE" : "EARLY";
   let { name } = body;
 
@@ -52,6 +53,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (athlete) {
       name = athlete.name;
     } else {
+      // No exact match. Before creating a second record, check whether this is
+      // an existing player typed differently — "P’Note" once became a separate
+      // person from "Note" and split that player's history in half. Only the
+      // player can settle it, so ask instead of guessing.
+      if (!confirmNewPlayer) {
+        const roster = await prisma.athlete.findMany({
+          select: { id: true, name: true, skillLevel: true },
+        });
+        const similar = findSimilarNames(name, roster);
+        if (similar.length > 0) {
+          return NextResponse.json(
+            {
+              error: `มีชื่อคล้าย "${name}" อยู่แล้ว — ใช่คุณหรือเปล่าครับ?`,
+              needsIdentityConfirm: true,
+              similarPlayers: similar,
+            },
+            { status: 409 }
+          );
+        }
+      }
       athlete = await prisma.athlete.create({ data: { name, skillLevel: "RK" } });
     }
   }

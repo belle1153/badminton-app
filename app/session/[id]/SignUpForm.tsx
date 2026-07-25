@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
 import Toast from "../Toast";
+import IdentityConfirm, { type SimilarPlayer } from "../IdentityConfirm";
 
 interface AthleteSuggestion {
   id: string;
@@ -21,6 +22,8 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /** Existing players whose names look like what was typed; null = not asking. */
+  const [similar, setSimilar] = useState<SimilarPlayer[] | null>(null);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const clearMessage = useCallback(() => setMessage(null), []);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,40 +56,89 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
     setShowSuggestions(false);
   }
 
-  async function submit(confirmMove: boolean) {
+  async function submit(
+    confirmMove: boolean,
+    override?: { athleteId?: string; name?: string; confirmNewPlayer?: boolean }
+  ) {
     const res = await fetch(`/api/sessions/${sessionId}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ athleteId, name, timeSlot, confirmMove }),
+      body: JSON.stringify({
+        athleteId: override?.athleteId ?? athleteId,
+        name: override?.name ?? name,
+        timeSlot,
+        confirmMove,
+        confirmNewPlayer: override?.confirmNewPlayer,
+      }),
     });
     const data = await res.json();
+    // A name close to an existing player's: ask who they are rather than
+    // silently creating a second record and splitting their history.
+    if (res.status === 409 && data.needsIdentityConfirm) {
+      setSimilar(data.similarPlayers);
+      return { kind: "askIdentity" as const };
+    }
     if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
       const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
       if (confirm(`${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
-        return submit(true);
+        return submit(true, override);
       }
-      return null;
+      return { kind: "keptSlot" as const };
     }
     if (!res.ok) throw new Error(data.error ?? "ลงชื่อไม่สำเร็จ");
     addMySignup(sessionId, data.id);
-    return data;
+    return { kind: "signedUp" as const, data };
+  }
+
+  /** Re-submits once the player has said who they are. */
+  async function resolveIdentity(override: {
+    athleteId?: string;
+    name?: string;
+    confirmNewPlayer?: boolean;
+  }) {
+    setError(null);
+    setLoading(true);
+    setSimilar(null);
+    try {
+      const r = await submit(false, override);
+      if (r.kind === "signedUp") {
+        if (override.athleteId) setAthleteId(override.athleteId);
+        setName("");
+        setAthleteId(null);
+        setSuggestions([]);
+        setMessage({
+          text: `ลงชื่อสำเร็จ${r.data.status === "WAITLIST" ? " (สำรอง)" : ""}`,
+          ok: true,
+        });
+        router.refresh();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSimilar(null);
     setLoading(true);
     try {
-      const data = await submit(false);
-      if (data) {
+      const r = await submit(false);
+      if (r.kind === "signedUp") {
         setName("");
         setAthleteId(null);
         setSuggestions([]);
-        setMessage({ text: `ลงชื่อสำเร็จ${data.status === "WAITLIST" ? " (สำรอง)" : ""}`, ok: true });
+        setMessage({
+          text: `ลงชื่อสำเร็จ${r.data.status === "WAITLIST" ? " (สำรอง)" : ""}`,
+          ok: true,
+        });
         router.refresh();
-      } else {
+      } else if (r.kind === "keptSlot") {
         setMessage({ text: "คงรอบเดิมไว้", ok: true });
       }
+      // askIdentity → the confirm panel is showing; wait for the player.
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -140,6 +192,17 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
           </button>
         ))}
       </div>
+
+      {similar && (
+        <IdentityConfirm
+          typedName={name}
+          players={similar}
+          busy={loading}
+          onPick={(p) => resolveIdentity({ athleteId: p.id })}
+          onCreateNew={() => resolveIdentity({ confirmNewPlayer: true })}
+          onCancel={() => setSimilar(null)}
+        />
+      )}
 
       <button
         type="submit"

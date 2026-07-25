@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
 import Toast from "../session/Toast";
+import IdentityConfirm, { type SimilarPlayer } from "../session/IdentityConfirm";
 
 interface DayOption {
   id: string;
@@ -36,6 +37,10 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
+  /** Existing players whose names look like what was typed; null = not asking. */
+  const [similar, setSimilar] = useState<SimilarPlayer[] | null>(null);
+  /** The days being signed up for when the identity question interrupted. */
+  const [pendingDays, setPendingDays] = useState<DayOption[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearMessage = useCallback(() => setMessage(null), []);
 
@@ -56,14 +61,26 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
 
   async function signUp(
     day: DayOption,
-    confirmMove: boolean
-  ): Promise<{ text: string; ok: boolean }> {
+    confirmMove: boolean,
+    identity?: { athleteId?: string; confirmNewPlayer?: boolean }
+  ): Promise<{ text: string; ok: boolean; askIdentity?: SimilarPlayer[] }> {
     const res = await fetch(`/api/sessions/${day.id}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ athleteId, name, timeSlot, confirmMove }),
+      body: JSON.stringify({
+        athleteId: identity?.athleteId ?? athleteId,
+        name,
+        timeSlot,
+        confirmMove,
+        confirmNewPlayer: identity?.confirmNewPlayer,
+      }),
     });
     const data = await res.json();
+    // Close to an existing player's name — stop the whole batch and ask once,
+    // rather than asking again for every selected day.
+    if (res.status === 409 && data.needsIdentityConfirm) {
+      return { text: "", ok: false, askIdentity: data.similarPlayers };
+    }
     if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
       const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
       if (confirm(`${day.label}: ${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
@@ -78,6 +95,51 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
       text: `${day.label}: ลงชื่อสำเร็จ${data.status === "WAITLIST" ? " (สำรอง)" : ""}`,
       ok: true,
     };
+  }
+
+  /**
+   * Signs up for each selected day. Returns null when the server asked who the
+   * player is — the panel takes over and `resolveIdentity` re-runs the batch,
+   * so the question is asked once for the whole submission, not once per day.
+   */
+  async function runDays(
+    targets: DayOption[],
+    identity?: { athleteId?: string; confirmNewPlayer?: boolean }
+  ): Promise<Map<string, { text: string; ok: boolean }> | null> {
+    const results = new Map<string, { text: string; ok: boolean }>();
+    for (const day of targets) {
+      const r = await signUp(day, false, identity);
+      if (r.askIdentity) {
+        setSimilar(r.askIdentity);
+        setPendingDays(targets);
+        return null;
+      }
+      results.set(day.id, r);
+    }
+    return results;
+  }
+
+  async function resolveIdentity(identity: { athleteId?: string; confirmNewPlayer?: boolean }) {
+    setSimilar(null);
+    setLoading(true);
+    try {
+      if (identity.athleteId) setAthleteId(identity.athleteId);
+      const results = await runDays(pendingDays, identity);
+      if (!results) return;
+      setMessage({
+        text: [...results.values()].map((r) => r.text).join("\n"),
+        ok: [...results.values()].every((r) => r.ok),
+      });
+      setSuggestions([]);
+      setSelectedDays((prev) => {
+        const next = new Set(prev);
+        for (const d of pendingDays) if (results.get(d.id)?.ok) next.delete(d.id);
+        return next;
+      });
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
   }
 
   function toggleDay(id: string) {
@@ -98,9 +160,10 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
       return;
     }
     setLoading(true);
+    setSimilar(null);
     try {
-      const results = new Map<string, { text: string; ok: boolean }>();
-      for (const day of targets) results.set(day.id, await signUp(day, false));
+      const results = await runDays(targets);
+      if (!results) return; // asking who they are; the panel is showing
       setMessage({
         text: [...results.values()].map((r) => r.text).join("\n"),
         ok: [...results.values()].every((r) => r.ok),
@@ -208,6 +271,17 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
           ))}
         </div>
       </div>
+
+      {similar && (
+        <IdentityConfirm
+          typedName={name}
+          players={similar}
+          busy={loading}
+          onPick={(p) => resolveIdentity({ athleteId: p.id })}
+          onCreateNew={() => resolveIdentity({ confirmNewPlayer: true })}
+          onCancel={() => setSimilar(null)}
+        />
+      )}
 
       <button
         type="submit"
