@@ -111,33 +111,42 @@ export default async function PlayerProfilePage({
         </p>
       ) : (
         <>
-          <section className="rounded-xl border-2 border-brand-200 bg-brand-50/50 p-4 flex flex-col gap-3">
+          {/* The one dark element on the page: the rank card is the reward, and
+              its colour changes with the rank so progress is visible at a glance. */}
+          <section
+            className={`rounded-xl border p-4 flex flex-col gap-3 text-white shadow-sm ${progress.level.theme.card} ${progress.level.theme.ring}`}
+          >
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-3xl font-bold text-brand-800 leading-none">
+              <span className="text-2xl leading-none" aria-hidden="true">
+                {progress.level.theme.icon}
+              </span>
+              <span className="text-3xl font-bold leading-none tabular-nums">
                 Lv.{progress.level.level}
               </span>
-              <span className="rounded-full bg-brand-600 text-white text-sm font-medium px-3 py-1">
+              <span
+                className={`rounded-full text-sm font-medium px-3 py-1 ${progress.level.theme.chip}`}
+              >
                 {progress.level.rank}
               </span>
-              <span className="ml-auto text-sm text-gray-500 tabular-nums">
+              <span className="ml-auto text-sm text-white/70 tabular-nums">
                 {progress.exp.total.toLocaleString()} EXP
               </span>
             </div>
 
             <div className="flex flex-col gap-1">
-              <div className="h-2.5 rounded-full bg-white border border-brand-200 overflow-hidden">
+              <div className="h-2.5 rounded-full bg-black/30 overflow-hidden">
                 <div
-                  className="h-full bg-brand-500 rounded-full"
+                  className={`h-full rounded-full ${progress.level.theme.bar}`}
                   style={{ width: `${Math.round(progress.level.progress * 100)}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500 tabular-nums">
+              <p className="text-xs text-white/70 tabular-nums">
                 อีก {progress.level.toNextLevel.toLocaleString()} EXP ถึง Lv.
                 {progress.level.level + 1}
               </p>
             </div>
 
-            <p className="text-[11px] text-gray-400">
+            <p className="text-[11px] text-white/50">
               เลเวลนับจากการมาเล่นและลงสนาม — คนละเรื่องกับระดับมือ
             </p>
           </section>

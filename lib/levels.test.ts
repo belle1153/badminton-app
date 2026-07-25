@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { expForStep, levelProgress, rankForLevel } from "./levels";
+import { expForStep, levelProgress, rankForLevel, rankThemeForLevel } from "./levels";
 
 describe("expForStep — the curve", () => {
   it("costs 400 to leave level 1, then +100 per level", () => {
@@ -76,5 +76,30 @@ describe("rankForLevel", () => {
     for (const level of [1, 4, 10, 20, 50]) {
       expect(skillLetters).not.toContain(rankForLevel(level));
     }
+  });
+});
+
+describe("rankThemeForLevel", () => {
+  it("gives each rank its own look", () => {
+    const themes = [1, 4, 10, 20].map(rankThemeForLevel);
+    expect(themes.map((t) => t.key)).toEqual(["novice", "regular", "ace", "legend"]);
+    expect(new Set(themes.map((t) => t.icon)).size).toBe(4);
+    expect(new Set(themes.map((t) => t.card)).size).toBe(4);
+  });
+
+  it("changes at the same boundaries as the rank title", () => {
+    expect(rankThemeForLevel(3).key).toBe(rankThemeForLevel(1).key);
+    expect(rankThemeForLevel(4).key).not.toBe(rankThemeForLevel(3).key);
+    expect(rankThemeForLevel(20).key).toBe(rankThemeForLevel(99).key);
+  });
+
+  it("titles agree with rankForLevel", () => {
+    for (const level of [1, 4, 10, 20, 50]) {
+      expect(rankThemeForLevel(level).title).toBe(rankForLevel(level));
+    }
+  });
+
+  it("is carried on levelProgress so the UI needs no second lookup", () => {
+    expect(levelProgress(0).theme.key).toBe("novice");
   });
 });
