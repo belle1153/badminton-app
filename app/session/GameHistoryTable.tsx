@@ -10,6 +10,13 @@ export interface HistoryRow {
   dateLabel?: string;
   /** Highlights this person's own name — used on a player profile. */
   highlightName?: string;
+  /**
+   * Which side the profile's own player was on. When set, the ผล column
+   * reads "ชนะ"/"แพ้"/"เสมอ" for that person directly, instead of "A"/"B" —
+   * on a one-person profile the visitor shouldn't have to check which side
+   * their own name was listed under to find out whether they won.
+   */
+  myTeam?: number;
 }
 
 /** The player profile is the one dark screen in the app, so the same table has
@@ -28,6 +35,7 @@ const SKIN = {
     draw: "bg-amber-500 text-white",
     winA: "bg-green-500 text-white",
     winB: "bg-green-500 text-white",
+    lose: "bg-gray-200 text-gray-600",
   },
   dark: {
     frame: "border border-[#384a63] rounded",
@@ -40,6 +48,7 @@ const SKIN = {
     draw: "bg-[#e8b93a] text-[#241d05]",
     winA: "bg-[#6fdc9a] text-[#052313]",
     winB: "bg-[#6fdc9a] text-[#052313]",
+    lose: "bg-[#384a63] text-[#a8b7c8]",
   },
 } as const;
 
@@ -111,6 +120,14 @@ export default function GameHistoryTable({
                 {g.winnerTeam == null ? (
                   <span className={`inline-block rounded px-1.5 py-1 text-[10px] font-medium sm:text-xs ${s.draw}`}>
                     เสมอ
+                  </span>
+                ) : g.myTeam != null ? (
+                  <span
+                    className={`inline-block rounded px-1.5 py-1 text-[10px] font-bold sm:text-xs ${
+                      g.winnerTeam === g.myTeam ? s.winA : s.lose
+                    }`}
+                  >
+                    {g.winnerTeam === g.myTeam ? "ชนะ" : "แพ้"}
                   </span>
                 ) : (
                   <span

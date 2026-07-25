@@ -85,6 +85,7 @@ export default async function PlayerProfilePage({
     seq: m.seq,
     court: m.court,
     winnerTeam: m.winnerTeam,
+    myTeam: m.myTeam,
     team1: m.team1,
     team2: m.team2,
     dateLabel: shortDate(m.date),
