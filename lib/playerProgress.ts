@@ -3,11 +3,13 @@ import { computeExp, type DayPlayed, type ExpBreakdown } from "@/lib/exp";
 import { levelProgress, type LevelProgress } from "@/lib/levels";
 import { longestStreak } from "@/lib/streaks";
 import { computeAchievements, type Achievement } from "@/lib/achievements";
+import { blockStart } from "@/lib/billing";
+import { longestWinRun, hoursOnCourt } from "@/lib/dayStats";
 
 /** How many of the club's first play-days count as "รุ่นบุกเบิก". */
 const FOUNDING_WINDOW = 4;
-/** ICT hour after which a finished game counts toward the นกฮูก badge. */
-const NIGHT_HOUR_ICT = 22;
+/** Hours on court that make a day count toward the อึด badges. */
+const LONG_DAY_HOURS = 3;
 
 export interface PlayerProgress {
   exp: ExpBreakdown;
@@ -29,6 +31,7 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
       where: { athleteId, status: { not: "WITHDRAWN" } },
       select: {
         checkedOutAt: true,
+        timeSlot: true,
         session: { select: { date: true } },
         matchSlots: {
           select: {
@@ -63,10 +66,17 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
   );
 
   // One entry per session the player actually finished a game in.
-  const byDate = new Map<string, DayPlayed & { draws: number; nightGames: number }>();
+  type DayEntry = DayPlayed & {
+    draws: number;
+    /** Per-game outcomes, for the within-a-day win-streak badge. */
+    results: { finishedAt: Date; won: boolean }[];
+    /** Start of the block they signed up for, for the hours-on-court badges. */
+    blockStartAt: Date;
+    lastFinishedAt: Date | null;
+  };
+  const byDate = new Map<string, DayEntry>();
   // Across all days, for the achievement metrics.
   const gamesPerPartner = new Map<string, number>();
-  const courts = new Set<number>();
   let isFoundingMember = false;
 
   for (const s of signUps) {
@@ -84,19 +94,22 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
           wins: 0,
           partnerIds: [],
           draws: 0,
-          nightGames: 0,
+          results: [],
+          blockStartAt: blockStart(s.session.date, s.timeSlot as "EARLY" | "LATE"),
+          lastFinishedAt: null,
         };
         byDate.set(dateKey, entry);
       }
 
       entry.games++;
-      courts.add(m.court);
+      const won = m.winnerTeam != null && m.winnerTeam === slot.team;
       if (m.winnerTeam == null) entry.draws++;
-      else if (m.winnerTeam === slot.team) entry.wins++;
+      else if (won) entry.wins++;
 
-      // finishedAt is a UTC instant; ICT is UTC+7 with no DST.
-      const ictHour = (m.finishedAt.getUTCHours() + 7) % 24;
-      if (ictHour >= NIGHT_HOUR_ICT) entry.nightGames++;
+      entry.results.push({ finishedAt: m.finishedAt, won });
+      if (!entry.lastFinishedAt || m.finishedAt > entry.lastFinishedAt) {
+        entry.lastFinishedAt = m.finishedAt;
+      }
 
       for (const p of m.players) {
         if (p.team !== slot.team) continue;
@@ -120,6 +133,9 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
   );
 
   const partnerIds = new Set(days.flatMap((d) => d.partnerIds));
+  const dayHours = days.map((d) =>
+    d.lastFinishedAt ? hoursOnCourt(d.blockStartAt, d.lastFinishedAt) : 0
+  );
   const achievements = computeAchievements({
     gamesPlayed: days.reduce((n, d) => n + d.games, 0),
     wins: days.reduce((n, d) => n + d.wins, 0),
@@ -127,10 +143,12 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
     daysPlayed: days.length,
     longestStreakDays: streakDays,
     distinctPartners: partnerIds.size,
-    nightGames: days.reduce((n, d) => n + d.nightGames, 0),
     bestDayGames: days.reduce((n, d) => Math.max(n, d.games), 0),
     bestPartnerGames: Math.max(0, ...gamesPerPartner.values()),
-    distinctCourts: courts.size,
+    bestDayHours: Math.max(0, ...dayHours),
+    longDays: dayHours.filter((h) => h >= LONG_DAY_HOURS).length,
+    bestDayPartners: days.reduce((n, d) => Math.max(n, d.partnerIds.length), 0),
+    bestDayWinStreak: days.reduce((n, d) => Math.max(n, longestWinRun(d.results)), 0),
     isFoundingMember,
   });
 

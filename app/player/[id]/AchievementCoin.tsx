@@ -19,10 +19,32 @@ export default function AchievementCoin({
   const rarity = rarityFor(target);
   const pal = RARITY_PALETTE[rarity];
 
-  const ring = `radial-gradient(circle at 34% 28%, ${pal.r1} 0%, ${pal.r1} 34%, ${pal.r2} 35%, ${pal.r2} 70%, ${pal.r3} 71%, ${pal.r3} 100%)`;
+  // Layered like a struck coin: a lit face, a bevelled rim catching light from
+  // the top-left, and a shadowed lower edge. The banded stops (34%/35%…) are
+  // what give it a hard metal edge rather than a soft airbrushed blob.
+  const ring = [
+    `radial-gradient(circle at 30% 24%, rgba(255,255,255,.45) 0%, transparent 42%)`,
+    `radial-gradient(circle at 72% 82%, rgba(0,0,0,.45) 0%, transparent 46%)`,
+    `radial-gradient(circle at 34% 28%, ${pal.r1} 0%, ${pal.r1} 34%, ${pal.r2} 35%, ${pal.r2} 70%, ${pal.r3} 71%, ${pal.r3} 100%)`,
+  ].join(", ");
+
+  // inset rings = the coin's raised rim; outer rings = its glow in the case.
   const glow = earned
-    ? `0 0 0 3px #05070b, 0 0 0 5px ${pal.glow}, 0 0 14px ${pal.glow}99`
-    : `0 0 0 3px #05070b, 0 0 0 5px ${pal.glow}44`;
+    ? [
+        `inset 0 2px 3px rgba(255,255,255,.5)`,
+        `inset 0 -2px 4px rgba(0,0,0,.55)`,
+        `0 0 0 2px ${pal.r3}`,
+        `0 0 0 4px ${pal.glow}`,
+        `0 0 12px 2px ${pal.glow}aa`,
+        `0 0 26px 6px ${pal.glow}55`,
+      ].join(", ")
+    : [
+        `inset 0 2px 3px rgba(255,255,255,.14)`,
+        `inset 0 -2px 4px rgba(0,0,0,.5)`,
+        `0 0 0 2px ${pal.r3}`,
+        `0 0 0 4px ${pal.glow}44`,
+      ].join(", ");
+
   // Legendary coins cycle between their two glows; everything else sits still.
   const legendaryPulse = rarity === "legendary" && earned;
 
@@ -43,19 +65,29 @@ export default function AchievementCoin({
         >
           {/* Sweeping highlight, so the coins read as metal rather than flat discs. */}
           <div
-            className="pixel-anim pointer-events-none absolute -top-[40%] left-0 h-[180%] w-[30%]"
+            className="pixel-anim pointer-events-none absolute -top-[40%] left-0 h-[180%] w-[38%]"
             style={{
               background: `linear-gradient(90deg, transparent, ${
-                earned ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.18)"
+                earned ? "rgba(255,255,255,.85)" : "rgba(255,255,255,.2)"
               }, transparent)`,
+              filter: earned ? "blur(1px)" : undefined,
               animation: `coinshine 3.2s ${(index * 0.37) % 2.4}s ease-in-out infinite`,
             }}
           />
+          {/* Soft pool of colour under the icon, so it sits in the coin. */}
+          {earned && (
+            <div
+              className="pointer-events-none absolute inset-[18%] rounded-full"
+              style={{ background: `radial-gradient(circle, ${pal.glow}55 0%, transparent 70%)` }}
+            />
+          )}
           <span
             className="relative z-10 text-[26px] leading-none"
             style={{
               opacity: earned ? 1 : 0.32,
-              filter: earned ? "none" : "brightness(0) opacity(.6)",
+              filter: earned
+                ? `drop-shadow(0 1px 2px rgba(0,0,0,.6)) drop-shadow(0 0 6px ${pal.glow}88)`
+                : "brightness(0) opacity(.6)",
             }}
           >
             {icon}

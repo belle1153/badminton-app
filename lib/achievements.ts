@@ -13,14 +13,18 @@ export interface AchievementContext {
   /** Best-ever consecutive-club-day run (see lib/streaks.ts). */
   longestStreakDays: number;
   distinctPartners: number;
-  /** Finished games after 22:00 ICT. */
-  nightGames: number;
   /** Most games played in a single day. */
   bestDayGames: number;
   /** Games played alongside the single most-frequent partner. */
   bestPartnerGames: number;
-  /** How many different courts they have played on. */
-  distinctCourts: number;
+  /** Longest single day on court, in hours (block start → last game finished). */
+  bestDayHours: number;
+  /** How many days lasted at least 3 hours. */
+  longDays: number;
+  /** Most different partners in a single day. */
+  bestDayPartners: number;
+  /** Longest run of consecutive wins within one day. */
+  bestDayWinStreak: number;
   /** Played within the club's first FOUNDING_WINDOW recorded play-days. */
   isFoundingMember: boolean;
 }
@@ -46,6 +50,9 @@ interface Def {
   metric: (ctx: AchievementContext) => number;
 }
 
+// Icons are single-codepoint emoji on purpose. ZWJ sequences (🧑‍🤝‍🧑, ❤️‍🔥) fall
+// apart into their component glyphs on devices that lack the combined form,
+// which is what made the grid look inconsistent.
 const NUMERIC_DEFS: Def[] = [
   // เริ่มต้น
   { id: "first-day", icon: "🐣", label: "มาเล่นครั้งแรก", target: 1, metric: (c) => c.daysPlayed },
@@ -55,20 +62,21 @@ const NUMERIC_DEFS: Def[] = [
 
   // ปริมาณเกม
   { id: "games-25", icon: "🥉", label: "เล่นครบ 25 เกม", target: 25, metric: (c) => c.gamesPlayed },
+  { id: "games-50", icon: "🎖️", label: "เล่นครบ 50 เกม", target: 50, metric: (c) => c.gamesPlayed },
   { id: "games-100", icon: "🥈", label: "เล่นครบ 100 เกม", target: 100, metric: (c) => c.gamesPlayed },
   { id: "games-250", icon: "🥇", label: "เล่นครบ 250 เกม", target: 250, metric: (c) => c.gamesPlayed },
   { id: "games-500", icon: "🏆", label: "เล่นครบ 500 เกม", target: 500, metric: (c) => c.gamesPlayed },
 
   // ชัยชนะ
   { id: "wins-10", icon: "💪", label: "ชนะครบ 10 เกม", target: 10, metric: (c) => c.wins },
-  { id: "wins-50", icon: "🔥", label: "ชนะครบ 50 เกม", target: 50, metric: (c) => c.wins },
+  { id: "wins-50", icon: "⚔️", label: "ชนะครบ 50 เกม", target: 50, metric: (c) => c.wins },
   { id: "wins-100", icon: "🚀", label: "ชนะครบ 100 เกม", target: 100, metric: (c) => c.wins },
 
   // มาบ่อยแค่ไหน (สะสม ไม่ต้องติดกัน)
   { id: "days-5", icon: "📅", label: "มาเล่นครบ 5 วัน", target: 5, metric: (c) => c.daysPlayed },
   { id: "days-10", icon: "📆", label: "มาเล่นครบ 10 วัน", target: 10, metric: (c) => c.daysPlayed },
   { id: "days-25", icon: "🗓️", label: "มาเล่นครบ 25 วัน", target: 25, metric: (c) => c.daysPlayed },
-  { id: "days-50", icon: "👑", label: "มาเล่นครบ 50 วัน", target: 50, metric: (c) => c.daysPlayed },
+  { id: "days-50", icon: "💎", label: "มาเล่นครบ 50 วัน", target: 50, metric: (c) => c.daysPlayed },
 
   // มาต่อเนื่อง (ติดกันจริง วัดกับปฏิทินของก๊วน)
   { id: "streak-3", icon: "🔗", label: "มาต่อเนื่อง 3 ครั้งติด", target: 3, metric: (c) => c.longestStreakDays },
@@ -76,21 +84,26 @@ const NUMERIC_DEFS: Def[] = [
   { id: "streak-10", icon: "🏅", label: "มาต่อเนื่อง 10 ครั้งติด", target: 10, metric: (c) => c.longestStreakDays },
 
   // สังคม
-  { id: "partners-10", icon: "🧑‍🤝‍🧑", label: "จับคู่ครบ 10 คน", target: 10, metric: (c) => c.distinctPartners },
-  { id: "partners-20", icon: "🌐", label: "จับคู่ครบ 20 คน", target: 20, metric: (c) => c.distinctPartners },
+  { id: "partners-10", icon: "👥", label: "จับคู่ครบ 10 คน", target: 10, metric: (c) => c.distinctPartners },
+  { id: "partners-20", icon: "🌍", label: "จับคู่ครบ 20 คน", target: 20, metric: (c) => c.distinctPartners },
 
   // คู่ซี้ — เล่นกับคนเดิมบ่อย
   { id: "duo-10", icon: "💞", label: "คู่ซี้ — จับคู่คนเดิม 10 เกม", target: 10, metric: (c) => c.bestPartnerGames },
-  { id: "duo-25", icon: "❤️‍🔥", label: "คู่ขาประจำ — จับคู่คนเดิม 25 เกม", target: 25, metric: (c) => c.bestPartnerGames },
+  { id: "duo-25", icon: "💖", label: "คู่ขาประจำ — จับคู่คนเดิม 25 เกม", target: 25, metric: (c) => c.bestPartnerGames },
 
   // ขยันในวันเดียว
   { id: "day-6-games", icon: "⚡", label: "ไฟแรง — เล่น 6 เกมในวันเดียว", target: 6, metric: (c) => c.bestDayGames },
   { id: "day-10-games", icon: "🔋", label: "ไม่มีหมด — เล่น 10 เกมในวันเดียว", target: 10, metric: (c) => c.bestDayGames },
+  { id: "star-day", icon: "🌟", label: "ดาวเด่น — คู่ไม่ซ้ำ 5 คนในวันเดียว", target: 5, metric: (c) => c.bestDayPartners },
+  { id: "hot-hand", icon: "🎯", label: "ยอดฝีมือ — ชนะ 3 เกมติดในวันเดียว", target: 3, metric: (c) => c.bestDayWinStreak },
+
+  // อึด — อยู่ยาวในวันเดียว
+  { id: "long-day-1", icon: "⏳", label: "อึด — เล่น 3 ชม. ในวันเดียว", target: 1, metric: (c) => c.longDays },
+  { id: "long-day-5", icon: "⏰", label: "อึดจริง — เล่น 3 ชม. ครบ 5 ครั้ง", target: 5, metric: (c) => c.longDays },
+  { id: "long-day-20", icon: "🕰️", label: "ตัวจริง — เล่น 3 ชม. ครบ 20 ครั้ง", target: 20, metric: (c) => c.longDays },
 
   // ลูกเล่น
-  { id: "night-owl", icon: "🦉", label: "นกฮูก — เล่นหลัง 22:00 น.", target: 3, metric: (c) => c.nightGames },
-  { id: "diplomat", icon: "🎭", label: "นักการทูต — เกมเสมอ 5 ครั้ง", target: 5, metric: (c) => c.draws },
-  { id: "court-explorer", icon: "🏟️", label: "นักท่องสนาม — เล่นครบ 5 สนาม", target: 5, metric: (c) => c.distinctCourts },
+  { id: "diplomat", icon: "🎭", label: "นักการทูต — เกมเสมอ 10 ครั้ง", target: 10, metric: (c) => c.draws },
 ];
 
 // Nothing here rewards checking out: only the admin can do that, so it would be

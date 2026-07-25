@@ -9,10 +9,12 @@ const ALL = computeAchievements({
   daysPlayed: 0,
   longestStreakDays: 0,
   distinctPartners: 0,
-  nightGames: 0,
   bestDayGames: 0,
   bestPartnerGames: 0,
-  distinctCourts: 0,
+  bestDayHours: 0,
+  longDays: 0,
+  bestDayPartners: 0,
+  bestDayWinStreak: 0,
   isFoundingMember: false,
 });
 

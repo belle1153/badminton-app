@@ -8,10 +8,12 @@ const ctx = (over: Partial<AchievementContext> = {}): AchievementContext => ({
   daysPlayed: 0,
   longestStreakDays: 0,
   distinctPartners: 0,
-  nightGames: 0,
   bestDayGames: 0,
   bestPartnerGames: 0,
-  distinctCourts: 0,
+  bestDayHours: 0,
+  longDays: 0,
+  bestDayPartners: 0,
+  bestDayWinStreak: 0,
   isFoundingMember: false,
   ...over,
 });
@@ -80,5 +82,49 @@ describe("computeAchievements", () => {
   it("tracks the best single day", () => {
     expect(byId(computeAchievements(ctx({ bestDayGames: 6 })), "day-6-games").earned).toBe(true);
     expect(byId(computeAchievements(ctx({ bestDayGames: 6 })), "day-10-games").earned).toBe(false);
+  });
+
+  it("counts long days cumulatively, so one 3h day only unlocks the first tier", () => {
+    const one = computeAchievements(ctx({ longDays: 1 }));
+    expect(byId(one, "long-day-1").earned).toBe(true);
+    expect(byId(one, "long-day-5").earned).toBe(false);
+
+    const twenty = computeAchievements(ctx({ longDays: 20 }));
+    expect(byId(twenty, "long-day-5").earned).toBe(true);
+    expect(byId(twenty, "long-day-20").earned).toBe(true);
+  });
+
+  it("ดาวเด่น counts partners within one day, not the lifetime total", () => {
+    // Plenty of partners overall, but never more than 2 in a single day.
+    const spread = computeAchievements(ctx({ distinctPartners: 30, bestDayPartners: 2 }));
+    expect(byId(spread, "star-day").earned).toBe(false);
+
+    expect(byId(computeAchievements(ctx({ bestDayPartners: 5 })), "star-day").earned).toBe(true);
+  });
+
+  it("ยอดฝีมือ needs 3 wins in a row, not 3 wins spread out", () => {
+    const scattered = computeAchievements(ctx({ wins: 20, bestDayWinStreak: 2 }));
+    expect(byId(scattered, "hot-hand").earned).toBe(false);
+
+    expect(byId(computeAchievements(ctx({ bestDayWinStreak: 3 })), "hot-hand").earned).toBe(true);
+  });
+
+  it("has the badges the admin asked to drop, gone", () => {
+    const ids = computeAchievements(ctx()).map((a) => a.id);
+    expect(ids).not.toContain("night-owl");
+    expect(ids).not.toContain("court-explorer");
+  });
+
+  it("นักการทูต now needs 10 draws, not 5", () => {
+    expect(byId(computeAchievements(ctx({ draws: 5 })), "diplomat").earned).toBe(false);
+    expect(byId(computeAchievements(ctx({ draws: 10 })), "diplomat").earned).toBe(true);
+  });
+
+  it("uses single-codepoint icons, which render consistently across devices", () => {
+    // ZWJ sequences (🧑‍🤝‍🧑, ❤️‍🔥) split into their parts on devices without the
+    // combined glyph, which is what made the coin grid look inconsistent.
+    for (const a of computeAchievements(ctx())) {
+      expect(a.icon).not.toContain("‍");
+    }
   });
 });
