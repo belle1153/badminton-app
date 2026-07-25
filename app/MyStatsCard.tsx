@@ -20,9 +20,7 @@ export default function MyStatsCard() {
       className="rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-6 flex flex-col items-center gap-1.5 text-center hover:border-amber-400 transition"
     >
       <span className="text-4xl">📊</span>
-      <span className="font-bold text-lg text-amber-900">
-        {myId ? "สถิติของฉัน" : "Mission โคตรตึง!"}
-      </span>
+      <span className="font-bold text-lg text-amber-900">Mission โคตรตึง!</span>
       <span className="text-xs text-gray-500">เกมที่เล่น / ชนะแพ้ / คู่ที่เล่นด้วย</span>
     </Link>
   );
