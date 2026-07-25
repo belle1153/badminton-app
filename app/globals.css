@@ -35,3 +35,77 @@ body {
     @apply w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500;
   }
 }
+
+/* ---------------------------------------------------------------
+   Player profile: retro-game treatment. Scoped to that page only —
+   every other screen stays on the light theme.
+   --------------------------------------------------------------- */
+
+/* Chamfered corners, the shape the whole panel style is built on. */
+.pixel-frame {
+  clip-path: polygon(
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0 calc(100% - 10px),
+    0 10px
+  );
+}
+
+@keyframes sparkle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-46px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes coinshine {
+  0% {
+    transform: translateX(-130%) rotate(24deg);
+  }
+  45% {
+    transform: translateX(220%) rotate(24deg);
+  }
+  100% {
+    transform: translateX(220%) rotate(24deg);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes duoglow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #05070b, 0 0 0 5px #4f9fe6, 0 0 14px #4f9fe6cc;
+  }
+  50% {
+    box-shadow: 0 0 0 3px #05070b, 0 0 0 5px #ff9d4d, 0 0 14px #ff9d4dcc;
+  }
+}
+
+/* Respect a reduced-motion preference: the decoration is not information. */
+@media (prefers-reduced-motion: reduce) {
+  .pixel-anim {
+    animation: none !important;
+  }
+}

@@ -18,14 +18,14 @@ export default function RememberMe({ athleteId, name }: { athleteId: string; nam
   if (isMe == null) return null; // avoid a flash of the wrong state
 
   return isMe ? (
-    <div className="flex items-center gap-3 flex-wrap rounded-lg bg-brand-50 border border-brand-200 p-3">
-      <span className="text-sm text-brand-800">จำไว้แล้วว่านี่คือคุณ ({name})</span>
+    <div className="flex flex-wrap items-center gap-3 rounded border border-[#384a63] bg-[#232f42] p-3">
+      <span className="text-[13px] text-[#c7d2e0]">จำไว้แล้วว่านี่คือคุณ ({name})</span>
       <button
         onClick={() => {
           clearMyPlayerId();
           setIsMe(false);
         }}
-        className="ml-auto text-xs text-gray-500 hover:underline"
+        className="ml-auto text-[11px] text-[#8095ad] hover:text-white hover:underline"
       >
         ไม่ใช่ฉัน
       </button>
@@ -36,7 +36,7 @@ export default function RememberMe({ athleteId, name }: { athleteId: string; nam
         setMyPlayerId(athleteId);
         setIsMe(true);
       }}
-      className="self-start rounded-md border-2 border-brand-600 text-brand-700 px-4 py-2 text-sm font-medium hover:bg-brand-50"
+      className="self-start rounded border-2 border-[#4f83ac] bg-[#232f42] px-4 py-2 text-[13px] font-semibold text-[#8fc4ff] hover:border-[#8fc4ff]"
     >
       ⭐ นี่คือฉัน — จำไว้ให้เข้าถึงเร็วขึ้น
     </button>

@@ -4,11 +4,19 @@ import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadPlayerProgress } from "@/lib/playerProgress";
-import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
-import BackLink from "../../BackLink";
+import AchievementCoin from "./AchievementCoin";
 import RememberMe from "./RememberMe";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The one screen in the app with a retro-game treatment: chamfered panels, hard
+ * shadows, a pixel display face for numerals, and coins for achievements. It's
+ * the reward screen, so it's allowed to look unlike the utilitarian pages that
+ * get work done.
+ *
+ * Colour comes from the player's rank, so the page itself changes as they climb.
+ */
 
 /** Session dates are stored at UTC midnight of the intended local date, so read
  *  them back in UTC to keep that calendar date. */
@@ -22,7 +30,7 @@ function thaiDate(date: Date): string {
   });
 }
 
-/** "จ. 20 ก.ค." — compact, for the match-log column. */
+/** "จ. 20 ก.ค." — compact, for the match log. */
 function shortDate(date: Date): string {
   return date.toLocaleDateString("th-TH", {
     weekday: "short",
@@ -32,11 +40,19 @@ function shortDate(date: Date): string {
   });
 }
 
-function Stat({ value, label, tone }: { value: string; label: string; tone?: string }) {
+const PANEL = "border-2 border-[#384a63] bg-[#232f42] shadow-[5px_5px_0_rgba(0,0,0,0.35)]";
+const LIST_FRAME = "rounded border border-[#384a63] bg-[#232f42]";
+
+function Stat({ value, label, color }: { value: string; label: string; color?: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-lg border border-gray-200 py-3">
-      <span className={`text-2xl font-bold ${tone ?? "text-gray-900"}`}>{value}</span>
-      <span className="text-xs text-gray-500">{label}</span>
+    <div className="flex flex-col items-center gap-1 rounded border border-[#384a63] bg-[#232f42] px-1 py-2.5">
+      <span
+        className="font-[family-name:var(--font-pixel-display)] text-[15px]"
+        style={{ color: color ?? "#e2e8f2" }}
+      >
+        {value}
+      </span>
+      <span className="text-[10.5px] text-[#8ba0b8]">{label}</span>
     </div>
   );
 }
@@ -60,193 +76,248 @@ export default async function PlayerProfilePage({
     loadPlayerProgress(id),
   ]);
 
-  const earned = progress.achievements.filter((a) => a.earned);
-  const locked = progress.achievements.filter((a) => !a.earned);
+  const theme = progress.level.theme;
+  const earnedCount = progress.achievements.filter((a) => a.earned).length;
 
-  const historyRows: HistoryRow[] = recent.map((m) => ({
-    id: m.id,
-    seq: m.seq,
-    court: m.court,
-    winnerTeam: m.winnerTeam,
-    team1: m.team1,
-    team2: m.team2,
-    dateLabel: shortDate(m.date),
-    highlightName: athlete.name,
+  // Rising motes, on the higher ranks only.
+  const particles = Array.from({ length: theme.particles }, (_, i) => ({
+    left: `${(i * 37) % 100}%`,
+    size: 3 + (i % 3),
+    delay: `${(i * 0.53) % 3.2}s`,
+    duration: `${2.6 + (i % 3) * 0.4}s`,
   }));
 
   return (
-    <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
-      {/* History-back: a profile is reached from the name search, the home card
-          and other players' partner lists, so "back" has to return where you
-          came from. `href` stays the no-JS / new-tab fallback. */}
-      <BackLink href="/player" />
+    <div
+      className="min-h-full font-[family-name:var(--font-pixel-body)]"
+      style={{
+        background: `radial-gradient(ellipse at 50% -10%, ${theme.accentDim}55, #1c2536 55%), repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 3px), #1c2536`,
+      }}
+    >
+      <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 px-3.5 pb-10 pt-4">
+        <Link
+          href="/player"
+          className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-[#8fa3bd] hover:text-white"
+        >
+          <span className="font-[family-name:var(--font-pixel-display)] text-[10px]">&lt;</span>
+          กลับ
+        </Link>
 
-      <section className="flex items-center gap-4">
-        {athlete.photoUrl ? (
-          // Plain <img>, like the admin roster: the photo API is versioned with a
-          // query string, which next/image rejects for local sources unless
-          // images.localPatterns is configured.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/api/athletes/${athlete.id}/photo?v=${athlete.updatedAt.getTime()}`}
-            alt={athlete.name}
-            className="h-[72px] w-[72px] shrink-0 rounded-full object-cover border border-gray-200"
-          />
-        ) : (
-          <div className="h-[72px] w-[72px] rounded-full bg-brand-100 text-brand-700 grid place-items-center text-2xl shrink-0">
-            🏸
-          </div>
-        )}
-        <div className="flex flex-col gap-1 min-w-0">
-          <h1 className="text-xl font-bold break-words">{athlete.name}</h1>
-          <span className="self-start text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">
-            มือ {SKILL_LABELS[athlete.skillLevel as SkillLevel] ?? athlete.skillLevel}
-          </span>
-        </div>
-      </section>
-
-      {stats.games === 0 ? (
-        <p className="text-sm text-gray-500 rounded-lg border border-gray-200 p-4">
-          ยังไม่มีสถิติ — สถิติจะขึ้นหลังลงเล่นจบเกมแรกครับ
-        </p>
-      ) : (
-        <>
-          {/* The one dark element on the page: the rank card is the reward, and
-              its colour changes with the rank so progress is visible at a glance. */}
-          <section
-            className={`rounded-xl border p-4 flex flex-col gap-3 text-white shadow-sm ${progress.level.theme.card} ${progress.level.theme.ring}`}
-          >
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-2xl leading-none" aria-hidden="true">
-                {progress.level.theme.icon}
-              </span>
-              <span className="text-3xl font-bold leading-none tabular-nums">
-                Lv.{progress.level.level}
-              </span>
-              <span
-                className={`rounded-full text-sm font-medium px-3 py-1 ${progress.level.theme.chip}`}
-              >
-                {progress.level.rank}
-              </span>
-              <span className="ml-auto text-sm text-white/70 tabular-nums">
-                {progress.exp.total.toLocaleString()} EXP
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <div className="h-2.5 rounded-full bg-black/30 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${progress.level.theme.bar}`}
-                  style={{ width: `${Math.round(progress.level.progress * 100)}%` }}
+        <section className={`pixel-frame p-4 ${PANEL}`}>
+          <div className="flex items-center gap-3.5">
+            <div
+              className="box-border h-[76px] w-[76px] shrink-0 rounded-full p-0.5"
+              style={{ border: `3px solid ${theme.accent}`, boxShadow: `0 0 10px ${theme.accent}77` }}
+            >
+              {athlete.photoUrl ? (
+                // Plain <img>: the photo API is versioned with a query string,
+                // which next/image rejects for local sources unless
+                // images.localPatterns is configured.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/athletes/${athlete.id}/photo?v=${athlete.updatedAt.getTime()}`}
+                  alt={athlete.name}
+                  className="h-full w-full rounded-full object-cover"
                 />
-              </div>
-              <p className="text-xs text-white/70 tabular-nums">
-                อีก {progress.level.toNextLevel.toLocaleString()} EXP ถึง Lv.
-                {progress.level.level + 1}
-              </p>
+              ) : (
+                <div className="grid h-full w-full place-items-center rounded-full bg-[#1a2433] text-2xl">
+                  🏸
+                </div>
+              )}
             </div>
-
-            <p className="text-[11px] text-white/50">
-              เลเวลนับจากการมาเล่นและลงสนาม — คนละเรื่องกับระดับมือ
-            </p>
-          </section>
-
-          <section className="grid grid-cols-3 gap-2">
-            <Stat value={String(stats.days)} label="วันที่มาเล่น" />
-            <Stat value={String(stats.games)} label="เกมที่เล่น" />
-            <Stat
-              value={stats.winRate != null ? `${stats.winRate}%` : "—"}
-              label="อัตราชนะ"
-              tone="text-brand-700"
-            />
-          </section>
-
-          <section className="flex flex-col gap-2">
-            <h2 className="font-semibold">ผลการเล่น</h2>
-            <div className="grid grid-cols-3 gap-2">
-              <Stat value={String(stats.wins)} label="ชนะ" tone="text-green-600" />
-              <Stat value={String(stats.losses)} label="แพ้" tone="text-gray-500" />
-              <Stat value={String(stats.draws)} label="เสมอ" tone="text-amber-500" />
-            </div>
-          </section>
-
-          <section className="flex flex-col gap-2">
-            <h2 className="font-semibold">คู่ที่เล่นด้วย</h2>
-            <p className="text-sm text-gray-500">
-              เคยจับคู่กับ {stats.partners} คน
-            </p>
-            <ul className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-md">
-              {stats.topPartners.map((p, i) => (
-                <li key={p.id} className="px-3 py-2 flex items-center gap-2 text-sm">
-                  <span className="text-gray-400 w-5 shrink-0">{i + 1}</span>
-                  <Link href={`/player/${p.id}`} className="font-medium text-brand-700 hover:underline">
-                    {p.name}
-                  </Link>
-                  <span className="ml-auto text-gray-500">{p.games} เกม</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-semibold">เหรียญสะสม</h2>
-              <span className="text-xs text-gray-400 tabular-nums">
-                {earned.length}/{progress.achievements.length}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <h1 className="text-[19px] font-bold break-words text-[#f2f5fa]">{athlete.name}</h1>
+              <span className="self-start rounded border border-[#2c3c50] bg-[#1a2433] px-2.5 py-0.5 text-[11px] text-[#9fb4c9]">
+                มือ {SKILL_LABELS[athlete.skillLevel as SkillLevel] ?? athlete.skillLevel}
               </span>
             </div>
+          </div>
+        </section>
 
-            <div className="grid grid-cols-2 gap-2">
-              {earned.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2"
-                >
-                  <span className="text-xl leading-none">{a.icon}</span>
-                  <span className="text-sm font-medium text-amber-900">{a.label}</span>
-                </div>
-              ))}
-              {locked.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 opacity-60"
-                >
-                  <span className="text-xl leading-none grayscale">{a.icon}</span>
-                  <span className="text-sm text-gray-500 min-w-0">
-                    {a.label}
-                    {a.progressLabel && (
-                      <span className="block text-[11px] text-gray-400 tabular-nums">
-                        {a.progressLabel}
-                      </span>
-                    )}
+        {stats.games === 0 ? (
+          <p className={`pixel-frame p-4 text-[13px] text-[#8095ad] ${PANEL}`}>
+            ยังไม่มีสถิติ — สถิติจะขึ้นหลังลงเล่นจบเกมแรกครับ
+          </p>
+        ) : (
+          <>
+            <section
+              className="pixel-frame relative px-4 py-[18px]"
+              style={{
+                background: theme.bg,
+                border: `2px solid ${theme.border}`,
+                boxShadow: "5px 5px 0 rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.03)",
+              }}
+            >
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {particles.map((p, i) => (
+                  <span
+                    key={i}
+                    className="pixel-anim absolute -bottom-2.5"
+                    style={{
+                      left: p.left,
+                      width: p.size,
+                      height: p.size,
+                      background: theme.accent,
+                      boxShadow: `0 0 6px ${theme.accent}`,
+                      animation: `sparkle ${p.duration} ${p.delay} linear infinite`,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span
+                    className="font-[family-name:var(--font-pixel-display)] text-[22px] leading-none"
+                    style={{
+                      color: theme.accent,
+                      textShadow: `0 0 10px ${theme.accent}99, 2px 2px 0 rgba(0,0,0,.5)`,
+                    }}
+                  >
+                    Lv.{progress.level.level}
+                  </span>
+                  <span
+                    className="rounded-sm px-2.5 py-1 text-xs font-bold"
+                    style={{
+                      background: "rgba(0,0,0,.3)",
+                      color: theme.accent,
+                      border: `1px solid ${theme.border}`,
+                    }}
+                  >
+                    {theme.icon} {progress.level.rank}
+                  </span>
+                  <span className="ml-auto text-xs tabular-nums text-[#9fb4c9]">
+                    {progress.exp.total.toLocaleString()} EXP
                   </span>
                 </div>
-              ))}
-            </div>
-          </section>
 
-          {historyRows.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="font-semibold">ประวัติแมตซ์</h2>
-                <span className="text-xs text-gray-400">ล่าสุด {historyRows.length} เกม</span>
+                <div className="flex flex-col gap-1.5">
+                  <div
+                    className="h-3.5 overflow-hidden rounded-sm bg-[#0a1119]"
+                    style={{ border: `2px solid ${theme.border}` }}
+                  >
+                    <div
+                      className="h-full"
+                      style={{
+                        width: `${Math.round(progress.level.progress * 100)}%`,
+                        backgroundImage: `repeating-linear-gradient(90deg, ${theme.accent} 0 6px, ${theme.accentDim} 6px 8px)`,
+                        boxShadow: `0 0 8px ${theme.accent}aa`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] tabular-nums text-[#8095ad]">
+                    อีก {progress.level.toNextLevel.toLocaleString()} EXP ถึง Lv.
+                    {progress.level.level + 1}
+                  </p>
+                </div>
+
+                <p className="text-[10.5px] text-[#5d7086]">
+                  เลเวลนับจากการมาเล่นและลงสนาม — คนละเรื่องกับระดับมือ
+                </p>
               </div>
-              <GameHistoryTable rows={historyRows} />
             </section>
-          )}
 
-          <p className="text-xs text-gray-400">
-            มาเล่นครั้งแรก {stats.firstPlayed ? thaiDate(stats.firstPlayed) : "—"} · ครั้งล่าสุด{" "}
-            {stats.lastPlayed ? thaiDate(stats.lastPlayed) : "—"}
-          </p>
-        </>
-      )}
+            <section className="grid grid-cols-3 gap-2">
+              <Stat value={String(stats.days)} label="วันที่มาเล่น" />
+              <Stat value={String(stats.games)} label="เกมที่เล่น" />
+              <Stat
+                value={stats.winRate != null ? `${stats.winRate}%` : "—"}
+                label="อัตราชนะ"
+                color={theme.accent}
+              />
+            </section>
 
-      <RememberMe athleteId={athlete.id} name={athlete.name} />
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-bold text-[#e2e8f2]">ผลการเล่น</h2>
+              <div className="grid grid-cols-3 gap-2">
+                <Stat value={String(stats.wins)} label="ชนะ" color="#6fdc9a" />
+                <Stat value={String(stats.losses)} label="แพ้" />
+                <Stat value={String(stats.draws)} label="เสมอ" color="#e8b93a" />
+              </div>
+            </section>
 
-      <p className="text-xs text-gray-400">
-        นับจากเกมที่เล่นจบแล้วเท่านั้น · &quot;วันที่มาเล่น&quot; นับวันที่ลงสนามจริง
-      </p>
-    </main>
+            {stats.topPartners.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-sm font-bold text-[#e2e8f2]">คู่ที่เล่นด้วย</h2>
+                <p className="text-[12.5px] text-[#8095ad]">เคยจับคู่กับ {stats.partners} คน</p>
+                <ul className={`flex flex-col ${LIST_FRAME}`}>
+                  {stats.topPartners.map((p, i) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center gap-2 border-b border-[#384a63] px-3 py-2.5 text-[13px] text-[#c7d2e0] last:border-b-0"
+                    >
+                      <span className="w-[18px] shrink-0 font-[family-name:var(--font-pixel-display)] text-[9px] text-[#54687e]">
+                        #{i + 1}
+                      </span>
+                      <Link
+                        href={`/player/${p.id}`}
+                        className="font-semibold text-[#8fc4ff] hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                      <span className="ml-auto text-[#8095ad]">{p.games} เกม</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section className="flex flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-bold text-[#e2e8f2]">เหรียญสะสม</h2>
+                <span className="text-[11px] tabular-nums text-[#5d7086]">
+                  {earnedCount}/{progress.achievements.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2.5">
+                {progress.achievements.map((a, i) => (
+                  <AchievementCoin key={a.id} achievement={a} index={i} />
+                ))}
+              </div>
+            </section>
+
+            {recent.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-bold text-[#e2e8f2]">ประวัติแมตซ์</h2>
+                  <span className="text-[11px] text-[#5d7086]">ล่าสุด {recent.length} เกม</span>
+                </div>
+                <div className={`overflow-hidden ${LIST_FRAME}`}>
+                  {recent.map((m) => {
+                    const won = m.winnerTeam === m.myTeam;
+                    const label = m.winnerTeam == null ? "เสมอ" : won ? "ชนะ" : "แพ้";
+                    const color =
+                      m.winnerTeam == null ? "#e8b93a" : won ? "#6fdc9a" : "#8095ad";
+                    return (
+                      <div
+                        key={m.id}
+                        className="flex items-center gap-2 border-b border-[#384a63] px-3 py-2 text-xs text-[#a8b7c8] last:border-b-0"
+                      >
+                        <span className="w-14 shrink-0 text-[#54687e]">{shortDate(m.date)}</span>
+                        <span className="text-[#5d7086]">คอร์ท {m.court}</span>
+                        <span className="ml-auto font-bold" style={{ color }}>
+                          {label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            <p className="text-[11px] text-[#4a5b70]">
+              มาเล่นครั้งแรก {stats.firstPlayed ? thaiDate(stats.firstPlayed) : "—"} · ครั้งล่าสุด{" "}
+              {stats.lastPlayed ? thaiDate(stats.lastPlayed) : "—"}
+            </p>
+          </>
+        )}
+
+        <RememberMe athleteId={athlete.id} name={athlete.name} />
+
+        <p className="text-[11px] text-[#3c4b5e]">
+          นับจากเกมที่เล่นจบแล้วเท่านั้น · &quot;วันที่มาเล่น&quot; นับวันที่ลงสนามจริง
+        </p>
+      </main>
+    </div>
   );
 }

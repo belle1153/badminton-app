@@ -32,6 +32,10 @@ export interface Achievement {
   earned: boolean;
   /** "7/10" while locked and numerically trackable; omitted for one-off badges. */
   progressLabel?: string;
+  /** The goal, or null for a one-off badge. Drives the coin's rarity tier. */
+  target: number | null;
+  /** How far along, for the ring under a locked coin. Null when not countable. */
+  current: number | null;
 }
 
 interface Def {
@@ -102,6 +106,8 @@ export function computeAchievements(ctx: AchievementContext): Achievement[] {
       label: d.label,
       earned,
       progressLabel: earned ? undefined : `${current}/${d.target}`,
+      target: d.target,
+      current,
     };
   });
 
@@ -110,6 +116,8 @@ export function computeAchievements(ctx: AchievementContext): Achievement[] {
     icon: "🌅",
     label: "รุ่นบุกเบิก",
     earned: ctx.isFoundingMember,
+    target: null,
+    current: null,
   };
 
   return [...numeric, founding];

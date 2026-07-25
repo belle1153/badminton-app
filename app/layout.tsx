@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Chakra_Petch, Press_Start_2P } from "next/font/google";
 import { isAdmin } from "@/lib/adminAuth";
 import SiteHeader from "./SiteHeader";
 import "./globals.css";
@@ -12,6 +12,21 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Retro-game pair, used only by the player profile. Chakra Petch carries the
+// Thai text; Press Start 2P is Latin-only so it is reserved for numerals and
+// short markers, never for Thai copy.
+const chakraPetch = Chakra_Petch({
+  variable: "--font-pixel-body",
+  subsets: ["latin", "thai"],
+  weight: ["400", "600", "700"],
+});
+
+const pressStart = Press_Start_2P({
+  variable: "--font-pixel-display",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -28,7 +43,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${chakraPetch.variable} ${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <SiteHeader admin={admin} />

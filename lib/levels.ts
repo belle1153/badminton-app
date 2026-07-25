@@ -34,14 +34,16 @@ export interface RankTheme {
   key: string;
   title: string;
   icon: string;
-  /** Gradient for the level card. */
-  card: string;
-  /** Rank pill on the card. */
-  chip: string;
-  /** Filled part of the progress bar. */
-  bar: string;
-  /** The card's own border. */
-  ring: string;
+  /** Bright colour: level number, bar fill, avatar ring, glow. */
+  accent: string;
+  /** Muted partner to `accent`, for gradients and the page wash. */
+  accentDim: string;
+  /** The rank panel's background gradient. */
+  bg: string;
+  /** The rank panel's border. */
+  border: string;
+  /** Rising motes on the panel; higher ranks get more, 0 = none. */
+  particles: number;
 }
 
 const RANKS: { maxLevel: number; theme: RankTheme }[] = [
@@ -51,10 +53,11 @@ const RANKS: { maxLevel: number; theme: RankTheme }[] = [
       key: "novice",
       title: "มือใหม่",
       icon: "🌱",
-      card: "bg-gradient-to-br from-emerald-800 to-emerald-950",
-      chip: "bg-emerald-500/90 text-emerald-50",
-      bar: "bg-emerald-400",
-      ring: "border-emerald-700",
+      accent: "#6ee7a0",
+      accentDim: "#2f5a41",
+      bg: "linear-gradient(155deg,#182a20,#0c1712)",
+      border: "#2c4636",
+      particles: 0,
     },
   },
   {
@@ -63,10 +66,11 @@ const RANKS: { maxLevel: number; theme: RankTheme }[] = [
       key: "regular",
       title: "ขาประจำ",
       icon: "🔷",
-      card: "bg-gradient-to-br from-sky-800 to-slate-950",
-      chip: "bg-sky-500/90 text-sky-50",
-      bar: "bg-sky-400",
-      ring: "border-sky-700",
+      accent: "#5aa9f0",
+      accentDim: "#274a6b",
+      bg: "linear-gradient(155deg,#122236,#0a1626)",
+      border: "#254058",
+      particles: 0,
     },
   },
   {
@@ -75,10 +79,11 @@ const RANKS: { maxLevel: number; theme: RankTheme }[] = [
       key: "ace",
       title: "ตัวตึง",
       icon: "🔥",
-      card: "bg-gradient-to-br from-amber-700 to-orange-950",
-      chip: "bg-amber-400/90 text-amber-950",
-      bar: "bg-amber-300",
-      ring: "border-amber-600",
+      accent: "#ffcf4d",
+      accentDim: "#6b4f16",
+      bg: "linear-gradient(155deg,#332208,#1c1305)",
+      border: "#5c410f",
+      particles: 6,
     },
   },
   {
@@ -87,10 +92,11 @@ const RANKS: { maxLevel: number; theme: RankTheme }[] = [
       key: "legend",
       title: "ตำนานแหลมฉบัง",
       icon: "👑",
-      card: "bg-gradient-to-br from-violet-800 to-fuchsia-950",
-      chip: "bg-violet-400/90 text-violet-950",
-      bar: "bg-violet-300",
-      ring: "border-violet-600",
+      accent: "#d9a8ff",
+      accentDim: "#5b2f8f",
+      bg: "linear-gradient(155deg,#28123f,#150a22)",
+      border: "#4a2668",
+      particles: 10,
     },
   },
 ];

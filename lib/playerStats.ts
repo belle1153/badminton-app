@@ -172,6 +172,9 @@ export interface PlayerMatchRow {
   team1: string[];
   team2: string[];
   date: Date;
+  /** Which side this player was on — read from the record, not by matching
+   *  names, which would break for two players sharing a nickname. */
+  myTeam: number;
 }
 
 /**
@@ -205,7 +208,9 @@ export async function loadPlayerMatchHistory(
       winnerTeam: true,
       sessionId: true,
       session: { select: { date: true } },
-      players: { select: { team: true, signUp: { select: { name: true } } } },
+      players: {
+        select: { team: true, signUp: { select: { name: true, athleteId: true } } },
+      },
     },
   });
 
@@ -223,6 +228,7 @@ export async function loadPlayerMatchHistory(
       team1: m.players.filter((p) => p.team === 1).map((p) => p.signUp.name),
       team2: m.players.filter((p) => p.team === 2).map((p) => p.signUp.name),
       date: m.session.date,
+      myTeam: m.players.find((p) => p.signUp.athleteId === athleteId)?.team ?? 1,
     });
   }
 

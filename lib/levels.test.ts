@@ -84,7 +84,16 @@ describe("rankThemeForLevel", () => {
     const themes = [1, 4, 10, 20].map(rankThemeForLevel);
     expect(themes.map((t) => t.key)).toEqual(["novice", "regular", "ace", "legend"]);
     expect(new Set(themes.map((t) => t.icon)).size).toBe(4);
-    expect(new Set(themes.map((t) => t.card)).size).toBe(4);
+    expect(new Set(themes.map((t) => t.accent)).size).toBe(4);
+    expect(new Set(themes.map((t) => t.bg)).size).toBe(4);
+  });
+
+  it("adds particles only at the top ranks, so climbing is visible", () => {
+    const [novice, regular, ace, legend] = [1, 4, 10, 20].map(rankThemeForLevel);
+    expect(novice.particles).toBe(0);
+    expect(regular.particles).toBe(0);
+    expect(ace.particles).toBeGreaterThan(0);
+    expect(legend.particles).toBeGreaterThan(ace.particles);
   });
 
   it("changes at the same boundaries as the rank title", () => {
