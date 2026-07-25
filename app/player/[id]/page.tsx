@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadPlayerProgress } from "@/lib/playerProgress";
+import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import AchievementCoin from "./AchievementCoin";
 import RememberMe from "./RememberMe";
 
@@ -78,6 +79,17 @@ export default async function PlayerProfilePage({
 
   const theme = progress.level.theme;
   const earnedCount = progress.achievements.filter((a) => a.earned).length;
+
+  const historyRows: HistoryRow[] = recent.map((m) => ({
+    id: m.id,
+    seq: m.seq,
+    court: m.court,
+    winnerTeam: m.winnerTeam,
+    team1: m.team1,
+    team2: m.team2,
+    dateLabel: shortDate(m.date),
+    highlightName: athlete.name,
+  }));
 
   // Rising motes, on the higher ranks only.
   const particles = Array.from({ length: theme.particles }, (_, i) => ({
@@ -282,26 +294,7 @@ export default async function PlayerProfilePage({
                   <h2 className="text-sm font-bold text-[#e2e8f2]">ประวัติแมตซ์</h2>
                   <span className="text-[11px] text-[#5d7086]">ล่าสุด {recent.length} เกม</span>
                 </div>
-                <div className={`overflow-hidden ${LIST_FRAME}`}>
-                  {recent.map((m) => {
-                    const won = m.winnerTeam === m.myTeam;
-                    const label = m.winnerTeam == null ? "เสมอ" : won ? "ชนะ" : "แพ้";
-                    const color =
-                      m.winnerTeam == null ? "#e8b93a" : won ? "#6fdc9a" : "#8095ad";
-                    return (
-                      <div
-                        key={m.id}
-                        className="flex items-center gap-2 border-b border-[#384a63] px-3 py-2 text-xs text-[#a8b7c8] last:border-b-0"
-                      >
-                        <span className="w-14 shrink-0 text-[#54687e]">{shortDate(m.date)}</span>
-                        <span className="text-[#5d7086]">คอร์ท {m.court}</span>
-                        <span className="ml-auto font-bold" style={{ color }}>
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <GameHistoryTable rows={historyRows} variant="dark" />
               </section>
             )}
 
