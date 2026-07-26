@@ -56,7 +56,29 @@ describe("computeExp — the point values", () => {
 
   it("totals every component", () => {
     const b = computeExp([day("2026-07-20", { games: 5, wins: 2 })], CLUB);
-    expect(b.total).toBe(b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus);
+    expect(b.total).toBe(
+      b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus + b.badges
+    );
+  });
+});
+
+describe("computeExp — badge EXP", () => {
+  it("adds the badge total to the overall total", () => {
+    const plain = computeExp([day("2026-07-20", { games: 5 })], CLUB);
+    const withBadges = computeExp([day("2026-07-20", { games: 5 })], CLUB, 150);
+    expect(withBadges.badges).toBe(150);
+    expect(withBadges.total).toBe(plain.total + 150);
+  });
+
+  it("defaults to zero, so callers that don't pass badges are unaffected", () => {
+    expect(computeExp([day("2026-07-20")], CLUB).badges).toBe(0);
+  });
+
+  it("leaves the play-derived components alone", () => {
+    const b = computeExp([day("2026-07-20", { games: 5, wins: 2 })], CLUB, 500);
+    expect(b.attendance).toBe(100);
+    expect(b.games).toBe(100);
+    expect(b.wins).toBe(20);
   });
 });
 

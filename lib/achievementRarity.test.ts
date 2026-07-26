@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rarityFor, RARITY_PALETTE, type Rarity } from "./achievementRarity";
+import { rarityFor, expForBadge, RARITY_PALETTE, type Rarity } from "./achievementRarity";
 import { computeAchievements } from "./achievements";
 
 const ALL = computeAchievements({
@@ -46,6 +46,30 @@ describe("RARITY_PALETTE", () => {
     expect(RARITY_PALETTE.common.glow2).toBeUndefined();
     expect(RARITY_PALETTE.rare.glow2).toBeUndefined();
     expect(RARITY_PALETTE.epic.glow2).toBeUndefined();
+  });
+});
+
+describe("expForBadge", () => {
+  it("pays more for rarer badges", () => {
+    expect(expForBadge(1)).toBe(10); // common
+    expect(expForBadge(10)).toBe(25); // rare
+    expect(expForBadge(100)).toBe(50); // epic
+    expect(expForBadge(500)).toBe(100); // legendary
+    expect(expForBadge(null)).toBe(100); // one-off, legendary
+  });
+
+  it("keeps the whole set worth well under a single level near the top", () => {
+    // Badges are a by-product of playing, which already earns EXP; the set must
+    // stay a bonus rather than a shortcut past the curve. Level 5 costs 3,100.
+    const wholeSet = ALL.reduce((n, a) => n + expForBadge(a.target), 0);
+    expect(wholeSet).toBeLessThan(3100);
+  });
+
+  it("is worth less than a single visit for a typical early player", () => {
+    // A visit earns ~236 EXP. Four starter badges must not outweigh turning up.
+    const starters = ALL.filter((a) => a.target === 1);
+    const starterExp = starters.reduce((n, a) => n + expForBadge(a.target), 0);
+    expect(starterExp).toBeLessThan(236);
   });
 });
 

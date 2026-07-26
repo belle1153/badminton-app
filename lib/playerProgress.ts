@@ -3,6 +3,7 @@ import { computeExp, type DayPlayed, type ExpBreakdown } from "@/lib/exp";
 import { levelProgress, type LevelProgress } from "@/lib/levels";
 import { longestStreak } from "@/lib/streaks";
 import { computeAchievements, type Achievement } from "@/lib/achievements";
+import { expForBadge } from "@/lib/achievementRarity";
 import { blockStart } from "@/lib/billing";
 import { longestWinRun, hoursOnCourt } from "@/lib/dayStats";
 
@@ -16,51 +17,43 @@ export interface PlayerProgress {
   level: LevelProgress;
   achievements: Achievement[];
   longestStreakDays: number;
+  daysPlayed: number;
+  gamesPlayed: number;
 }
 
 /**
- * Everything gamified about one player, derived from match history on read.
- *
- * Nothing here is stored: the admin can edit a result, delete a game, or swap a
- * player out of a finished game, so a persisted EXP counter would drift away
- * from the truth permanently. This recomputes instead.
+ * The sign-up shape both callers select — one player's rows for a profile, or
+ * everybody's for the leaderboard.
  */
-export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgress> {
-  const [signUps, clubDays] = await Promise.all([
-    prisma.signUp.findMany({
-      where: { athleteId, status: { not: "WITHDRAWN" } },
-      select: {
-        checkedOutAt: true,
-        timeSlot: true,
-        session: { select: { date: true } },
-        matchSlots: {
-          select: {
-            team: true,
-            match: {
-              select: {
-                finishedAt: true,
-                winnerTeam: true,
-                court: true,
-                players: { select: { team: true, signUp: { select: { athleteId: true } } } },
-              },
-            },
-          },
-        },
-      },
-    }),
-    // The club's own calendar of play-days: every session date that produced at
-    // least one finished game. Streaks are measured against this, so missing a
-    // day the club actually ran breaks a streak, while the club skipping a week
-    // does not penalise anyone.
-    prisma.session
-      .findMany({
-        where: { matches: { some: { finishedAt: { not: null } } } },
-        select: { date: true },
-        orderBy: { date: "asc" },
-      })
-      .then((rows) => rows.map((r) => r.date)),
-  ]);
+export interface ProgressSignUp {
+  timeSlot: string;
+  session: { date: Date };
+  matchSlots: {
+    team: number;
+    match: {
+      finishedAt: Date | null;
+      winnerTeam: number | null;
+      players: { team: number; signUp: { athleteId: string | null } }[];
+    };
+  }[];
+}
 
+/**
+ * Everything gamified about one player, from their sign-ups.
+ *
+ * Shared by the profile and the leaderboard so the two can never disagree about
+ * someone's EXP — the leaderboard used to compute a bare total of its own,
+ * which stopped matching the profile the moment badges started paying EXP.
+ *
+ * Nothing is stored: the admin can edit a result, delete a game, or swap a
+ * player out of a finished game, so a persisted counter would drift from the
+ * truth permanently. This recomputes on every read.
+ */
+export function buildPlayerProgress(
+  athleteId: string,
+  signUps: ProgressSignUp[],
+  clubDays: Date[]
+): PlayerProgress {
   const foundingDates = new Set(
     clubDays.slice(0, FOUNDING_WINDOW).map((d) => d.toISOString().slice(0, 10))
   );
@@ -75,7 +68,6 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
     lastFinishedAt: Date | null;
   };
   const byDate = new Map<string, DayEntry>();
-  // Across all days, for the achievement metrics.
   const gamesPerPartner = new Map<string, number>();
   let isFoundingMember = false;
 
@@ -124,9 +116,6 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
   }
 
   const days = [...byDate.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
-
-  const exp = computeExp(days, clubDays);
-  const level = levelProgress(exp.total);
   const streakDays = longestStreak(
     days.map((d) => d.date),
     clubDays
@@ -136,8 +125,10 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
   const dayHours = days.map((d) =>
     d.lastFinishedAt ? hoursOnCourt(d.blockStartAt, d.lastFinishedAt) : 0
   );
+  const gamesPlayed = days.reduce((n, d) => n + d.games, 0);
+
   const achievements = computeAchievements({
-    gamesPlayed: days.reduce((n, d) => n + d.games, 0),
+    gamesPlayed,
     wins: days.reduce((n, d) => n + d.wins, 0),
     draws: days.reduce((n, d) => n + d.draws, 0),
     daysPlayed: days.length,
@@ -152,5 +143,62 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
     isFoundingMember,
   });
 
-  return { exp, level, achievements, longestStreakDays: streakDays };
+  // Achievements are worked out first: they depend only on play history, never
+  // on EXP, so their reward can be folded into the total before levelling.
+  const badgeExp = achievements
+    .filter((a) => a.earned)
+    .reduce((n, a) => n + expForBadge(a.target), 0);
+
+  const exp = computeExp(days, clubDays, badgeExp);
+
+  return {
+    exp,
+    level: levelProgress(exp.total),
+    achievements,
+    longestStreakDays: streakDays,
+    daysPlayed: days.length,
+    gamesPlayed,
+  };
+}
+
+/** Every session date that produced at least one finished game — the club's own
+ *  calendar, which streaks are measured against. */
+export function loadClubPlayDays(): Promise<Date[]> {
+  return prisma.session
+    .findMany({
+      where: { matches: { some: { finishedAt: { not: null } } } },
+      select: { date: true },
+      orderBy: { date: "asc" },
+    })
+    .then((rows) => rows.map((r) => r.date));
+}
+
+/** What both callers need to select for buildPlayerProgress to work. */
+export const PROGRESS_SIGNUP_SELECT = {
+  timeSlot: true,
+  session: { select: { date: true } },
+  matchSlots: {
+    select: {
+      team: true,
+      match: {
+        select: {
+          finishedAt: true,
+          winnerTeam: true,
+          players: { select: { team: true, signUp: { select: { athleteId: true } } } },
+        },
+      },
+    },
+  },
+} as const;
+
+export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgress> {
+  const [signUps, clubDays] = await Promise.all([
+    prisma.signUp.findMany({
+      where: { athleteId, status: { not: "WITHDRAWN" } },
+      select: PROGRESS_SIGNUP_SELECT,
+    }),
+    loadClubPlayDays(),
+  ]);
+
+  return buildPlayerProgress(athleteId, signUps, clubDays);
 }

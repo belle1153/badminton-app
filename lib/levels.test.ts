@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { expForStep, levelProgress, rankForLevel, rankThemeForLevel } from "./levels";
 
 describe("expForStep — the curve", () => {
-  it("costs 400 to leave level 1, then +250 per level", () => {
-    expect(expForStep(1)).toBe(400);
-    expect(expForStep(2)).toBe(650);
-    expect(expForStep(3)).toBe(900);
-    expect(expForStep(9)).toBe(2400);
+  it("costs 540 to leave level 1, then +250 per level", () => {
+    expect(expForStep(1)).toBe(540);
+    expect(expForStep(2)).toBe(790);
+    expect(expForStep(3)).toBe(1040);
+    expect(expForStep(9)).toBe(2540);
   });
 });
 
@@ -18,20 +18,20 @@ describe("levelProgress — thresholds", () => {
   };
 
   it("starts at level 1 with zero EXP", () => {
-    expect(levelProgress(0)).toMatchObject({ level: 1, intoLevel: 0, toNextLevel: 400 });
+    expect(levelProgress(0)).toMatchObject({ level: 1, intoLevel: 0, toNextLevel: 540 });
   });
 
   it("holds level 1 right up to the threshold", () => {
-    expect(levelProgress(399).level).toBe(1);
-    expect(levelProgress(400).level).toBe(2);
+    expect(levelProgress(539).level).toBe(1);
+    expect(levelProgress(540).level).toBe(2);
   });
 
   it("matches the designed cumulative table", () => {
-    expect(cumulative(2)).toBe(400);
-    expect(cumulative(3)).toBe(1050);
-    expect(cumulative(4)).toBe(1950);
-    expect(cumulative(10)).toBe(12600);
-    expect(cumulative(20)).toBe(50350);
+    expect(cumulative(2)).toBe(540);
+    expect(cumulative(3)).toBe(1330);
+    expect(cumulative(4)).toBe(2370);
+    expect(cumulative(10)).toBe(13860);
+    expect(cumulative(20)).toBe(53010);
     expect(levelProgress(cumulative(10)).level).toBe(10);
     expect(levelProgress(cumulative(20)).level).toBe(20);
   });
@@ -43,16 +43,18 @@ describe("levelProgress — thresholds", () => {
     expect(cumulative(20) / perWeek).toBeGreaterThan(100);
   });
 
-  it("separates the real one-day and two-day groups", () => {
-    // Measured across every player: one day peaked at 305, two days bottomed at 475.
-    expect(levelProgress(305).level).toBe(1);
-    expect(levelProgress(475).level).toBe(2);
+  it("separates the real one-day and two-day groups, badge EXP included", () => {
+    // Measured across every player with badge rewards counted: one day tops out
+    // at 515, two days bottom out at 565. Badges pushed both groups up, which is
+    // why this threshold had to move with them.
+    expect(levelProgress(515).level).toBe(1);
+    expect(levelProgress(565).level).toBe(2);
   });
 
   it("reports progress within the current level", () => {
-    // 400 clears level 1; 325 more is halfway through level 2's 650-point span.
-    const p = levelProgress(725);
-    expect(p).toMatchObject({ level: 2, intoLevel: 325, levelSpan: 650, toNextLevel: 325 });
+    // 540 clears level 1; 395 more is halfway through level 2's 790-point span.
+    const p = levelProgress(935);
+    expect(p).toMatchObject({ level: 2, intoLevel: 395, levelSpan: 790, toNextLevel: 395 });
     expect(p.progress).toBeCloseTo(0.5);
   });
 

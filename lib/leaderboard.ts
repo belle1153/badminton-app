@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
-import { computeExp, type DayPlayed } from "@/lib/exp";
-import { levelProgress, type RankTheme } from "@/lib/levels";
+import { type RankTheme } from "@/lib/levels";
+import {
+  buildPlayerProgress,
+  loadClubPlayDays,
+  PROGRESS_SIGNUP_SELECT,
+  type ProgressSignUp,
+} from "@/lib/playerProgress";
 
 export interface LeaderboardEntry {
   rank: number;
@@ -69,85 +74,40 @@ export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> 
   const [signUps, clubDays, athletes] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
-      select: {
-        athleteId: true,
-        timeSlot: true,
-        session: { select: { date: true } },
-        matchSlots: {
-          select: {
-            team: true,
-            match: {
-              select: {
-                finishedAt: true,
-                winnerTeam: true,
-                players: { select: { team: true, signUp: { select: { athleteId: true } } } },
-              },
-            },
-          },
-        },
-      },
+      select: { athleteId: true, ...PROGRESS_SIGNUP_SELECT },
     }),
-    prisma.session
-      .findMany({
-        where: { matches: { some: { finishedAt: { not: null } } } },
-        select: { date: true },
-        orderBy: { date: "asc" },
-      })
-      .then((rows) => rows.map((r) => r.date)),
+    loadClubPlayDays(),
     prisma.athlete.findMany({
       select: { id: true, name: true, photoUrl: true, updatedAt: true },
     }),
   ]);
 
-  // athleteId -> dateKey -> that day's play, mirroring loadPlayerProgress.
-  const byAthlete = new Map<string, Map<string, DayPlayed>>();
-
+  // Group each player's sign-ups, then run the same progress calculation the
+  // profile uses — computing EXP separately here is how the two drifted apart
+  // when badges started paying out.
+  const byAthlete = new Map<string, ProgressSignUp[]>();
   for (const s of signUps) {
-    const athleteId = s.athleteId;
-    if (!athleteId) continue;
-    const dateKey = s.session.date.toISOString().slice(0, 10);
-
-    for (const slot of s.matchSlots) {
-      const m = slot.match;
-      if (!m.finishedAt) continue;
-
-      let days = byAthlete.get(athleteId);
-      if (!days) {
-        days = new Map();
-        byAthlete.set(athleteId, days);
-      }
-      let entry = days.get(dateKey);
-      if (!entry) {
-        entry = { date: s.session.date, games: 0, wins: 0, partnerIds: [] };
-        days.set(dateKey, entry);
-      }
-
-      entry.games++;
-      if (m.winnerTeam != null && m.winnerTeam === slot.team) entry.wins++;
-
-      for (const p of m.players) {
-        if (p.team !== slot.team) continue;
-        const pid = p.signUp.athleteId;
-        if (!pid || pid === athleteId) continue;
-        if (!entry.partnerIds.includes(pid)) entry.partnerIds.push(pid);
-      }
-    }
+    if (!s.athleteId) continue;
+    const list = byAthlete.get(s.athleteId);
+    if (list) list.push(s);
+    else byAthlete.set(s.athleteId, [s]);
   }
 
   const byId = new Map(athletes.map((a) => [a.id, a]));
+  const progressById = new Map<string, ReturnType<typeof buildPlayerProgress>>();
   const rows: RankableRow[] = [];
-  for (const [athleteId, dayMap] of byAthlete) {
+  for (const [athleteId, playerSignUps] of byAthlete) {
     const athlete = byId.get(athleteId);
     if (!athlete) continue;
-    const days = [...dayMap.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
-    const exp = computeExp(days, clubDays).total;
-    if (exp <= 0) continue;
+    const progress = buildPlayerProgress(athleteId, playerSignUps, clubDays);
+    if (progress.exp.total <= 0) continue;
+    progressById.set(athleteId, progress);
     rows.push({
       athleteId,
       name: athlete.name,
-      exp,
-      days: days.length,
-      games: days.reduce((n, d) => n + d.games, 0),
+      exp: progress.exp.total,
+      days: progress.daysPlayed,
+      games: progress.gamesPlayed,
     });
   }
 
@@ -155,7 +115,7 @@ export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> 
     .filter((r) => r.rank <= maxRank)
     .map((r) => {
       const athlete = byId.get(r.athleteId)!;
-      const progress = levelProgress(r.exp);
+      const progress = progressById.get(r.athleteId)!.level;
       return {
         rank: r.rank,
         athleteId: r.athleteId,

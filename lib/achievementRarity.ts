@@ -43,3 +43,25 @@ export function rarityFor(target: number | null): Rarity {
   if (target <= 100) return "epic";
   return "legendary";
 }
+
+/**
+ * EXP awarded for earning a badge.
+ *
+ * Kept small on purpose. Badges are a by-product of playing, which already
+ * earns EXP — paying generously for them counts the same effort twice. At these
+ * rates the whole set is worth ~950, less than a third of what level 5 costs,
+ * so collecting is a bonus rather than a shortcut past the level curve. Rates
+ * five times higher were modelled first and moved 35 of 37 real players up a
+ * level on the day it shipped, with badge EXP exceeding what they had earned by
+ * turning up.
+ */
+export const RARITY_EXP: Record<Rarity, number> = {
+  common: 10,
+  rare: 25,
+  epic: 50,
+  legendary: 100,
+};
+
+export function expForBadge(target: number | null): number {
+  return RARITY_EXP[rarityFor(target)];
+}

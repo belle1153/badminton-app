@@ -16,6 +16,8 @@ export interface ExpBreakdown {
   wins: number;
   streakBonus: number;
   newPartnerBonus: number;
+  /** EXP from earned achievements — see RARITY_EXP in achievementRarity.ts. */
+  badges: number;
 }
 
 const PER_DAY = 100;
@@ -38,8 +40,17 @@ const NEW_PARTNER_DAILY_CAP = 5;
  * date, across ALL players, that had at least one finished game — streaks are
  * measured against that shared calendar, so a club day the player missed
  * breaks it, not just a calendar gap.
+ *
+ * `badgeExp` is the total for achievements already earned. It's passed in
+ * rather than computed here because achievements depend only on play history,
+ * never on EXP, so the caller works them out first and hands over the sum —
+ * which keeps this function free of any dependency on the badge list.
  */
-export function computeExp(days: DayPlayed[], clubPlayDates: Date[]): ExpBreakdown {
+export function computeExp(
+  days: DayPlayed[],
+  clubPlayDates: Date[],
+  badgeExp = 0
+): ExpBreakdown {
   const streaks = computeStreaks(
     days.map((d) => d.date),
     clubPlayDates
@@ -53,6 +64,7 @@ export function computeExp(days: DayPlayed[], clubPlayDates: Date[]): ExpBreakdo
     wins: 0,
     streakBonus: 0,
     newPartnerBonus: 0,
+    badges: badgeExp,
   };
 
   days.forEach((day, i) => {
@@ -76,6 +88,6 @@ export function computeExp(days: DayPlayed[], clubPlayDates: Date[]): ExpBreakdo
     }
   });
 
-  b.total = b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus;
+  b.total = b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus + b.badges;
   return b;
 }

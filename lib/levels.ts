@@ -9,17 +9,21 @@
  * one sitting — the club's real problem is players who never return for a
  * second visit, not players who don't play enough on their first.
  *
- * 400 sits in the gap the real data shows between the two groups: across every
- * player, a single day topped out at 305 EXP while everyone who came twice had
- * at least 475. Both sides keep a margin, so a heavy first day still can't
- * reach level 2 and a light second day still can.
+ * 540 sits in the gap the real data shows between the two groups: across every
+ * player, a single day tops out at 515 EXP while everyone who came twice has at
+ * least 565. Both sides keep a margin, so a heavy first day still can't reach
+ * level 2 and a light second day still can.
+ *
+ * That gap moved once badges started paying EXP — at the old 400 threshold,
+ * eight one-visit players crossed into level 2 on badge rewards alone. Any
+ * change to badge EXP has to be re-checked against this number.
  *
  * Past that the curve is steep so the top ranks stay rare. At the measured rate
  * (236 EXP per visit, twice a week) that puts ตัวตึง about 6 months in and
  * ตำนาน about two years away — the increment, not the base, is what controls
  * this, which is why the base stays where the second-visit gap needs it.
  */
-const LEVEL_STEP_BASE = 400;
+const LEVEL_STEP_BASE = 540;
 const LEVEL_STEP_INCREMENT = 250;
 
 /** EXP needed to advance from `level` to `level + 1`. */
