@@ -54,13 +54,18 @@ export function rankPlayers<T extends RankableRow>(rows: T[]): (T & { rank: numb
 }
 
 /**
- * The top N by EXP.
+ * Everyone holding a place of `maxRank` or better.
+ *
+ * Counts places, not people: cutting at a fixed number of players would drop
+ * someone who is genuinely tied with the last person shown, which is exactly
+ * the unfairness the shared-place ranking exists to avoid. A big tie can
+ * therefore return more than `maxRank` players, and that's correct.
  *
  * Deliberately one pass over every sign-up rather than calling
  * loadPlayerProgress per athlete, which would be two queries each — roughly
  * 160 round trips for the current roster.
  */
-export async function loadLeaderboard(limit = 5): Promise<LeaderboardEntry[]> {
+export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> {
   const [signUps, clubDays, athletes] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
@@ -147,7 +152,7 @@ export async function loadLeaderboard(limit = 5): Promise<LeaderboardEntry[]> {
   }
 
   return rankPlayers(rows)
-    .slice(0, limit)
+    .filter((r) => r.rank <= maxRank)
     .map((r) => {
       const athlete = byId.get(r.athleteId)!;
       const progress = levelProgress(r.exp);

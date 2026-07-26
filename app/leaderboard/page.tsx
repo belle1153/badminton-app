@@ -55,14 +55,21 @@ function Avatar({
 
 export default async function LeaderboardPage() {
   const top = await loadLeaderboard(5);
-  // Podium order: 2nd, 1st, 3rd — so first place stands in the middle.
-  const podium = [top[1], top[0], top[2]].filter(Boolean);
-  const rest = top.slice(3);
-  // Equal EXP shares a place, so a player below the podium can hold the same
-  // number as someone standing on it. Mark those "=3" rather than repeating a
-  // bare "3", which reads like a mistake.
+
+  // Everyone who holds each of the top three places — a tie puts two or more
+  // people on the same block rather than pushing one of them off it.
+  const holdersOf = (place: number) => top.filter((e) => e.rank === place);
+  // Rendered 2nd, 1st, 3rd so first place stands in the middle.
+  const podium = [
+    { place: 2, holders: holdersOf(2) },
+    { place: 1, holders: holdersOf(1) },
+    { place: 3, holders: holdersOf(3) },
+  ].filter((p) => p.holders.length > 0);
+  const rest = top.filter((e) => e.rank > 3);
+  // Below the podium a place can still be shared. Mark those "=4" so a repeated
+  // number reads as a genuine tie rather than a mistake.
   const sharedRanks = new Set(
-    top.map((e) => e.rank).filter((r, _, all) => all.filter((x) => x === r).length > 1)
+    rest.map((e) => e.rank).filter((r, _, all) => all.filter((x) => x === r).length > 1)
   );
 
   return (
@@ -93,33 +100,44 @@ export default async function LeaderboardPage() {
           </p>
         ) : (
           <>
-            {/* Podium */}
+            {/* Podium — one block per place, everyone tied stands on it */}
             <section className="flex items-end justify-center gap-2 pt-2">
-              {podium.map((entry) => {
-                const place = PLACE[entry.rank - 1] ?? PLACE[2];
-                const isFirst = entry.rank === 1;
+              {podium.map(({ place, holders }) => {
+                const style = PLACE[place - 1];
+                const isFirst = place === 1;
+                // Avatars shrink as a block gets crowded so the column keeps
+                // its width and the three blocks stay aligned.
+                const size = holders.length > 2 ? 34 : holders.length > 1 ? 42 : isFirst ? 64 : 52;
                 return (
-                  <Link
-                    key={entry.athleteId}
-                    href={`/player/${entry.athleteId}`}
-                    className="flex w-1/3 flex-col items-center gap-1.5"
-                  >
+                  <div key={place} className="flex w-1/3 flex-col items-center gap-1.5">
                     {isFirst && <span className="text-xl leading-none">👑</span>}
-                    <Avatar entry={entry} size={isFirst ? 64 : 52} ring={place.metal} />
-                    <span className="max-w-full truncate text-[12px] font-semibold text-[#e2e8f2]">
-                      {entry.name}
-                    </span>
+
+                    <div className="flex flex-wrap items-end justify-center gap-1.5">
+                      {holders.map((entry) => (
+                        <Link
+                          key={entry.athleteId}
+                          href={`/player/${entry.athleteId}`}
+                          className="flex max-w-full flex-col items-center gap-1"
+                        >
+                          <Avatar entry={entry} size={size} ring={style.metal} />
+                          <span className="max-w-[72px] truncate text-[11px] font-semibold text-[#e2e8f2]">
+                            {entry.name}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+
                     <span
                       className="font-[family-name:var(--font-pixel-display)] text-[10px]"
-                      style={{ color: place.metal }}
+                      style={{ color: style.metal }}
                     >
-                      {entry.exp.toLocaleString()}
+                      {holders[0].exp.toLocaleString()}
                     </span>
 
                     <div
-                      className={`pixel-frame flex w-full items-start justify-center pt-2 ${place.h}`}
+                      className={`pixel-frame flex w-full items-start justify-center pt-2 ${style.h}`}
                       style={{
-                        background: `linear-gradient(180deg, ${place.metal}, ${place.dim})`,
+                        background: `linear-gradient(180deg, ${style.metal}, ${style.dim})`,
                         boxShadow: "inset 0 2px 0 rgba(255,255,255,.35), 0 4px 0 rgba(0,0,0,.4)",
                       }}
                     >
@@ -127,10 +145,10 @@ export default async function LeaderboardPage() {
                         className="font-[family-name:var(--font-pixel-display)] text-[20px]"
                         style={{ color: "#1c2536", textShadow: "0 1px 0 rgba(255,255,255,.4)" }}
                       >
-                        {place.label}
+                        {style.label}
                       </span>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </section>
