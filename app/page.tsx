@@ -75,7 +75,17 @@ export default async function Home() {
           </Link>
         </div>
 
-        <MyStatsCard />
+        <div className="grid grid-cols-2 gap-4">
+          <MyStatsCard />
+          <Link
+            href="/leaderboard"
+            className="rounded-2xl border-2 border-yellow-200 bg-yellow-50/60 p-6 flex flex-col items-center gap-1.5 text-center hover:border-yellow-400 transition"
+          >
+            <span className="text-4xl">🏆</span>
+            <span className="font-bold text-lg text-yellow-900">อันดับโคตรตึง</span>
+            <span className="text-xs text-gray-500">5 อันดับแรกของก๊วน</span>
+          </Link>
+        </div>
       </div>
 
       <AnnouncementCarousel items={announcements} />
