@@ -13,9 +13,14 @@
  * player, a single day topped out at 305 EXP while everyone who came twice had
  * at least 475. Both sides keep a margin, so a heavy first day still can't
  * reach level 2 and a light second day still can.
+ *
+ * Past that the curve is steep so the top ranks stay rare. At the measured rate
+ * (236 EXP per visit, twice a week) that puts ตัวตึง about 6 months in and
+ * ตำนาน about two years away — the increment, not the base, is what controls
+ * this, which is why the base stays where the second-visit gap needs it.
  */
 const LEVEL_STEP_BASE = 400;
-const LEVEL_STEP_INCREMENT = 100;
+const LEVEL_STEP_INCREMENT = 250;
 
 /** EXP needed to advance from `level` to `level + 1`. */
 export function expForStep(level: number): number {

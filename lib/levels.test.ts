@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { expForStep, levelProgress, rankForLevel, rankThemeForLevel } from "./levels";
 
 describe("expForStep — the curve", () => {
-  it("costs 400 to leave level 1, then +100 per level", () => {
+  it("costs 400 to leave level 1, then +250 per level", () => {
     expect(expForStep(1)).toBe(400);
-    expect(expForStep(2)).toBe(500);
-    expect(expForStep(3)).toBe(600);
-    expect(expForStep(9)).toBe(1200);
+    expect(expForStep(2)).toBe(650);
+    expect(expForStep(3)).toBe(900);
+    expect(expForStep(9)).toBe(2400);
   });
 });
 
@@ -28,12 +28,19 @@ describe("levelProgress — thresholds", () => {
 
   it("matches the designed cumulative table", () => {
     expect(cumulative(2)).toBe(400);
-    expect(cumulative(3)).toBe(900);
-    expect(cumulative(4)).toBe(1500);
-    expect(cumulative(10)).toBe(7200);
-    expect(cumulative(20)).toBe(24700);
+    expect(cumulative(3)).toBe(1050);
+    expect(cumulative(4)).toBe(1950);
+    expect(cumulative(10)).toBe(12600);
+    expect(cumulative(20)).toBe(50350);
     expect(levelProgress(cumulative(10)).level).toBe(10);
     expect(levelProgress(cumulative(20)).level).toBe(20);
+  });
+
+  it("keeps the top ranks rare — ตัวตึง and ตำนาน stay far apart", () => {
+    // At the measured 236 EXP/visit, twice a week: ~7 months and ~2 years.
+    const perWeek = 236 * 2;
+    expect(cumulative(10) / perWeek).toBeGreaterThan(25); // weeks
+    expect(cumulative(20) / perWeek).toBeGreaterThan(100);
   });
 
   it("separates the real one-day and two-day groups", () => {
@@ -43,9 +50,9 @@ describe("levelProgress — thresholds", () => {
   });
 
   it("reports progress within the current level", () => {
-    // 400 clears level 1; 250 more is halfway through level 2's 500-point span.
-    const p = levelProgress(650);
-    expect(p).toMatchObject({ level: 2, intoLevel: 250, levelSpan: 500, toNextLevel: 250 });
+    // 400 clears level 1; 325 more is halfway through level 2's 650-point span.
+    const p = levelProgress(725);
+    expect(p).toMatchObject({ level: 2, intoLevel: 325, levelSpan: 650, toNextLevel: 325 });
     expect(p.progress).toBeCloseTo(0.5);
   });
 
