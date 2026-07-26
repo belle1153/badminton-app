@@ -83,7 +83,7 @@ export default async function LeaderboardPage() {
         </Link>
 
         <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-bold text-[#f2f5fa]">🏆 อันดับโคตรตึง</h1>
+          <h1 className="text-xl font-bold text-[#f2f5fa]">🏆 อันดับโคตรตึง!</h1>
           <p className="text-[12.5px] text-[#8095ad]">5 อันดับแรกของก๊วน — วัดจาก EXP</p>
         </div>
 

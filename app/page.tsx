@@ -79,11 +79,11 @@ export default async function Home() {
           <MyStatsCard />
           <Link
             href="/leaderboard"
-            className="rounded-2xl border-2 border-yellow-200 bg-yellow-50/60 p-6 flex flex-col items-center gap-1.5 text-center hover:border-yellow-400 transition"
+            className="rounded-2xl border-2 border-sky-400 bg-[#141d2b] p-6 flex flex-col items-center gap-1.5 text-center shadow-[0_0_16px_rgba(79,159,230,0.35)] hover:border-sky-300 hover:shadow-[0_0_22px_rgba(79,159,230,0.55)] transition"
           >
             <span className="text-4xl">🏆</span>
-            <span className="font-bold text-lg text-yellow-900">อันดับโคตรตึง</span>
-            <span className="text-xs text-gray-500">5 อันดับแรกของก๊วน</span>
+            <span className="font-bold text-lg text-sky-300">อันดับโคตรตึง!</span>
+            <span className="text-xs text-slate-400">5 อันดับแรกของก๊วน</span>
           </Link>
         </div>
       </div>
