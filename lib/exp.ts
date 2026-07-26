@@ -20,15 +20,32 @@ export interface ExpBreakdown {
   badges: number;
 }
 
-const PER_DAY = 100;
-const PER_GAME = 20;
-const PER_WIN = 10;
-const STREAK_BONUS = 25;
-/** Bonus stops growing past 4 consecutive club days (i.e. +100/day, capped). */
-const STREAK_BONUS_CAP_DAYS = 4;
-const NEW_PARTNER_BONUS = 15;
-/** Only the first 5 new partners in a day earn the bonus. */
-const NEW_PARTNER_DAILY_CAP = 5;
+/**
+ * Exported so the rules shown to players are generated from the same numbers
+ * the engine scores with — a hand-written rules list drifts out of date the
+ * moment any of these move, which is exactly what happened to the club's first
+ * announcement (it still promised EXP for checking out, months after that was
+ * removed).
+ */
+export const EXP_RATES = {
+  perDay: 100,
+  perGame: 20,
+  perWin: 10,
+  streakBonus: 25,
+  /** Bonus stops growing past this many consecutive club days. */
+  streakCapDays: 4,
+  newPartnerBonus: 15,
+  /** Only this many new partners in a day earn the bonus. */
+  newPartnerDailyCap: 5,
+} as const;
+
+const PER_DAY = EXP_RATES.perDay;
+const PER_GAME = EXP_RATES.perGame;
+const PER_WIN = EXP_RATES.perWin;
+const STREAK_BONUS = EXP_RATES.streakBonus;
+const STREAK_BONUS_CAP_DAYS = EXP_RATES.streakCapDays;
+const NEW_PARTNER_BONUS = EXP_RATES.newPartnerBonus;
+const NEW_PARTNER_DAILY_CAP = EXP_RATES.newPartnerDailyCap;
 
 // Checking out deliberately earns nothing: only the admin can do it (the
 // endpoint is admin-only, there is no player-facing control), so paying for it

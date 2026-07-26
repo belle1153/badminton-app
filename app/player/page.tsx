@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { getMyPlayerId } from "@/lib/myPlayer";
 import BackLink from "../BackLink";
+import MissionRules from "./MissionRules";
 
 interface Suggestion {
   id: string;
@@ -57,7 +58,7 @@ export default function PlayerPickerPage() {
       <BackLink href="/" label="หน้าแรก" exact />
 
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-bold">📊 Mission โคตรตึง!</h1>
+        <h1 className="text-xl font-bold">🚀 Mission โคตรตึง!</h1>
         <p className="text-sm text-gray-500">พิมพ์ชื่อเพื่อดูสถิติ — ดูของตัวเองหรือของเพื่อนก็ได้</p>
       </div>
 
@@ -102,6 +103,8 @@ export default function PlayerPickerPage() {
           ))}
         </ul>
       )}
+
+      <MissionRules />
     </main>
   );
 }
