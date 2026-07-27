@@ -93,6 +93,7 @@ export async function loadQuestProgress(
             // Who signed themselves up (false) vs an admin quick-add (true) —
             // "fastest to sign up" only ranks genuine user-side sign-ups.
             addedByAdmin: true,
+            checkedInAt: true,
             matchSlots: {
               select: { match: { select: { finishedAt: true } } },
             },
@@ -116,6 +117,7 @@ export async function loadQuestProgress(
 
     const daysPlayed: Date[] = [];
     let gamesPlayed = 0;
+    let checkinDays = 0;
     let bestSignupPlace: number | null = null;
 
     for (const s of inWindow) {
@@ -131,6 +133,8 @@ export async function loadQuestProgress(
 
       const mine = s.signUps.find((su) => su.athleteId === athleteId);
       if (!mine) continue;
+      // Attendance = checked in that day, whether or not a game finished.
+      if (mine.checkedInAt != null) checkinDays++;
       const finished = mine.matchSlots.filter((ms) => ms.match.finishedAt != null).length;
       if (finished > 0) {
         gamesPlayed += finished;
@@ -138,7 +142,7 @@ export async function loadQuestProgress(
       }
     }
 
-    const facts: QuestPlayerFacts = { daysPlayed, gamesPlayed, bestSignupPlace };
+    const facts: QuestPlayerFacts = { daysPlayed, gamesPlayed, checkinDays, bestSignupPlace };
     const clubDaysInRange = clubDays.filter(
       (d) => d.getTime() >= q.startDate.getTime() && d.getTime() < q.endDate.getTime()
     );

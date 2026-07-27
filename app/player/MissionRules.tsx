@@ -26,7 +26,7 @@ export default function MissionRules() {
       value: `+${EXP_RATES.newPartnerBonus}/คน`,
     },
     {
-      label: "เก็บเหรียญได้ 1 ใบ",
+      label: "เก็บเหรียญได้ 1 เหรียญ",
       value: `+${RARITY_EXP.common}–${RARITY_EXP.legendary}`,
     },
   ];
@@ -142,7 +142,7 @@ export default function MissionRules() {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-bold text-sky-200">
-          🏅 ระดับเหรียญ — มี {tiers.length} ระดับ ({allBadges.length} ใบ)
+          🏅 ระดับเหรียญ — มี {tiers.length} ระดับ ({allBadges.length} เหรียญ)
         </h3>
         <ul className="flex flex-col divide-y divide-slate-700/60 rounded-lg border border-slate-700 bg-[#0f1622]">
           {tierRows.map((t) => (
@@ -161,7 +161,7 @@ export default function MissionRules() {
               <div className="flex min-w-0 flex-col">
                 <span className="text-[13px] font-semibold text-slate-200">
                   {t.palette.label}{" "}
-                  <span className="text-[11px] font-normal text-slate-500">({t.count} ใบ)</span>
+                  <span className="text-[11px] font-normal text-slate-500">({t.count} เหรียญ)</span>
                 </span>
                 <span className="text-[11px] text-slate-400">{t.note}</span>
               </div>
@@ -172,7 +172,7 @@ export default function MissionRules() {
           ))}
         </ul>
         <p className="text-[11px] text-slate-500">
-          เก็บครบทุกใบได้ {wholeSetExp.toLocaleString()} EXP · เหรียญเป็นของแถมจากการมาเล่น
+          เก็บครบทุกเหรียญได้ {wholeSetExp.toLocaleString()} EXP · เหรียญเป็นของแถมจากการมาเล่น
           ไม่ใช่ทางลัดข้ามเลเวล
         </p>
       </div>

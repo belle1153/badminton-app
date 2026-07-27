@@ -14,6 +14,7 @@
 export type QuestKind =
   | "perfect-attendance"
   | "days-played"
+  | "checkin-days"
   | "games-played"
   | "fastest-signup";
 
@@ -37,6 +38,12 @@ export const QUEST_KINDS: QuestKindSpec[] = [
     label: "มาเล่นครบ N วัน",
     targetLabel: "จำนวนวัน",
     hint: "นับเฉพาะวันที่มีเกมเล่นจบ",
+  },
+  {
+    kind: "checkin-days",
+    label: "เช็คอินครบ N วัน",
+    targetLabel: "จำนวนวัน",
+    hint: "นับวันที่เช็คอิน (มาถึงสนาม) ไม่ต้องเล่นจบเกมก็ได้",
   },
   {
     kind: "games-played",
@@ -72,6 +79,8 @@ export interface QuestPlayerFacts {
   daysPlayed: Date[];
   /** Finished games in the range. */
   gamesPlayed: number;
+  /** Distinct days in range they checked in (attended), games or not. */
+  checkinDays: number;
   /** Best sign-up placing they achieved on any day in range (1 = first). */
   bestSignupPlace: number | null;
 }
@@ -119,6 +128,17 @@ export function evaluateQuest(
     case "days-played": {
       const target = quest.target ?? 0;
       const have = facts.daysPlayed.length;
+      return {
+        completed: target > 0 && have >= target,
+        progressLabel: `${have}/${target}`,
+        current: have,
+        target,
+      };
+    }
+
+    case "checkin-days": {
+      const target = quest.target ?? 0;
+      const have = facts.checkinDays;
       return {
         completed: target > 0 && have >= target,
         progressLabel: `${have}/${target}`,

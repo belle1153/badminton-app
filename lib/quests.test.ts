@@ -26,6 +26,7 @@ const quest = (over: Partial<QuestDef> = {}): QuestDef => ({
 const facts = (over: Partial<QuestPlayerFacts> = {}): QuestPlayerFacts => ({
   daysPlayed: [],
   gamesPlayed: 0,
+  checkinDays: 0,
   bestSignupPlace: null,
   ...over,
 });
@@ -148,7 +149,7 @@ describe("QUEST_KINDS", () => {
     for (const k of kinds) {
       const p = evaluateQuest(
         quest({ kind: k, target: 1 }),
-        facts({ daysPlayed: [d("2026-08-01")], gamesPlayed: 5, bestSignupPlace: 1 }),
+        facts({ daysPlayed: [d("2026-08-01")], gamesPlayed: 5, checkinDays: 2, bestSignupPlace: 1 }),
         [d("2026-08-01")]
       );
       expect(p.completed).toBe(true);
