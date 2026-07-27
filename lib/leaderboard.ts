@@ -6,6 +6,7 @@ import {
   PROGRESS_SIGNUP_SELECT,
   type ProgressSignUp,
 } from "@/lib/playerProgress";
+import { loadQuestExpByAthlete } from "@/lib/questProgress";
 
 export interface LeaderboardEntry {
   rank: number;
@@ -71,7 +72,7 @@ export function rankPlayers<T extends RankableRow>(rows: T[]): (T & { rank: numb
  * 160 round trips for the current roster.
  */
 export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> {
-  const [signUps, clubDays, athletes] = await Promise.all([
+  const [signUps, clubDays, athletes, questExpByAthlete] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
       select: { athleteId: true, ...PROGRESS_SIGNUP_SELECT },
@@ -80,6 +81,7 @@ export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> 
     prisma.athlete.findMany({
       select: { id: true, name: true, photoUrl: true, updatedAt: true },
     }),
+    loadQuestExpByAthlete(),
   ]);
 
   // Group each player's sign-ups, then run the same progress calculation the
@@ -99,7 +101,12 @@ export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> 
   for (const [athleteId, playerSignUps] of byAthlete) {
     const athlete = byId.get(athleteId);
     if (!athlete) continue;
-    const progress = buildPlayerProgress(athleteId, playerSignUps, clubDays);
+    const progress = buildPlayerProgress(
+      athleteId,
+      playerSignUps,
+      clubDays,
+      questExpByAthlete.get(athleteId) ?? 0
+    );
     if (progress.exp.total <= 0) continue;
     progressById.set(athleteId, progress);
     rows.push({

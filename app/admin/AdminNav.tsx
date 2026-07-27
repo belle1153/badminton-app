@@ -9,6 +9,7 @@ const NAV = [
   { href: "/admin/athletes", label: "ข้อมูลผู้เล่น", icon: "🏸" },
   // ประกาศ + กฎ share one page, so the nav stays narrow enough to reach every item.
   { href: "/admin/announcements", label: "ประกาศ & กฎ", icon: "📣" },
+  { href: "/admin/quests", label: "เควส", icon: "🎯" },
   { href: "/admin/master", label: "Master ข้อมูล", icon: "💰" },
   { href: "/admin/withdrawals", label: "ประวัติถอนชื่อ", icon: "🚫" },
   { href: "/admin/history", label: "ประวัติย้อนหลัง", icon: "🗂️" },

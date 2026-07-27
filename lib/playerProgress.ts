@@ -52,7 +52,10 @@ export interface ProgressSignUp {
 export function buildPlayerProgress(
   athleteId: string,
   signUps: ProgressSignUp[],
-  clubDays: Date[]
+  clubDays: Date[],
+  /** EXP from completed quests — supplied by the caller, since quests live in
+   *  their own table and are evaluated separately. */
+  questExp = 0
 ): PlayerProgress {
   const foundingDates = new Set(
     clubDays.slice(0, FOUNDING_WINDOW).map((d) => d.toISOString().slice(0, 10))
@@ -149,7 +152,7 @@ export function buildPlayerProgress(
     .filter((a) => a.earned)
     .reduce((n, a) => n + expForBadge(a.target), 0);
 
-  const exp = computeExp(days, clubDays, badgeExp);
+  const exp = computeExp(days, clubDays, badgeExp + questExp);
 
   return {
     exp,
@@ -191,7 +194,10 @@ export const PROGRESS_SIGNUP_SELECT = {
   },
 } as const;
 
-export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgress> {
+export async function loadPlayerProgress(
+  athleteId: string,
+  questExp = 0
+): Promise<PlayerProgress> {
   const [signUps, clubDays] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId, status: { not: "WITHDRAWN" } },
@@ -200,5 +206,5 @@ export async function loadPlayerProgress(athleteId: string): Promise<PlayerProgr
     loadClubPlayDays(),
   ]);
 
-  return buildPlayerProgress(athleteId, signUps, clubDays);
+  return buildPlayerProgress(athleteId, signUps, clubDays, questExp);
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadPlayerProgress } from "@/lib/playerProgress";
+import { loadQuestProgress, questExp } from "@/lib/questProgress";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import AchievementCoin from "./AchievementCoin";
 import RememberMe from "./RememberMe";
@@ -71,10 +72,11 @@ export default async function PlayerProfilePage({
   });
   if (!athlete) notFound();
 
+  const quests = await loadQuestProgress(id);
   const [stats, recent, progress] = await Promise.all([
     loadPlayerGames(id).then((games) => computePlayerStats(games)),
     loadPlayerMatchHistory(id, 10),
-    loadPlayerProgress(id),
+    loadPlayerProgress(id, questExp(quests)),
   ]);
 
   const theme = progress.level.theme;
@@ -272,6 +274,40 @@ export default async function PlayerProfilePage({
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {quests.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-sm font-bold text-[#e2e8f2]">🎯 เควสช่วงนี้</h2>
+                <div className="flex flex-col gap-2">
+                  {quests.map((q) => (
+                    <div
+                      key={q.id}
+                      className="flex items-center gap-3 rounded border px-3 py-2.5"
+                      style={{
+                        borderColor: q.progress.completed ? "#6fdc9a" : "#384a63",
+                        background: q.progress.completed ? "rgba(111,220,154,.08)" : "#232f42",
+                      }}
+                    >
+                      <span className="text-xl leading-none">{q.icon}</span>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="text-[13px] font-semibold text-[#e2e8f2]">{q.title}</span>
+                        {q.progress.progressLabel && (
+                          <span className="text-[11px] tabular-nums text-[#8095ad]">
+                            {q.progress.progressLabel}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="ml-auto shrink-0 text-[12px] font-bold tabular-nums"
+                        style={{ color: q.progress.completed ? "#6fdc9a" : "#54687e" }}
+                      >
+                        {q.progress.completed ? "สำเร็จ " : ""}+{q.expReward}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </section>
             )}
 

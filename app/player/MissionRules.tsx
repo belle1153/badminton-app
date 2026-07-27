@@ -58,7 +58,7 @@ export default function MissionRules() {
             <span className="text-sky-400">•</span>
             <span>
               <strong className="text-slate-100">Level ไม่เกี่ยวกับระดับมือ</strong> (RK BG N S P) —
-              วัดจากความขยันมาเล่นล้วนๆ
+              วัดจากความขยันมาเล่นเป็นหลัก
             </span>
           </li>
           <li className="flex gap-2">

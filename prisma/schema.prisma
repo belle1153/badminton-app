@@ -182,3 +182,28 @@ model PendingPair {
   team2Ids  String[] // exactly 2 signUp ids
   createdAt DateTime @default(now())
 }
+
+// An admin-created challenge over a date range — "come to every session in
+// August", "be one of the first three to sign up this week".
+//
+// Only the definition is stored. Who has completed it is recomputed from match
+// history on every read, exactly like EXP and achievements: the admin can edit
+// or delete a finished game at any time, so a stored winner list would keep
+// rewarding someone for a game that no longer exists.
+model Quest {
+  id        String   @id @default(cuid())
+  title     String
+  // Which rule decides completion — see QUEST_KINDS in lib/quests.ts. Kept as a
+  // string rather than an enum so adding a rule needs no migration.
+  kind      String
+  icon      String   @default("🎯")
+  // Inclusive start, exclusive end, both at UTC midnight like Session.date, so
+  // consecutive months tile without overlapping.
+  startDate DateTime
+  endDate   DateTime
+  // What the rule counts against: games, days, or how many top places pay out.
+  target    Int?
+  expReward Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
