@@ -90,6 +90,9 @@ export async function loadQuestProgress(
           orderBy: { createdAt: "asc" },
           select: {
             athleteId: true,
+            // Who signed themselves up (false) vs an admin quick-add (true) —
+            // "fastest to sign up" only ranks genuine user-side sign-ups.
+            addedByAdmin: true,
             matchSlots: {
               select: { match: { select: { finishedAt: true } } },
             },
@@ -116,9 +119,12 @@ export async function loadQuestProgress(
     let bestSignupPlace: number | null = null;
 
     for (const s of inWindow) {
-      // Sign-up order is per session and counts everyone, withdrawals aside —
-      // placing 2nd only means something relative to the rest of that day.
-      const place = s.signUps.findIndex((su) => su.athleteId === athleteId);
+      // Sign-up order counts only genuine user-side sign-ups — an admin
+      // quick-add neither takes a placing itself nor shifts the people who did
+      // sign themselves up. Placing 2nd only means something relative to the
+      // rest of that day's self-sign-ups.
+      const userSignups = s.signUps.filter((su) => !su.addedByAdmin);
+      const place = userSignups.findIndex((su) => su.athleteId === athleteId);
       if (place >= 0 && (bestSignupPlace == null || place + 1 < bestSignupPlace)) {
         bestSignupPlace = place + 1;
       }
