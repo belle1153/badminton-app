@@ -36,7 +36,9 @@ export const EXP_RATES = {
   streakCapDays: 4,
   newPartnerBonus: 15,
   /** Only this many new partners in a day earn the bonus. */
-  newPartnerDailyCap: 5,
+  newPartnerDailyCap: 3,
+  /** …and only this many across a whole week, Monday to Sunday. */
+  newPartnerWeeklyCap: 6,
 } as const;
 
 const PER_DAY = EXP_RATES.perDay;
@@ -46,6 +48,21 @@ const STREAK_BONUS = EXP_RATES.streakBonus;
 const STREAK_BONUS_CAP_DAYS = EXP_RATES.streakCapDays;
 const NEW_PARTNER_BONUS = EXP_RATES.newPartnerBonus;
 const NEW_PARTNER_DAILY_CAP = EXP_RATES.newPartnerDailyCap;
+const NEW_PARTNER_WEEKLY_CAP = EXP_RATES.newPartnerWeeklyCap;
+
+/**
+ * Monday's date for the week a play-day falls in, as yyyy-mm-dd.
+ *
+ * Monday-based because the club's week runs Monday and Wednesday — a
+ * Sunday-based week would split those two into different weeks. Session dates
+ * are stored at UTC midnight of the intended local date, so this stays in UTC.
+ */
+function weekStartKey(date: Date): string {
+  const d = new Date(date.getTime());
+  const mondayOffset = (d.getUTCDay() + 6) % 7; // Mon = 0
+  d.setUTCDate(d.getUTCDate() - mondayOffset);
+  return d.toISOString().slice(0, 10);
+}
 
 // Checking out deliberately earns nothing: only the admin can do it (the
 // endpoint is admin-only, there is no player-facing control), so paying for it
@@ -73,6 +90,8 @@ export function computeExp(
     clubPlayDates
   );
   const seenPartners = new Set<string>();
+  /** week-start key -> new partners already paid for that week. */
+  const newPartnersByWeek = new Map<string, number>();
 
   const b: ExpBreakdown = {
     total: 0,
@@ -94,15 +113,22 @@ export function computeExp(
       b.streakBonus += STREAK_BONUS * Math.min(streak - 1, STREAK_BONUS_CAP_DAYS);
     }
 
+    // Two caps: per day, and per Monday-to-Sunday week. Someone met past a cap
+    // still counts as met — they don't come back around as "new" on a later
+    // day, so the caps limit the reward rather than deferring it.
+    const week = weekStartKey(day.date);
     let newToday = 0;
+    let paidThisWeek = newPartnersByWeek.get(week) ?? 0;
     for (const pid of day.partnerIds) {
       if (seenPartners.has(pid)) continue;
       seenPartners.add(pid);
-      if (newToday < NEW_PARTNER_DAILY_CAP) {
+      if (newToday < NEW_PARTNER_DAILY_CAP && paidThisWeek < NEW_PARTNER_WEEKLY_CAP) {
         b.newPartnerBonus += NEW_PARTNER_BONUS;
         newToday++;
+        paidThisWeek++;
       }
     }
+    newPartnersByWeek.set(week, paidThisWeek);
   });
 
   b.total = b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus + b.badges;

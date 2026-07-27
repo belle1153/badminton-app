@@ -110,12 +110,54 @@ describe("computeExp — new-partner bonus", () => {
     expect(b.newPartnerBonus).toBe(30);
   });
 
-  it("caps at 5 new partners per day", () => {
+  it("caps at 3 new partners per day", () => {
     const b = computeExp(
       [day("2026-07-20", { partnerIds: ["a", "b", "c", "d", "e", "f", "g"] })],
       CLUB
     );
-    expect(b.newPartnerBonus).toBe(75);
+    expect(b.newPartnerBonus).toBe(45);
+  });
+
+  it("caps at 6 new partners per Monday-to-Sunday week", () => {
+    // Three club days in one week, 3 new partners each: the third day pays
+    // nothing because the week is already used up.
+    const club = [d("2026-07-20"), d("2026-07-22"), d("2026-07-24")]; // Mon, Wed, Fri
+    const b = computeExp(
+      [
+        day("2026-07-20", { partnerIds: ["a", "b", "c"] }),
+        day("2026-07-22", { partnerIds: ["d", "e", "f"] }),
+        day("2026-07-24", { partnerIds: ["g", "h", "i"] }),
+      ],
+      club
+    );
+    expect(b.newPartnerBonus).toBe(6 * 15);
+  });
+
+  it("the weekly cap resets on Monday", () => {
+    // Fri + Sat are one week; the following Mon starts a fresh allowance.
+    const club = [d("2026-07-24"), d("2026-07-25"), d("2026-07-27")];
+    const b = computeExp(
+      [
+        day("2026-07-24", { partnerIds: ["a", "b", "c"] }), // Fri, 3
+        day("2026-07-25", { partnerIds: ["d", "e", "f"] }), // Sat, 3 -> week full
+        day("2026-07-27", { partnerIds: ["g", "h", "i"] }), // Mon, new week, 3
+      ],
+      club
+    );
+    expect(b.newPartnerBonus).toBe(9 * 15);
+  });
+
+  it("keeps Monday and Wednesday in the same week", () => {
+    // The club plays Mon and Wed; a Sunday-based week would split them.
+    const club = [d("2026-07-20"), d("2026-07-22")];
+    const b = computeExp(
+      [
+        day("2026-07-20", { partnerIds: ["a", "b", "c"] }),
+        day("2026-07-22", { partnerIds: ["d", "e", "f"] }),
+      ],
+      club
+    );
+    expect(b.newPartnerBonus).toBe(6 * 15); // exactly the weekly cap, not more
   });
 
   it("does not pay again for someone already partnered with", () => {

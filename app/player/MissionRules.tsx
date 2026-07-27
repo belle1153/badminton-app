@@ -22,7 +22,7 @@ export default function MissionRules() {
       value: `+${EXP_RATES.streakBonus}/ครั้ง`,
     },
     {
-      label: `จับคู่กับคนที่ไม่เคยเล่นด้วยมาก่อนเลย — นับครั้งเดียวต่อคนตลอดกาล (สูงสุด ${EXP_RATES.newPartnerDailyCap} คน/วัน)`,
+      label: `จับคู่กับคนที่ไม่เคยเล่นด้วยมาก่อนเลย — นับครั้งเดียวต่อคนตลอดกาล (สูงสุด ${EXP_RATES.newPartnerDailyCap} คน/วัน และไม่เกิน ${EXP_RATES.newPartnerWeeklyCap} คน/สัปดาห์)`,
       value: `+${EXP_RATES.newPartnerBonus}/คน`,
     },
     {
@@ -129,6 +129,9 @@ export default function MissionRules() {
             <span className="font-semibold text-emerald-400">
               +{EXP_RATES.newPartnerBonus * 2}
             </span>
+          </p>
+          <p className="text-[11px] text-slate-500">
+            สัปดาห์นี้ได้ไปแล้ว 5 คน (เพดาน {EXP_RATES.newPartnerWeeklyCap} คน/สัปดาห์ นับจันทร์–อาทิตย์)
           </p>
         </div>
 
