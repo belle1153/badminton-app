@@ -21,7 +21,7 @@ export default function MissionRules() {
       value: `+${EXP_RATES.streakBonus}/ครั้ง`,
     },
     {
-      label: `ได้เล่นกับคนที่ไม่เคยจับคู่ด้วย (สูงสุด ${EXP_RATES.newPartnerDailyCap} คน/วัน)`,
+      label: `จับคู่กับคนที่ไม่เคยเล่นด้วยมาก่อนเลย — นับครั้งเดียวต่อคนตลอดกาล (สูงสุด ${EXP_RATES.newPartnerDailyCap} คน/วัน)`,
       value: `+${EXP_RATES.newPartnerBonus}/คน`,
     },
     {
@@ -80,6 +80,23 @@ export default function MissionRules() {
             </li>
           ))}
         </ul>
+        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-700 bg-[#0f1622] px-3 py-2.5">
+          <p className="text-[11px] font-semibold text-sky-200">
+            ตัวอย่าง &quot;คู่ที่ไม่เคยเล่นด้วย&quot;
+          </p>
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            จันทร์ เล่นกับ A, B, C → ใหม่ทั้ง 3 คน{" "}
+            <span className="font-semibold text-emerald-400">
+              +{EXP_RATES.newPartnerBonus * 3}
+            </span>
+            <br />
+            พุธ เล่นกับ A, X, Y → A เคยเล่นด้วยแล้ว เหลือ X, Y ที่ใหม่{" "}
+            <span className="font-semibold text-emerald-400">
+              +{EXP_RATES.newPartnerBonus * 2}
+            </span>
+          </p>
+        </div>
+
         <p className="text-[11px] text-slate-500">
           เหรียญยิ่งหายากยิ่งได้ EXP มาก · ขึ้น Level 2 ต้องสะสม {expForStep(1).toLocaleString()} EXP
           (ประมาณมาเล่น 2 ครั้ง)

@@ -125,6 +125,30 @@ describe("computeExp — new-partner bonus", () => {
     );
     expect(b.newPartnerBonus).toBe(15);
   });
+
+  it("pays only for the partners never played with before, on a later day", () => {
+    // Monday with a, b, c -> 3 new (+45). Wednesday with a, x, y -> a is not
+    // new, so only x and y pay (+30). "First-time" means ever, not per day.
+    const b = computeExp(
+      [
+        day("2026-07-20", { partnerIds: ["a", "b", "c"] }),
+        day("2026-07-22", { partnerIds: ["a", "x", "y"] }),
+      ],
+      CLUB
+    );
+    expect(b.newPartnerBonus).toBe(45 + 30);
+  });
+
+  it("pays nothing on a day spent entirely with familiar partners", () => {
+    const b = computeExp(
+      [
+        day("2026-07-20", { partnerIds: ["a", "b"] }),
+        day("2026-07-22", { partnerIds: ["a", "b"] }),
+      ],
+      CLUB
+    );
+    expect(b.newPartnerBonus).toBe(30); // both from the first day only
+  });
 });
 
 describe("computeExp — realistic shape", () => {
