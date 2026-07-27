@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { computeExp, type DayPlayed, type ExpBreakdown } from "@/lib/exp";
+import { computeExp, expByDay, type DayPlayed, type DayExp, type ExpBreakdown } from "@/lib/exp";
 import { levelProgress, type LevelProgress } from "@/lib/levels";
 import { longestStreak } from "@/lib/streaks";
 import { computeAchievements, type Achievement } from "@/lib/achievements";
@@ -19,6 +19,8 @@ export interface PlayerProgress {
   longestStreakDays: number;
   daysPlayed: number;
   gamesPlayed: number;
+  /** Per-play-day EXP, ascending — the points-history timeline. */
+  expDays: DayExp[];
 }
 
 /**
@@ -161,6 +163,7 @@ export function buildPlayerProgress(
     longestStreakDays: streakDays,
     daysPlayed: days.length,
     gamesPlayed,
+    expDays: expByDay(days, clubDays),
   };
 }
 

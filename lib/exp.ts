@@ -20,6 +20,19 @@ export interface ExpBreakdown {
   badges: number;
 }
 
+/** One play-day's EXP, split by source — for the player's points-history page. */
+export interface DayExp {
+  date: Date;
+  games: number;
+  wins: number;
+  attendance: number;
+  gamesExp: number;
+  winsExp: number;
+  streakBonus: number;
+  newPartnerBonus: number;
+  total: number;
+}
+
 /**
  * Exported so the rules shown to players are generated from the same numbers
  * the engine scores with — a hand-written rules list drifts out of date the
@@ -80,11 +93,12 @@ function weekStartKey(date: Date): string {
  * never on EXP, so the caller works them out first and hands over the sum —
  * which keeps this function free of any dependency on the badge list.
  */
-export function computeExp(
-  days: DayPlayed[],
-  clubPlayDates: Date[],
-  badgeExp = 0
-): ExpBreakdown {
+/**
+ * Per-day EXP, in the order given (must be ascending — the streak and the
+ * new-partner caps are stateful across days). `computeExp` is just the sum of
+ * these plus badges, so the history page and the totals can never disagree.
+ */
+export function expByDay(days: DayPlayed[], clubPlayDates: Date[]): DayExp[] {
   const streaks = computeStreaks(
     days.map((d) => d.date),
     clubPlayDates
@@ -93,6 +107,54 @@ export function computeExp(
   /** week-start key -> new partners already paid for that week. */
   const newPartnersByWeek = new Map<string, number>();
 
+  return days.map((day, i) => {
+    const attendance = PER_DAY;
+    const gamesExp = day.games * PER_GAME;
+    const winsExp = day.wins * PER_WIN;
+
+    let streakBonus = 0;
+    const streak = streaks[i];
+    if (streak > 1) {
+      streakBonus = STREAK_BONUS * Math.min(streak - 1, STREAK_BONUS_CAP_DAYS);
+    }
+
+    // Two caps: per day, and per Monday-to-Sunday week. Someone met past a cap
+    // still counts as met — they don't come back around as "new" on a later
+    // day, so the caps limit the reward rather than deferring it.
+    const week = weekStartKey(day.date);
+    let newToday = 0;
+    let paidThisWeek = newPartnersByWeek.get(week) ?? 0;
+    let newPartnerBonus = 0;
+    for (const pid of day.partnerIds) {
+      if (seenPartners.has(pid)) continue;
+      seenPartners.add(pid);
+      if (newToday < NEW_PARTNER_DAILY_CAP && paidThisWeek < NEW_PARTNER_WEEKLY_CAP) {
+        newPartnerBonus += NEW_PARTNER_BONUS;
+        newToday++;
+        paidThisWeek++;
+      }
+    }
+    newPartnersByWeek.set(week, paidThisWeek);
+
+    return {
+      date: day.date,
+      games: day.games,
+      wins: day.wins,
+      attendance,
+      gamesExp,
+      winsExp,
+      streakBonus,
+      newPartnerBonus,
+      total: attendance + gamesExp + winsExp + streakBonus + newPartnerBonus,
+    };
+  });
+}
+
+export function computeExp(
+  days: DayPlayed[],
+  clubPlayDates: Date[],
+  badgeExp = 0
+): ExpBreakdown {
   const b: ExpBreakdown = {
     total: 0,
     attendance: 0,
@@ -103,33 +165,13 @@ export function computeExp(
     badges: badgeExp,
   };
 
-  days.forEach((day, i) => {
-    b.attendance += PER_DAY;
-    b.games += day.games * PER_GAME;
-    b.wins += day.wins * PER_WIN;
-
-    const streak = streaks[i];
-    if (streak > 1) {
-      b.streakBonus += STREAK_BONUS * Math.min(streak - 1, STREAK_BONUS_CAP_DAYS);
-    }
-
-    // Two caps: per day, and per Monday-to-Sunday week. Someone met past a cap
-    // still counts as met — they don't come back around as "new" on a later
-    // day, so the caps limit the reward rather than deferring it.
-    const week = weekStartKey(day.date);
-    let newToday = 0;
-    let paidThisWeek = newPartnersByWeek.get(week) ?? 0;
-    for (const pid of day.partnerIds) {
-      if (seenPartners.has(pid)) continue;
-      seenPartners.add(pid);
-      if (newToday < NEW_PARTNER_DAILY_CAP && paidThisWeek < NEW_PARTNER_WEEKLY_CAP) {
-        b.newPartnerBonus += NEW_PARTNER_BONUS;
-        newToday++;
-        paidThisWeek++;
-      }
-    }
-    newPartnersByWeek.set(week, paidThisWeek);
-  });
+  for (const d of expByDay(days, clubPlayDates)) {
+    b.attendance += d.attendance;
+    b.games += d.gamesExp;
+    b.wins += d.winsExp;
+    b.streakBonus += d.streakBonus;
+    b.newPartnerBonus += d.newPartnerBonus;
+  }
 
   b.total = b.attendance + b.games + b.wins + b.streakBonus + b.newPartnerBonus + b.badges;
   return b;

@@ -236,6 +236,14 @@ export default async function PlayerProfilePage({
               </div>
             </section>
 
+            <Link
+              href={`/player/${id}/history`}
+              className="flex items-center justify-between rounded border border-[#384a63] bg-[#232f42] px-3.5 py-2.5 text-[13px] font-semibold text-[#9fb4c9] hover:border-[#4f9fe6] hover:text-white"
+            >
+              <span>📜 ประวัติการเก็บแต้ม</span>
+              <span className="font-[family-name:var(--font-pixel-display)] text-[10px]">&gt;</span>
+            </Link>
+
             <section className="grid grid-cols-3 gap-2">
               <Stat value={String(stats.days)} label="วันที่มาเล่น" />
               <Stat value={String(stats.games)} label="เกมที่เล่น" />
