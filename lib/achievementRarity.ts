@@ -49,11 +49,11 @@ export function rarityFor(target: number | null): Rarity {
  *
  * Kept small on purpose. Badges are a by-product of playing, which already
  * earns EXP — paying generously for them counts the same effort twice. At these
- * rates the whole set is worth ~950, less than a third of what level 5 costs,
- * so collecting is a bonus rather than a shortcut past the level curve. Rates
- * five times higher were modelled first and moved 35 of 37 real players up a
- * level on the day it shipped, with badge EXP exceeding what they had earned by
- * turning up.
+ * rates the whole 32-badge set is worth 1,170, under a third of what level 5
+ * costs, so collecting is a bonus rather than a shortcut past the level curve.
+ * Rates five times higher were modelled first and moved 35 of 37 real players
+ * up a level on the day it shipped, with badge EXP exceeding what they had
+ * earned by turning up.
  */
 export const RARITY_EXP: Record<Rarity, number> = {
   common: 10,
