@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { loadLeaderboard, type LeaderboardEntry } from "@/lib/leaderboard";
+import QuestBoard from "./QuestBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -188,6 +189,8 @@ export default async function LeaderboardPage() {
             </p>
           </>
         )}
+
+        <QuestBoard />
       </main>
     </div>
   );

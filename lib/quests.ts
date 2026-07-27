@@ -161,3 +161,27 @@ export function evaluateQuest(
 export function activeQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
   return quests.filter((q) => q.active && inRange(now, q));
 }
+
+/** Quests that haven't started yet — worth showing so members can prepare. */
+export function upcomingQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
+  return quests
+    .filter((q) => q.active && now.getTime() < q.startDate.getTime())
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+}
+
+export type QuestStatus = "active" | "upcoming" | "ended";
+
+export function questStatus(quest: { startDate: Date; endDate: Date }, now: Date): QuestStatus {
+  if (now.getTime() < quest.startDate.getTime()) return "upcoming";
+  if (now.getTime() >= quest.endDate.getTime()) return "ended";
+  return "active";
+}
+
+/** "1 ส.ค. 2569 – 30 ส.ค. 2569" — endDate is exclusive, so the label shows the
+ *  last day people can actually play (endDate − 1 day), like the admin list. */
+export function thaiQuestRange(start: Date, end: Date): string {
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const lastDay = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  return `${fmt(start)} – ${fmt(lastDay)}`;
+}

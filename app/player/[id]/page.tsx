@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadPlayerProgress } from "@/lib/playerProgress";
-import { loadQuestProgress, questExp } from "@/lib/questProgress";
+import { loadQuestProgress, questExp, loadQuests } from "@/lib/questProgress";
+import { upcomingQuests, thaiQuestRange } from "@/lib/quests";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import AchievementCoin from "./AchievementCoin";
 import RememberMe from "./RememberMe";
@@ -73,6 +74,9 @@ export default async function PlayerProfilePage({
   if (!athlete) notFound();
 
   const quests = await loadQuestProgress(id);
+  // Quests that haven't started yet: shown as a locked preview so a member sees
+  // what's coming (the in-window `quests` above hides them until they open).
+  const upcoming = upcomingQuests(await loadQuests(true), new Date());
   const [stats, recent, progress] = await Promise.all([
     loadPlayerGames(id).then((games) => computePlayerStats(games)),
     loadPlayerMatchHistory(id, 10),
@@ -277,9 +281,9 @@ export default async function PlayerProfilePage({
               </section>
             )}
 
-            {quests.length > 0 && (
+            {(quests.length > 0 || upcoming.length > 0) && (
               <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-bold text-[#e2e8f2]">🎯 เควสช่วงนี้</h2>
+                <h2 className="text-sm font-bold text-[#e2e8f2]">🎯 เควส</h2>
                 <div className="flex flex-col gap-2">
                   {quests.map((q) => (
                     <div
@@ -304,6 +308,25 @@ export default async function PlayerProfilePage({
                         style={{ color: q.progress.completed ? "#6fdc9a" : "#54687e" }}
                       >
                         {q.progress.completed ? "สำเร็จ " : ""}+{q.expReward}
+                      </span>
+                    </div>
+                  ))}
+
+                  {upcoming.map((q) => (
+                    <div
+                      key={q.id}
+                      className="flex items-center gap-3 rounded border border-dashed px-3 py-2.5"
+                      style={{ borderColor: "#384a63", background: "#1e2839" }}
+                    >
+                      <span className="text-xl leading-none opacity-70">{q.icon}</span>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="text-[13px] font-semibold text-[#c3ccda]">{q.title}</span>
+                        <span className="text-[11px] text-[#8095ad]">
+                          เริ่ม {thaiQuestRange(q.startDate, q.endDate)}
+                        </span>
+                      </div>
+                      <span className="ml-auto shrink-0 text-[12px] font-bold tabular-nums text-[#54687e]">
+                        +{q.expReward}
                       </span>
                     </div>
                   ))}
