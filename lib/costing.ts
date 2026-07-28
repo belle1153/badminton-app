@@ -61,10 +61,13 @@ export function buildCostRows(
       const start = blockStart(session.date, a.timeSlot);
       const hours = a.checkedOutAt ? billedHours(start, a.checkedOutAt) : null;
       // 1 ball per game shared by 4 players → each pays a quarter of a ball.
-      const ballShareBaht = Math.ceil((a.gamesPlayed / 4) * ballPrice);
+      // Kept as an exact fraction (e.g. 73.5); only the row total is rounded,
+      // the same way the club's spreadsheet does it.
+      const ballShareBaht = (a.gamesPlayed / 4) * ballPrice;
       // The per-head fee rides along with the court cost — the club quotes one
-      // court number, so it is never shown as its own line.
-      const courtBaht = Math.ceil(courtShare.get(a.id) ?? 0) + feePerPerson;
+      // court number, so it is never shown as its own line. Court is rounded up
+      // once, fee included.
+      const courtBaht = Math.ceil((courtShare.get(a.id) ?? 0) + feePerPerson);
       return {
         id: a.id,
         name: a.name,
@@ -75,7 +78,7 @@ export function buildCostRows(
         games: a.gamesPlayed,
         courtBaht,
         ballShareBaht,
-        totalBaht: courtBaht + ballShareBaht,
+        totalBaht: Math.ceil(courtBaht + ballShareBaht),
         live: a.checkedOutAt == null,
       };
     })

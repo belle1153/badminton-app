@@ -63,11 +63,13 @@ export function openCourtNumbers(
 }
 
 /**
- * Billing time blocks: two 1-hour blocks (19-20, 20-21) then 30-min blocks up
- * to 23:00 ICT. Each = [start, end) as UTC instants + its length in hours.
+ * Billing time blocks: one-hour blocks from 19:00 to 23:00 ICT. Each = [start,
+ * end) as UTC instants + its length in hours. Hour-granular on purpose — the
+ * club splits each court-hour among whoever is on court that hour, and this is
+ * what makes the per-person court share match the admin's hand calculation.
  */
 export function billingBlocks(sessionDate: Date): { start: Date; end: Date; hours: number }[] {
-  const marks = [19, 20, 21, 21.5, 22, 22.5, 23]; // ICT hours
+  const marks = [19, 20, 21, 22, 23]; // ICT hours
   const blocks = [];
   for (let i = 0; i < marks.length - 1; i++) {
     blocks.push({
@@ -97,12 +99,16 @@ export function courtsOpenAt(
 
 /**
  * Split the day's court cost across everyone who showed up, and total it up.
- * Each half-hour block's cost (open courts × rate × block-hours) is divided
- * among the people present in that block, summed across the blocks each
- * attended. `units` = Σ (open courts × block-hours) over blocks with anyone
- * present, so total = rate × units. A person's billed interval runs from their
- * slot start (19:00 / 20:00) to their billed checkout; still-playing people
- * count up to `now`.
+ * Each one-hour block's cost (open courts × rate × block-hours) is shared among
+ * the people on court that hour, weighted by how much of the hour each was
+ * present: someone there for half the hour pays half a share. Summed across the
+ * blocks each attended. `units` = Σ (open courts × block-hours) over blocks with
+ * anyone present, so total = rate × units. A person's billed interval runs from
+ * their slot start (19:00 / 20:00) to their billed checkout; still-playing
+ * people count up to `now`.
+ *
+ * The fraction-weighting matches the club's own hand calculation: each court-
+ * hour is divided by the total presence in that hour, then charged pro-rata.
  */
 export function courtCostByPerson(
   session: {
@@ -126,16 +132,21 @@ export function courtCostByPerson(
   let total = 0;
   let units = 0;
   for (const b of billingBlocks(session.date)) {
-    const present = attendees.filter(
-      (a) => startOf(a).getTime() < b.end.getTime() && endOf(a).getTime() > b.start.getTime()
-    );
+    const blockMs = b.end.getTime() - b.start.getTime();
+    // Fraction of this hour each attendee is on court (0..1).
+    const present = attendees
+      .map((a) => {
+        const overlap = Math.min(endOf(a).getTime(), b.end.getTime()) - Math.max(startOf(a).getTime(), b.start.getTime());
+        return { id: a.id, frac: Math.max(0, overlap) / blockMs };
+      })
+      .filter((p) => p.frac > 0);
     if (present.length === 0) continue;
     const courts = courtsOpenAt(session, b.start);
     units += courts * b.hours;
     const blockCost = courts * rate * b.hours;
     total += blockCost;
-    const per = blockCost / present.length;
-    for (const a of present) perPerson.set(a.id, (perPerson.get(a.id) ?? 0) + per);
+    const denom = present.reduce((n, p) => n + p.frac, 0);
+    for (const p of present) perPerson.set(p.id, (perPerson.get(p.id) ?? 0) + (blockCost * p.frac) / denom);
   }
   return { perPerson, total, units };
 }

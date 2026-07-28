@@ -70,6 +70,24 @@ describe("buildCostRows", () => {
     const shared = buildCostRows(session, [A("a", 0), A("b", 0)], RATE, BALL, 0, ict(21)).rows[0].courtBaht;
     expect(shared).toBeLessThan(alone);
   });
+
+  it("weights each hour's court cost by the fraction present, like the club sheet", () => {
+    const at = (h: number, m: number) => new Date(ict(h).getTime() + m * 60_000);
+    // One court all night at 200/h: 19-20, 20-21, 21-22 each cost 200.
+    const s1 = { ...session, courtsEarly: 1, courtsLate: 1 };
+    const { rows } = buildCostRows(s1, [A("X", 0, ict(22)), A("Y", 0, at(21, 30))], 200, BALL, 0, ict(23));
+    const by = Object.fromEntries(rows.map((r) => [r.name, r]));
+    // X (full 3h): 100 + 100 + 200*1/1.5 = 333.33 -> ceil 334.
+    // Y (2.5h):   100 + 100 + 200*0.5/1.5 = 266.67 -> ceil 267.
+    expect(by.X.courtBaht).toBe(334);
+    expect(by.Y.courtBaht).toBe(267);
+  });
+
+  it("keeps the ball share an exact quarter-ball and rounds only the row total", () => {
+    const { rows } = buildCostRows(session, [A("a", 3)], RATE, 98, 8, ict(21));
+    expect(rows[0].ballShareBaht).toBe(73.5); // 3/4 * 98, not rounded per person
+    expect(rows[0].totalBaht).toBe(Math.ceil(rows[0].courtBaht + 73.5));
+  });
 });
 
 describe("sessionPrices", () => {
