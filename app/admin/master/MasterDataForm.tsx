@@ -121,7 +121,11 @@ export default function MasterDataForm({
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       <section className="flex flex-col gap-2">
-        <h2 className="font-semibold">ค่าคอร์ท (บาท/ชม.)</h2>
+        <h2 className="font-semibold">ค่าคอร์ทตั้งต้น (บาท/ชม.)</h2>
+        <p className="text-xs text-gray-400 -mt-1">
+          ใช้เป็นค่าเริ่มต้นเท่านั้น — ค่าคอร์ทจริงแต่ละวันไม่เท่ากัน (คอร์ทว่าง/ชั่วโมงต่างกัน)
+          กรอกค่าจริงได้ที่หน้า &quot;คำนวณเงิน&quot; ช่อง &quot;ค่าคอร์ทจริงรายชั่วโมง&quot; ทุกวัน
+        </p>
         <ul className="flex flex-col gap-1">
           {courtRates.map((r) => (
             <li key={r.id} className="flex items-center justify-between text-sm border-b border-gray-100 py-1">
