@@ -4,6 +4,10 @@ Paste this as context when starting a new AI session on this codebase. It
 describes what the app is, the club rules it encodes, and the constraints that
 are easy to break by accident.
 
+The player progression layer — EXP, levels, badges, quests, leaderboard — has
+its own document: **[GAMIFICATION.md](./GAMIFICATION.md)**. Read it before
+touching anything under `/player`, `/leaderboard` or `/admin/quests`.
+
 ---
 
 ## What it is
@@ -12,6 +16,7 @@ A web app for a Thai badminton club ("ก๊วนตัวตึงแหลม
 end to end: members sign up for a date, the admin checks them in, the system
 matches balanced 2v2 games across the available courts, and at the end it splits
 the court and shuttlecock cost per person based on what they actually played.
+On top of that sits a progression layer members see at `/player`.
 
 There are **no player accounts and no player login**. Anything a member does is
 public or device-bound. Only the admin authenticates (a PIN).
@@ -56,9 +61,18 @@ right calendar date. Clock times within a day are derived by adding hours:
   `kind` ("announcement" | "rule").
 - **CourtRate**, **ShuttlecockType**, **AppSettings** — master data (prices,
   per-person fee, PromptPay QR).
+- **Quest** — an admin-created challenge over a date range. Only the definition
+  is stored; who completed it is recomputed from play history. See
+  [GAMIFICATION.md](./GAMIFICATION.md).
 
 `SkillLevel` enum, weakest to strongest: `RK, BG, BG_PLUS, N_MINUS, N, N_PLUS,
-S, S_PLUS, P`.
+S, S_PLUS, P`. **This is the admin's skill assessment and drives matchmaking —
+it is unrelated to the gamification level, and the two must never feed each
+other.**
+
+Note there is **no table for EXP, levels or badges**: all of it is derived from
+`Match`/`MatchPlayer` on read, because the admin can edit or delete a finished
+game at any time.
 
 ## Club rules the code enforces
 
@@ -122,7 +136,8 @@ then re-seats everyone.
 - Admin can: create days, edit courts, check people in, withdraw anyone, run the
   live court board (fill courts from คู่เตรียม, finish games, swap players
   mid-game, close a court), edit or delete finished games, manage announcements
-  and rules, set master prices, and close the day to freeze the bill.
+  and rules, create quests, set master prices, and close the day to freeze the
+  bill.
 - Admins get a header switch between the player view and the admin view; the top
   bar turns orange on admin routes as an unmissable "you are in admin mode" cue.
 
@@ -150,7 +165,15 @@ then re-seats everyone.
   counter: the admin can edit, delete, and swap players in finished games, so an
   incremental total drifts permanently.
 - UI text is Thai; code, comments, and commit messages are English.
-- Two people sharing a nickname currently merge into one `Athlete`, because the
-  signup route reuses any case-insensitively matching name. Fine today (no
-  collisions), but it silently merges their history — worth solving before
-  building anything that shows per-person stats.
+- `next/image` rejects local sources with a query string unless
+  `images.localPatterns` is configured, so the versioned photo URLs above are
+  rendered with a plain `<img>`.
+- Sign-up warns before creating a second `Athlete` whose name closely matches an
+  existing one — "P'Note" once became a separate player from "Note" and split
+  that person's history. It only prompts; two people really can share a
+  nickname. Merging existing duplicates is still a manual DB job.
+- `SignUp.checkedInAt` is **null on every row** — the club does not use the
+  check-in button. Anything that needs "did they turn up" should look for a
+  finished game instead.
+- Roughly 10% of sign-ups have no `athleteId` (all withdrawn, none with games),
+  so they contribute nothing to stats.
