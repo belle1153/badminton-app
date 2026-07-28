@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { formatHours } from "@/lib/billing";
+import { formatHours, billingBlocks, courtsOpenAt, parseCourtHourCosts } from "@/lib/billing";
 import { buildCostRows, sessionPrices } from "@/lib/costing";
 import CostPanel from "../CostPanel";
 import CostImageExport from "../CostImageExport";
 import CostExcelExport from "../CostExcelExport";
+import CourtHourCostEditor from "../CourtHourCostEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,18 @@ export default async function SessionCostPage({
     feePerPerson
   );
 
+  // What the system would charge per hour (open courts × rate), and what's in
+  // effect now — the editor lets the admin replace these with the venue's real
+  // per-hour figures when courts empty out late.
+  const HOUR_MARKS = [19, 20, 21, 22];
+  const blocks = billingBlocks(session.date);
+  const computedHourCosts = HOUR_MARKS.map((h) => {
+    const b = blocks.find((bl) => bl.hourIct === h);
+    return b ? Math.round(courtsOpenAt(session, b.start) * rate * b.hours) : 0;
+  });
+  const overrideHourCosts = parseCourtHourCosts(session.courtHourCosts);
+  const initialHourCosts = HOUR_MARKS.map((h, i) => overrideHourCosts?.get(h) ?? computedHourCosts[i]);
+
   return (
     <>
       <CostPanel
@@ -84,10 +97,18 @@ export default async function SessionCostPage({
         <h2 className="font-semibold">สรุปรายคน (วันนี้)</h2>
         <p className="text-xs text-gray-400">
           เวลาเริ่มนับตามช่วงที่ลง (1 ทุ่ม/2 ทุ่ม) · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) ·
-          ค่าลูก = เกมละ 1 ลูก หาร 4 คน · ค่าคอร์ท = ค่าคอร์ทแต่ละครึ่งชม. หารคนที่อยู่ช่วงนั้น
+          ค่าลูก = เกมละ 1 ลูก หาร 4 คน · ค่าคอร์ท = ค่าคอร์ทแต่ละชั่วโมง หารตามเวลาที่แต่ละคนอยู่
           {rate > 0 && ` (เรท ${rate} ฿/ชม./สนาม)`}
           {feePerPerson > 0 && ` · ค่าคอร์ทรวมค่าธรรมเนียม ${feePerPerson} ฿/คน ไว้แล้ว`}
         </p>
+
+        <CourtHourCostEditor
+          sessionId={id}
+          initial={initialHourCosts}
+          computed={computedHourCosts}
+          isOverride={overrideHourCosts != null}
+        />
+
         {rows.length === 0 ? (
           <p className="text-sm text-gray-400">ยังไม่มีคนเช็คอินวันนี้</p>
         ) : (

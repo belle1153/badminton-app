@@ -1,4 +1,4 @@
-import { blockStart, billedHours, courtCostByPerson } from "./billing";
+import { blockStart, billedHours, courtCostByPerson, parseCourtHourCosts } from "./billing";
 
 /**
  * The per-person bill, in ONE place. The admin's คำนวณ page and the players'
@@ -39,6 +39,8 @@ interface CostSession {
   date: Date;
   lateOpenedAt: Date | null;
   openCourts?: string | null;
+  /** Admin's actual court baht per hour ("400,600,520,0"); null = auto. */
+  courtHourCosts?: string | null;
 }
 
 export function buildCostRows(
@@ -53,7 +55,8 @@ export function buildCostRows(
     session,
     attendees.map((a) => ({ id: a.id, timeSlot: a.timeSlot, checkedOutAt: a.checkedOutAt })),
     rate,
-    now
+    now,
+    parseCourtHourCosts(session.courtHourCosts)
   );
 
   const rows = attendees

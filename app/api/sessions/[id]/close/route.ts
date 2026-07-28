@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { courtCostByPerson } from "@/lib/billing";
+import { courtCostByPerson, parseCourtHourCosts } from "@/lib/billing";
 
 /**
  * Close the day and freeze the totals. Everything is derived from actual play:
@@ -45,7 +45,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .filter((s) => s.checkedInAt != null || s.checkedOutAt != null)
     .map((s) => ({ id: s.id, timeSlot: s.timeSlot, checkedOutAt: s.checkedOutAt }));
 
-  const { total } = courtCostByPerson(session, attendees, courtRate.pricePerHour);
+  const { total } = courtCostByPerson(
+    session,
+    attendees,
+    courtRate.pricePerHour,
+    new Date(),
+    parseCourtHourCosts(session.courtHourCosts)
+  );
   const courtCost = Math.round(total);
   const shuttlecockCost = shuttlecockType.pricePerPiece * gamesPlayed;
   const totalCost = courtCost + shuttlecockCost;

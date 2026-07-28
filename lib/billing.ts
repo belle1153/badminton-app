@@ -68,7 +68,9 @@ export function openCourtNumbers(
  * club splits each court-hour among whoever is on court that hour, and this is
  * what makes the per-person court share match the admin's hand calculation.
  */
-export function billingBlocks(sessionDate: Date): { start: Date; end: Date; hours: number }[] {
+export function billingBlocks(
+  sessionDate: Date
+): { start: Date; end: Date; hours: number; hourIct: number }[] {
   const marks = [19, 20, 21, 22, 23]; // ICT hours
   const blocks = [];
   for (let i = 0; i < marks.length - 1; i++) {
@@ -76,9 +78,23 @@ export function billingBlocks(sessionDate: Date): { start: Date; end: Date; hour
       start: ictInstant(sessionDate, marks[i]),
       end: ictInstant(sessionDate, marks[i + 1]),
       hours: marks[i + 1] - marks[i],
+      hourIct: marks[i],
     });
   }
   return blocks;
+}
+
+/** Parse the admin's per-hour court-cost override ("400,600,520,0" for hours
+ *  19,20,21,22) into an hour→baht map. Null / blank / malformed → null. */
+export function parseCourtHourCosts(csv: string | null | undefined): Map<number, number> | null {
+  if (!csv || !csv.trim()) return null;
+  const nums = csv.split(",").map((s) => Number(s.trim()));
+  if (nums.some((n) => !Number.isFinite(n) || n < 0)) return null;
+  const map = new Map<number, number>();
+  [19, 20, 21, 22].forEach((h, i) => {
+    if (i < nums.length) map.set(h, nums[i]);
+  });
+  return map;
 }
 
 /**
@@ -120,7 +136,11 @@ export function courtCostByPerson(
   },
   attendees: { id: string; timeSlot: "EARLY" | "LATE"; checkedOutAt: Date | null }[],
   rate: number,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** Actual court baht per hour (19,20,21,22 ICT). When given, a block's cost is
+   *  this instead of open-courts × rate — so the bill matches the venue's real
+   *  charge (e.g. courts emptied out and the third hour cost less). */
+  hourCosts: Map<number, number> | null = null
 ): { perPerson: Map<string, number>; total: number; units: number } {
   const startOf = (a: (typeof attendees)[number]) => blockStart(session.date, a.timeSlot);
   const endOf = (a: (typeof attendees)[number]) =>
@@ -143,7 +163,8 @@ export function courtCostByPerson(
     if (present.length === 0) continue;
     const courts = courtsOpenAt(session, b.start);
     units += courts * b.hours;
-    const blockCost = courts * rate * b.hours;
+    const override = hourCosts?.get(b.hourIct);
+    const blockCost = override != null ? override : courts * rate * b.hours;
     total += blockCost;
     const denom = present.reduce((n, p) => n + p.frac, 0);
     for (const p of present) perPerson.set(p.id, (perPerson.get(p.id) ?? 0) + (blockCost * p.frac) / denom);
