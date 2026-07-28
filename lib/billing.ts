@@ -167,7 +167,11 @@ export function courtCostByPerson(
     const blockCost = override != null ? override : courts * rate * b.hours;
     total += blockCost;
     const denom = present.reduce((n, p) => n + p.frac, 0);
-    for (const p of present) perPerson.set(p.id, (perPerson.get(p.id) ?? 0) + (blockCost * p.frac) / denom);
+    // Round the hour's per-person rate UP to a whole baht before charging it,
+    // the way the club's spreadsheet does (ROUNDUP of cost/heads per hour), then
+    // charge each person their time-fraction of it.
+    const perHourRate = Math.ceil(blockCost / denom);
+    for (const p of present) perPerson.set(p.id, (perPerson.get(p.id) ?? 0) + perHourRate * p.frac);
   }
   return { perPerson, total, units };
 }

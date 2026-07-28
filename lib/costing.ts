@@ -68,8 +68,13 @@ export function buildCostRows(
       // the same way the club's spreadsheet does it.
       const ballShareBaht = (a.gamesPlayed / 4) * ballPrice;
       // The per-head fee rides along with the court cost — the club quotes one
-      // court number, so it is never shown as its own line. Court is rounded up
-      // once, fee included.
+      // court number, so it is never shown as its own line.
+      //
+      // Rounded up twice on purpose, matching the club's own sheets: once per
+      // hour inside courtCostByPerson (their ROUNDUP of cost ÷ heads), and once
+      // here so nobody is billed a fraction of a baht. Someone on court for half
+      // an hour therefore pays half of an already-rounded rate, then that is
+      // rounded up too — a baht more than rounding only at the end.
       const courtBaht = Math.ceil((courtShare.get(a.id) ?? 0) + feePerPerson);
       return {
         id: a.id,

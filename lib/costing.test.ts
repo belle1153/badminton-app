@@ -77,10 +77,36 @@ describe("buildCostRows", () => {
     const s1 = { ...session, courtsEarly: 1, courtsLate: 1 };
     const { rows } = buildCostRows(s1, [A("X", 0, ict(22)), A("Y", 0, at(21, 30))], 200, BALL, 0, ict(23));
     const by = Object.fromEntries(rows.map((r) => [r.name, r]));
-    // X (full 3h): 100 + 100 + 200*1/1.5 = 333.33 -> ceil 334.
-    // Y (2.5h):   100 + 100 + 200*0.5/1.5 = 266.67 -> ceil 267.
+    // Hourly rates, each rounded up: 200/2 = 100, 200/2 = 100, 200/1.5 -> 134.
+    // X (full 3h): 100 + 100 + 134     = 334.
+    // Y (2.5h):    100 + 100 + 134*0.5 = 267.
     expect(by.X.courtBaht).toBe(334);
     expect(by.Y.courtBaht).toBe(267);
+  });
+
+  it("rounds up per hour AND on the final court figure, like the club sheets", () => {
+    // The club's own spreadsheets round in both places, so a half-hour player
+    // pays half of an already-rounded rate and that is rounded up again. This
+    // is a baht more than rounding only at the end — deliberate, and the thing
+    // to re-check whenever these figures are compared against a sheet.
+    const at = (h: number, m: number) => new Date(ict(h).getTime() + m * 60_000);
+    const s1 = { ...session, courtsEarly: 1, courtsLate: 1 };
+    // Hour 21-22 has 1.5 people present, so its rate rounds 133.33 -> 134.
+    const { rows } = buildCostRows(s1, [A("X", 0, ict(22)), A("Y", 0, at(21, 30))], 200, BALL, 3, ict(23));
+    const by = Object.fromEntries(rows.map((r) => [r.name, r]));
+    // Y: 100 + 100 + 67 (= 134 * 0.5) + 3 fee = 270, already whole.
+    expect(by.Y.courtBaht).toBe(270);
+    // Every court figure is a whole number of baht — never a fraction.
+    for (const r of rows) expect(Number.isInteger(r.courtBaht)).toBe(true);
+  });
+
+  it("uses the admin's real hourly costs when set, instead of courts × rate", () => {
+    // The venue charged less late on, so the admin entered the real figures:
+    // 600 / 800 / 520 rather than one court at 200 an hour.
+    const s1 = { ...session, courtsEarly: 1, courtsLate: 1, courtHourCosts: "600,800,520,0" };
+    const { rows } = buildCostRows(s1, [A("X", 0, ict(22)), A("Y", 0, ict(22))], 200, BALL, 0, ict(23));
+    // Two players present all three hours: 300 + 400 + 260 each.
+    expect(rows[0].courtBaht).toBe(960);
   });
 
   it("keeps the ball share an exact quarter-ball and rounds only the row total", () => {
