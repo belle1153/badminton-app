@@ -78,6 +78,11 @@ model Session {
   signUps              SignUp[]
   matches              Match[]
   pendingPairs         PendingPair[]
+
+  // The home/live/roster pages all filter by status + date; the index turns
+  // those from a full-table scan into a range lookup as the season grows.
+  @@index([status, date])
+  @@index([date])
 }
 
 model SignUp {
@@ -101,6 +106,11 @@ model SignUp {
   fixedPartnerOf SignUp?       @relation("FixedPair")
   athleteId      String?
   athlete        Athlete?      @relation(fields: [athleteId], references: [id])
+
+  // Postgres does not auto-index foreign keys. Nearly every read filters by
+  // session (a day's roster/cost) or athlete (profile, leaderboard, quests).
+  @@index([sessionId])
+  @@index([athleteId])
 }
 
 model Athlete {
@@ -161,6 +171,8 @@ model Match {
   finishedAt DateTime?
   winnerTeam Int?
   players    MatchPlayer[]
+
+  @@index([sessionId])
 }
 
 model MatchPlayer {
@@ -170,6 +182,9 @@ model MatchPlayer {
   signUpId String
   signUp   SignUp @relation(fields: [signUpId], references: [id], onDelete: Cascade)
   team     Int
+
+  @@index([matchId])
+  @@index([signUpId])
 }
 
 // A foursome the admin has set aside for the next court, persisted so it
@@ -185,6 +200,8 @@ model PendingPair {
   team1Ids  String[] // exactly 2 signUp ids
   team2Ids  String[] // exactly 2 signUp ids
   createdAt DateTime @default(now())
+
+  @@index([sessionId])
 }
 
 // An admin-created challenge over a date range — "come to every session in

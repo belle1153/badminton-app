@@ -189,14 +189,6 @@ export function upcomingQuests<T extends QuestDef>(quests: T[], now: Date): T[] 
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 }
 
-export type QuestStatus = "active" | "upcoming" | "ended";
-
-export function questStatus(quest: { startDate: Date; endDate: Date }, now: Date): QuestStatus {
-  if (now.getTime() < quest.startDate.getTime()) return "upcoming";
-  if (now.getTime() >= quest.endDate.getTime()) return "ended";
-  return "active";
-}
-
 /** "1 ส.ค. 2569 – 30 ส.ค. 2569" — endDate is exclusive, so the label shows the
  *  last day people can actually play (endDate − 1 day), like the admin list. */
 export function thaiQuestRange(start: Date, end: Date): string {

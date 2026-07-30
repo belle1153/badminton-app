@@ -34,49 +34,25 @@ export async function loadQuests(activeOnly = true): Promise<QuestDef[]> {
   }));
 }
 
-/**
- * Quest EXP for every player at once, so the profile and the leaderboard can
- * never disagree about someone's total — the same trap badge EXP fell into when
- * each page computed its own.
- */
-export async function loadQuestExpByAthlete(
-  now: Date = new Date()
-): Promise<Map<string, number>> {
-  const quests = activeQuests(await loadQuests(true), now);
-  const out = new Map<string, number>();
-  if (quests.length === 0) return out;
-
-  const athleteIds = await prisma.signUp
-    .findMany({
-      where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
-      select: { athleteId: true },
-      distinct: ["athleteId"],
-    })
-    .then((rows) => rows.map((r) => r.athleteId!).filter(Boolean));
-
-  for (const athleteId of athleteIds) {
-    const progress = await loadQuestProgress(athleteId, now);
-    const exp = questExp(progress);
-    if (exp > 0) out.set(athleteId, exp);
-  }
-  return out;
+/** One session, in the shape the quest maths needs. */
+interface QuestSession {
+  date: Date;
+  signUps: {
+    athleteId: string | null;
+    addedByAdmin: boolean;
+    checkedInAt: Date | null;
+    matchSlots: { match: { finishedAt: Date | null } }[];
+  }[];
 }
 
 /**
- * One player's standing on every quest whose window is currently open.
- *
- * Sign-up placings are worked out per session across ALL players, because
- * "fastest to sign up" is inherently a comparison — a single player's own rows
- * can't tell you where they came.
+ * Load, in exactly two queries, everything the open quests need to score any or
+ * every player over their combined window. Shared by the single-player profile
+ * and the whole-roster leaderboard so neither pays a per-player round trip.
  */
-export async function loadQuestProgress(
-  athleteId: string,
-  now: Date = new Date()
-): Promise<QuestWithProgress[]> {
-  const quests = activeQuests(await loadQuests(true), now);
-  if (quests.length === 0) return [];
-
-  // Widest window any open quest needs, so one query covers them all.
+async function loadQuestData(
+  quests: QuestDef[]
+): Promise<{ sessions: QuestSession[]; clubDays: Date[] }> {
   const from = new Date(Math.min(...quests.map((q) => q.startDate.getTime())));
   const to = new Date(Math.max(...quests.map((q) => q.endDate.getTime())));
 
@@ -94,9 +70,7 @@ export async function loadQuestProgress(
             // "fastest to sign up" only ranks genuine user-side sign-ups.
             addedByAdmin: true,
             checkedInAt: true,
-            matchSlots: {
-              select: { match: { select: { finishedAt: true } } },
-            },
+            matchSlots: { select: { match: { select: { finishedAt: true } } } },
           },
         },
       },
@@ -110,6 +84,23 @@ export async function loadQuestProgress(
       .then((rows) => rows.map((r) => r.date)),
   ]);
 
+  return { sessions, clubDays };
+}
+
+/**
+ * Score one athlete against the open quests from already-loaded data — pure, no
+ * queries, so the leaderboard can score the whole roster from one fetch.
+ *
+ * Sign-up placings are worked out per session across ALL players, because
+ * "fastest to sign up" is inherently a comparison — a single player's own rows
+ * can't tell you where they came.
+ */
+function evaluateAthlete(
+  athleteId: string,
+  quests: QuestDef[],
+  sessions: QuestSession[],
+  clubDays: Date[]
+): QuestWithProgress[] {
   return quests.map((q) => {
     const inWindow = sessions.filter(
       (s) => s.date.getTime() >= q.startDate.getTime() && s.date.getTime() < q.endDate.getTime()
@@ -123,8 +114,7 @@ export async function loadQuestProgress(
     for (const s of inWindow) {
       // Sign-up order counts only genuine user-side sign-ups — an admin
       // quick-add neither takes a placing itself nor shifts the people who did
-      // sign themselves up. Placing 2nd only means something relative to the
-      // rest of that day's self-sign-ups.
+      // sign themselves up.
       const userSignups = s.signUps.filter((su) => !su.addedByAdmin);
       const place = userSignups.findIndex((su) => su.athleteId === athleteId);
       if (place >= 0 && (bestSignupPlace == null || place + 1 < bestSignupPlace)) {
@@ -146,7 +136,42 @@ export async function loadQuestProgress(
     const clubDaysInRange = clubDays.filter(
       (d) => d.getTime() >= q.startDate.getTime() && d.getTime() < q.endDate.getTime()
     );
-
     return { ...q, progress: evaluateQuest(q, facts, clubDaysInRange) };
   });
+}
+
+/** One player's standing on every quest whose window is currently open. */
+export async function loadQuestProgress(
+  athleteId: string,
+  now: Date = new Date()
+): Promise<QuestWithProgress[]> {
+  const quests = activeQuests(await loadQuests(true), now);
+  if (quests.length === 0) return [];
+  const { sessions, clubDays } = await loadQuestData(quests);
+  return evaluateAthlete(athleteId, quests, sessions, clubDays);
+}
+
+/**
+ * Quest EXP for every player at once, so the profile and the leaderboard can
+ * never disagree about someone's total. Two queries total — the whole roster is
+ * scored in memory rather than re-querying per athlete (which cost ~2 round
+ * trips each, and on serverless Postgres that is seconds on a full leaderboard).
+ */
+export async function loadQuestExpByAthlete(now: Date = new Date()): Promise<Map<string, number>> {
+  const quests = activeQuests(await loadQuests(true), now);
+  const out = new Map<string, number>();
+  if (quests.length === 0) return out;
+
+  const { sessions, clubDays } = await loadQuestData(quests);
+
+  // Everyone who appears in the window — derived from the data already loaded,
+  // so there is no extra "distinct athlete" query either.
+  const athleteIds = new Set<string>();
+  for (const s of sessions) for (const su of s.signUps) if (su.athleteId) athleteIds.add(su.athleteId);
+
+  for (const athleteId of athleteIds) {
+    const exp = questExp(evaluateAthlete(athleteId, quests, sessions, clubDays));
+    if (exp > 0) out.set(athleteId, exp);
+  }
+  return out;
 }
