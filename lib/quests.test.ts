@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   evaluateQuest,
   activeQuests,
+  startedQuests,
+  questStatus,
   inRange,
   QUEST_KINDS,
   type QuestDef,
@@ -138,6 +140,48 @@ describe("activeQuests", () => {
       quest({ id: "disabled", active: false }),
     ];
     expect(activeQuests(list, d("2026-08-15")).map((q) => q.id)).toEqual(["now"]);
+  });
+});
+
+describe("startedQuests — a finished quest keeps paying out", () => {
+  const list = [
+    quest({ id: "ended", startDate: d("2026-07-26"), endDate: d("2026-07-31") }),
+    quest({ id: "running", startDate: d("2026-07-31"), endDate: d("2026-08-31") }),
+    quest({ id: "upcoming", startDate: d("2026-09-01"), endDate: d("2026-10-01") }),
+    quest({ id: "disabled", startDate: d("2026-07-01"), endDate: d("2026-08-01"), active: false }),
+  ];
+  const now = d("2026-07-31");
+
+  it("includes quests whose window has closed", () => {
+    // The bug this exists for: EXP was counted from activeQuests, so the moment
+    // a quest's window shut, the reward a player had already earned vanished
+    // from their total — and could drop their level.
+    expect(startedQuests(list, now).map((q) => q.id).sort()).toEqual(["ended", "running"]);
+  });
+
+  it("still excludes quests that have not begun", () => {
+    expect(startedQuests(list, now).map((q) => q.id)).not.toContain("upcoming");
+  });
+
+  it("still excludes quests the admin switched off", () => {
+    expect(startedQuests(list, now).map((q) => q.id)).not.toContain("disabled");
+  });
+
+  it("is a superset of activeQuests", () => {
+    const active = activeQuests(list, now).map((q) => q.id);
+    const started = startedQuests(list, now).map((q) => q.id);
+    for (const id of active) expect(started).toContain(id);
+  });
+});
+
+describe("questStatus", () => {
+  const q = quest({ startDate: d("2026-08-01"), endDate: d("2026-09-01") });
+
+  it("reports the window's state around its edges", () => {
+    expect(questStatus(q, d("2026-07-31"))).toBe("upcoming");
+    expect(questStatus(q, d("2026-08-01"))).toBe("active");
+    expect(questStatus(q, d("2026-08-31"))).toBe("active");
+    expect(questStatus(q, d("2026-09-01"))).toBe("ended"); // endDate is exclusive
   });
 });
 

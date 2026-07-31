@@ -182,6 +182,26 @@ export function activeQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
   return quests.filter((q) => q.active && inRange(now, q));
 }
 
+/**
+ * Every quest that has already begun, finished ones included.
+ *
+ * This — not `activeQuests` — is what EXP must be counted from. A completed
+ * quest is a thing the player did; scoring only the currently-open ones meant
+ * their reward silently vanished the moment the window closed, taking their
+ * total (and possibly their level) down with it.
+ */
+export function startedQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
+  return quests.filter((q) => q.active && now.getTime() >= q.startDate.getTime());
+}
+
+export type QuestStatus = "upcoming" | "active" | "ended";
+
+export function questStatus(quest: { startDate: Date; endDate: Date }, now: Date): QuestStatus {
+  if (now.getTime() < quest.startDate.getTime()) return "upcoming";
+  if (now.getTime() >= quest.endDate.getTime()) return "ended";
+  return "active";
+}
+
 /** Quests that haven't started yet — worth showing so members can prepare. */
 export function upcomingQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
   return quests

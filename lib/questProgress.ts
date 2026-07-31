@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/db";
 import {
   evaluateQuest,
-  activeQuests,
+  startedQuests,
+  questStatus,
   type QuestDef,
   type QuestPlayerFacts,
   type QuestProgress,
+  type QuestStatus,
 } from "@/lib/quests";
 
 export interface QuestWithProgress extends QuestDef {
   progress: QuestProgress;
+  /** Whether the window is still open — a finished quest still counts. */
+  status: QuestStatus;
 }
 
 /** Quest EXP a player has earned — completed quests only. */
@@ -99,7 +103,8 @@ function evaluateAthlete(
   athleteId: string,
   quests: QuestDef[],
   sessions: QuestSession[],
-  clubDays: Date[]
+  clubDays: Date[],
+  now: Date = new Date()
 ): QuestWithProgress[] {
   return quests.map((q) => {
     const inWindow = sessions.filter(
@@ -136,19 +141,26 @@ function evaluateAthlete(
     const clubDaysInRange = clubDays.filter(
       (d) => d.getTime() >= q.startDate.getTime() && d.getTime() < q.endDate.getTime()
     );
-    return { ...q, progress: evaluateQuest(q, facts, clubDaysInRange) };
+    return {
+      ...q,
+      progress: evaluateQuest(q, facts, clubDaysInRange),
+      status: questStatus(q, now),
+    };
   });
 }
 
-/** One player's standing on every quest whose window is currently open. */
+/**
+ * One player's standing on every quest that has started — finished ones
+ * included, so a completed quest keeps paying out after its window closes.
+ */
 export async function loadQuestProgress(
   athleteId: string,
   now: Date = new Date()
 ): Promise<QuestWithProgress[]> {
-  const quests = activeQuests(await loadQuests(true), now);
+  const quests = startedQuests(await loadQuests(true), now);
   if (quests.length === 0) return [];
   const { sessions, clubDays } = await loadQuestData(quests);
-  return evaluateAthlete(athleteId, quests, sessions, clubDays);
+  return evaluateAthlete(athleteId, quests, sessions, clubDays, now);
 }
 
 /**
@@ -158,7 +170,7 @@ export async function loadQuestProgress(
  * trips each, and on serverless Postgres that is seconds on a full leaderboard).
  */
 export async function loadQuestExpByAthlete(now: Date = new Date()): Promise<Map<string, number>> {
-  const quests = activeQuests(await loadQuests(true), now);
+  const quests = startedQuests(await loadQuests(true), now);
   const out = new Map<string, number>();
   if (quests.length === 0) return out;
 
@@ -170,7 +182,7 @@ export async function loadQuestExpByAthlete(now: Date = new Date()): Promise<Map
   for (const s of sessions) for (const su of s.signUps) if (su.athleteId) athleteIds.add(su.athleteId);
 
   for (const athleteId of athleteIds) {
-    const exp = questExp(evaluateAthlete(athleteId, quests, sessions, clubDays));
+    const exp = questExp(evaluateAthlete(athleteId, quests, sessions, clubDays, now));
     if (exp > 0) out.set(athleteId, exp);
   }
   return out;
