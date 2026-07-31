@@ -70,7 +70,7 @@ export default async function SessionSignUpPage({
         <h2 className="font-semibold mb-2">
           รอบ 1 ทุ่ม ({earlySlots.filter(Boolean).length}/{earlyCapacity})
         </h2>
-        <ol className="flex flex-col gap-1">
+        <ol className="flex flex-col gap-1 list-none">
           {earlySlots.map((s, i) => (
             <li
               key={i}
@@ -89,7 +89,7 @@ export default async function SessionSignUpPage({
           <h2 className="font-semibold mb-2">
             รอบ 2 ทุ่ม ({lateSlots.filter(Boolean).length}/{lateSlots.length})
           </h2>
-          <ol className="flex flex-col gap-1">
+          <ol className="flex flex-col gap-1 list-none">
             {lateSlots.map((s, i) => (
               <li
                 key={i}

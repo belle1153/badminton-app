@@ -14,7 +14,8 @@ interface RosterSession {
 interface RosterSignUp {
   name: string;
   status: string; // CONFIRMED | WAITLIST | WITHDRAWN
-  timeSlot: string; // EARLY | LATE
+  timeSlot: string; // EARLY | LATE — the block they're actually seated in
+  preferredSlot: string; // EARLY | LATE — the block they wanted (for the จองคิว tag)
   slotNumber: number | null;
 }
 
@@ -38,8 +39,8 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   const lateCapacity = Math.max(0, totalCapacity - earlyCapacity);
 
   const confirmed = signups.filter((s) => s.status === "CONFIRMED");
-  const bySlot = new Map<number, string>();
-  for (const s of confirmed) if (s.slotNumber != null) bySlot.set(s.slotNumber, s.name);
+  const bySlot = new Map<number, RosterSignUp>();
+  for (const s of confirmed) if (s.slotNumber != null) bySlot.set(s.slotNumber, s);
 
   const earlyUsed = confirmed.filter((s) => s.timeSlot === "EARLY").length;
   const lateUsed = confirmed.filter((s) => s.timeSlot === "LATE").length;
@@ -57,15 +58,18 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   ];
 
   for (let n = 1; n <= earlyCapacity; n++) {
-    const name = bySlot.get(n);
-    lines.push(name ? `${n}. ${name}` : `${n}.`);
+    const s = bySlot.get(n);
+    lines.push(s ? `${n}. ${s.name}` : `${n}.`);
   }
 
   if (lateCapacity > 0) {
     lines.push("", "🔸รอบ 2 ทุ่ม🔸");
     for (let n = earlyCapacity + 1; n <= totalCapacity; n++) {
-      const name = bySlot.get(n);
-      lines.push(name ? `${n}. ${name}` : `${n}.`);
+      const s = bySlot.get(n);
+      // Someone seated in 2 ทุ่ม who actually wanted 1 ทุ่ม is flagged, same as
+      // the web roster, so the group can see who's waiting to jump up.
+      const tag = s && s.preferredSlot === "EARLY" ? " (จองคิว 1 ทุ่ม)" : "";
+      lines.push(s ? `${n}. ${s.name}${tag}` : `${n}.`);
     }
   }
 
