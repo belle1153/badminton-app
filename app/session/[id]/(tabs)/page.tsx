@@ -110,23 +110,12 @@ export default async function SessionSignUpPage({
       {waitlist.length > 0 && (
         <section>
           <h2 className="font-semibold mb-2">
-            รายชื่อสำรอง ({waitlist.length}/{WAITLIST_LIMIT})
+            สำรอง ({waitlist.length}/{WAITLIST_LIMIT})
           </h2>
-          <ol className="flex flex-col gap-1">
-            {waitlist.map((s, i) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between text-sm border-b border-gray-100 py-1"
-              >
-                <span>
-                  {i + 1}. {s.name}
-                  <span className="text-xs text-gray-400 ml-2">
-                    (รอรอบ {s.timeSlot === "LATE" ? "2 ทุ่ม" : "1 ทุ่ม"})
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
+          {/* Count only — reserve names are kept private, same as the LINE roster. */}
+          <p className="text-sm text-gray-500">
+            มีคนรอสำรองอยู่ {waitlist.length} คน · ถ้ามีคนถอน ระบบจะเลื่อนคิวให้อัตโนมัติ
+          </p>
         </section>
       )}
     </>
