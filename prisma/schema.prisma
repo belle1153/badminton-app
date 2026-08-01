@@ -155,7 +155,10 @@ model ShuttlecockType {
 model AppSettings {
   id             String   @id @default("singleton")
   qrImageDataUrl String?
-  feePerPerson   Int      @default(5) // ค่าธรรมเนียมต่อคน (บาท) — บวกเข้าค่าคอร์ท ไม่แยกบรรทัด
+  // ค่าธรรมเนียมต่อคน (บาท) — บวกเข้าค่าคอร์ท ไม่แยกบรรทัด. Production has
+  // defaulted to 0 since the column was reworked; the 5 here was drift, and a
+  // fresh database should not invent a fee the club never set.
+  feePerPerson   Int      @default(0)
   updatedAt      DateTime @updatedAt
 }
 
@@ -227,4 +230,9 @@ model Quest {
   expReward Int
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  // Created by 20260726_quests and present in production, but it was missing
+  // here — so the next `migrate dev` would have generated a DROP for it and
+  // quietly cost every quest read its index.
+  @@index([active, startDate])
 }

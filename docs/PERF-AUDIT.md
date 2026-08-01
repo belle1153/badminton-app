@@ -100,7 +100,11 @@ churning: `adminPin` (adminCookie), `activeCourtCount` (billing),
 
 - `MultiSignUpForm.tsx` and `SignUpForm.tsx` share a debounced athlete-search
   block; could become one hook. Left alone — they're the forms players use daily.
-- Migration files in `prisma/migrations` have drifted from the live schema
-  (several columns this month were added by direct `ALTER TABLE … IF NOT EXISTS`
-  rather than tracked migrations). Not a runtime problem; worth a reconcile pass
-  before anyone relies on `migrate deploy` against a clean DB.
+- ~~Migration files in `prisma/migrations` have drifted from the live schema~~
+  **Done (2026-08-01).** Two differences found and reconciled in
+  `20260801_reconcile_drift` — `AppSettings.feePerPerson` defaulted to 5 in the
+  files and 0 in production, and `Quest_active_startDate_idx` existed in the
+  database but not in `schema.prisma`. `20260728_indexes` also had to be
+  registered with `migrate resolve --applied`: its SQL was run by hand (see
+  Deploy notes above), so production never recorded it. `migrate diff` between
+  `schema.prisma` and the live database is now empty.

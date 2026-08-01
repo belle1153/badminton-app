@@ -31,6 +31,16 @@ public or device-bound. Only the admin authenticates (a PIN).
 - Deployed on Vercel. **Migrations do NOT run automatically** — run
   `npx prisma migrate deploy` manually, and run it BEFORE deploying code that
   uses a new column, or the live site breaks.
+- Never change the live schema with a direct `ALTER TABLE`. It works, and then
+  `schema.prisma`, the migration files and the database each say something
+  different — which is how `AppSettings.feePerPerson` ended up defaulting to 5
+  in the files and 0 in production, and how `Quest_active_startDate_idx` came to
+  exist in the database while `schema.prisma` didn't know about it (the next
+  `migrate dev` would have dropped it). Both reconciled in
+  `20260801_reconcile_drift`.
+- To check for drift at any time:
+  `npx prisma migrate diff --from-schema prisma/schema.prisma --to-config-datasource --script`
+  — "This is an empty migration." means the file and the database agree.
 
 ## Timezone rule (source of many bugs)
 
