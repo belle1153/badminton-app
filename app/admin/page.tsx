@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import { pendingAnnouncements } from "@/lib/registrationAnnounce";
+import { envProblems } from "@/lib/envHealth";
 import DeleteSessionButton from "./DeleteSessionButton";
 import AnnounceRegistrationButton from "./AnnounceRegistrationButton";
 
@@ -21,6 +22,8 @@ export default async function AdminDashboardPage() {
     // instead of only when someone thinks to press it.
     pendingAnnouncements(),
   ]);
+  // Reads only whether each key is set, never its value.
+  const problems = envProblems();
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -33,6 +36,31 @@ export default async function AdminDashboardPage() {
           + สร้างรอบใหม่
         </Link>
       </div>
+
+      {problems.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+          <h2 className="text-sm font-semibold text-red-800">
+            🔐 ตั้งค่าที่ยังขาด ({problems.length})
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {problems.map((p) => (
+              <li key={p.key} className="text-xs text-red-900">
+                <code className="rounded bg-white px-1 py-0.5 font-mono">{p.key}</code>
+                {p.severity === "critical" && (
+                  <span className="ml-1.5 rounded-full bg-red-200 px-1.5 py-0.5 text-[10px] font-medium">
+                    สำคัญ
+                  </span>
+                )}
+                <span className="block text-red-800">{p.impact}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-red-700">
+            ใส่ที่ Vercel → Settings → Environment Variables แล้ว redeploy · แอปทำงานได้โดยไม่มีก็จริง
+            แต่ส่วนที่เขียนไว้ข้างบนจะอ่อนลงเงียบๆ
+          </p>
+        </section>
+      )}
 
       <AnnounceRegistrationButton pending={pending} />
 
