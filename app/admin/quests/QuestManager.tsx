@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { QUEST_KINDS, isPerDayKind, type QuestKind } from "@/lib/quests";
+import { QUEST_KINDS, isPerDayKind, overlappingQuests, type QuestKind } from "@/lib/quests";
 
 interface QuestRow {
   id: string;
@@ -45,6 +45,19 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const spec = QUEST_KINDS.find((k) => k.kind === kind)!;
+
+  // Switching a quest off hides it but does NOT stop it paying, so "turn the old
+  // one off and make a replacement" quietly pays both. Warn while the dates are
+  // being typed, when it is still cheap to press แก้ไข on the old one instead.
+  const clashes =
+    startDate && endDate
+      ? overlappingQuests(
+          initial.map((q) => ({ ...q, startDate: new Date(q.startDate), endDate: new Date(q.endDate) })),
+          new Date(startDate),
+          new Date(endDate),
+          editingId ?? undefined
+        ).filter((q) => !q.active)
+      : [];
 
   function reset() {
     setEditingId(null);
@@ -225,6 +238,26 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
           </label>
         </div>
 
+        {clashes.length > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="font-semibold">
+              ⚠️ ช่วงเวลานี้ทับกับเควสที่ปิดอยู่ {clashes.length} อัน
+            </p>
+            <ul className="mt-1 list-disc pl-4">
+              {clashes.map((q) => (
+                <li key={q.id}>
+                  {q.icon} {q.title}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5">
+              เควสที่ปิดยัง<b>จ่าย EXP อยู่</b> (ปิด = ซ่อนจากหน้าผู้เล่นเท่านั้น)
+              ถ้าตั้งใจจะเปลี่ยนเควสเดิม ให้กด <b>แก้ไข</b> อันนั้นแทน —
+              สร้างใหม่ทับจะได้ EXP สองก้อน
+            </p>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex items-center gap-2">
@@ -288,13 +321,18 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
                     </button>
                     <button
                       onClick={() => toggle(q)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      // "ปิดอยู่" reads as retired, but EXP keeps being paid —
+                      // say so here, where the admin decides.
+                      title={
                         q.active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-500"
+                          ? "กดเพื่อซ่อนจากหน้าผู้เล่น (EXP ที่แจกไปแล้วไม่หาย)"
+                          : "ซ่อนอยู่ แต่ยังจ่าย EXP — ถ้าจะยกเลิกจริงต้องกดลบ"
+                      }
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        q.active ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-800"
                       }`}
                     >
-                      {q.active ? "เปิดอยู่" : "ปิดอยู่"}
+                      {q.active ? "เปิดอยู่" : "ซ่อนอยู่ · ยังจ่าย EXP"}
                     </button>
                     <button
                       onClick={() => remove(q)}

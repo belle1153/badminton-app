@@ -280,6 +280,28 @@ export function upcomingQuests<T extends QuestDef>(quests: T[], now: Date): T[] 
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 }
 
+/**
+ * Quests whose window overlaps [start, end), ignoring `self`.
+ *
+ * Used to warn before a double payout. Switching a quest off hides it but does
+ * NOT stop it paying (see `startedQuests`), so "switch the old one off and make
+ * a replacement" quietly pays both — the way to replace a quest is to edit it.
+ * Ends are exclusive, so months that merely touch do not count as overlapping.
+ */
+export function overlappingQuests<T extends { id: string; startDate: Date; endDate: Date }>(
+  quests: T[],
+  start: Date,
+  end: Date,
+  selfId?: string
+): T[] {
+  return quests.filter(
+    (q) =>
+      q.id !== selfId &&
+      start.getTime() < q.endDate.getTime() &&
+      q.startDate.getTime() < end.getTime()
+  );
+}
+
 /** "1 ส.ค. 2569 – 30 ส.ค. 2569" — endDate is exclusive, so the label shows the
  *  last day people can actually play (endDate − 1 day), like the admin list. */
 export function thaiQuestRange(start: Date, end: Date): string {

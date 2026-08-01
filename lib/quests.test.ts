@@ -4,6 +4,7 @@ import {
   activeQuests,
   startedQuests,
   visibleQuests,
+  overlappingQuests,
   questStatus,
   inRange,
   QUEST_KINDS,
@@ -256,6 +257,40 @@ describe("visibleQuests", () => {
     );
     expect(scored).toHaveLength(2);
     expect(visibleQuests(scored)).toHaveLength(1);
+  });
+});
+
+describe("overlappingQuests — guarding against a double payout", () => {
+  const aug = quest({ id: "aug", startDate: d("2026-08-01"), endDate: d("2026-09-01") });
+  const sep = quest({ id: "sep", startDate: d("2026-09-01"), endDate: d("2026-10-01") });
+  const week = quest({ id: "week", startDate: d("2026-08-10"), endDate: d("2026-08-17") });
+  const list = [aug, sep, week];
+
+  it("finds a quest the new window sits inside", () => {
+    const hits = overlappingQuests(list, d("2026-08-05"), d("2026-08-08"));
+    expect(hits.map((q) => q.id)).toEqual(["aug"]);
+  });
+
+  it("finds every quest a long window crosses", () => {
+    const hits = overlappingQuests(list, d("2026-08-01"), d("2026-09-15"));
+    expect(hits.map((q) => q.id).sort()).toEqual(["aug", "sep", "week"]);
+  });
+
+  it("does not flag months that merely touch — ends are exclusive", () => {
+    // 1 Sep is aug's exclusive end and sep's inclusive start; tiling months are
+    // the normal case and must not look like a clash.
+    expect(overlappingQuests([aug], d("2026-09-01"), d("2026-10-01"))).toEqual([]);
+    expect(overlappingQuests([sep], d("2026-08-01"), d("2026-09-01"))).toEqual([]);
+  });
+
+  it("ignores the quest being edited, which always overlaps itself", () => {
+    expect(overlappingQuests(list, d("2026-08-01"), d("2026-09-01"), "aug").map((q) => q.id)).toEqual(
+      ["week"]
+    );
+  });
+
+  it("returns nothing when the window is clear", () => {
+    expect(overlappingQuests(list, d("2026-06-01"), d("2026-07-01"))).toEqual([]);
   });
 });
 
