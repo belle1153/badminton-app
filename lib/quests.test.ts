@@ -3,6 +3,7 @@ import {
   evaluateQuest,
   activeQuests,
   startedQuests,
+  visibleQuests,
   questStatus,
   inRange,
   QUEST_KINDS,
@@ -143,7 +144,7 @@ describe("activeQuests", () => {
   });
 });
 
-describe("startedQuests — a finished quest keeps paying out", () => {
+describe("startedQuests — EXP already earned is never taken back", () => {
   const list = [
     quest({ id: "ended", startDate: d("2026-07-26"), endDate: d("2026-07-31") }),
     quest({ id: "running", startDate: d("2026-07-31"), endDate: d("2026-08-31") }),
@@ -153,24 +154,48 @@ describe("startedQuests — a finished quest keeps paying out", () => {
   const now = d("2026-07-31");
 
   it("includes quests whose window has closed", () => {
-    // The bug this exists for: EXP was counted from activeQuests, so the moment
-    // a quest's window shut, the reward a player had already earned vanished
-    // from their total — and could drop their level.
-    expect(startedQuests(list, now).map((q) => q.id).sort()).toEqual(["ended", "running"]);
+    // First bug this exists for: EXP was counted from activeQuests, so the
+    // moment a quest's window shut, the reward a player had already earned
+    // vanished from their total — and could drop their level.
+    expect(startedQuests(list, now).map((q) => q.id)).toContain("ended");
+  });
+
+  it("includes quests the admin switched off", () => {
+    // Second bug, same symptom: `active` is a visibility flag. Switching an old
+    // quest off to tidy the admin list must not claw EXP back off the club.
+    // Deleting the quest is what cancels it.
+    expect(startedQuests(list, now).map((q) => q.id)).toContain("disabled");
   });
 
   it("still excludes quests that have not begun", () => {
     expect(startedQuests(list, now).map((q) => q.id)).not.toContain("upcoming");
   });
 
-  it("still excludes quests the admin switched off", () => {
-    expect(startedQuests(list, now).map((q) => q.id)).not.toContain("disabled");
-  });
-
   it("is a superset of activeQuests", () => {
     const active = activeQuests(list, now).map((q) => q.id);
     const started = startedQuests(list, now).map((q) => q.id);
     for (const id of active) expect(started).toContain(id);
+  });
+});
+
+describe("visibleQuests", () => {
+  it("hides switched-off quests from the player's list", () => {
+    const scored = [quest({ id: "shown" }), quest({ id: "hidden", active: false })];
+    expect(visibleQuests(scored).map((q) => q.id)).toEqual(["shown"]);
+  });
+
+  it("is display-only — it must never be what EXP is summed over", () => {
+    // The pairing the profile relies on: score everything started, render only
+    // the visible subset.
+    const scored = startedQuests(
+      [
+        quest({ id: "hidden", startDate: d("2026-07-01"), endDate: d("2026-08-01"), active: false }),
+        quest({ id: "shown", startDate: d("2026-07-01"), endDate: d("2026-08-01") }),
+      ],
+      d("2026-07-31")
+    );
+    expect(scored).toHaveLength(2);
+    expect(visibleQuests(scored)).toHaveLength(1);
   });
 });
 

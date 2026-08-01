@@ -5,7 +5,7 @@ import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadPlayerProgress } from "@/lib/playerProgress";
 import { loadQuestProgress, questExp, loadQuests } from "@/lib/questProgress";
-import { upcomingQuests, thaiQuestRange } from "@/lib/quests";
+import { upcomingQuests, visibleQuests, thaiQuestRange } from "@/lib/quests";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import AchievementCoin from "./AchievementCoin";
 import RememberMe from "./RememberMe";
@@ -73,14 +73,17 @@ export default async function PlayerProfilePage({
   });
   if (!athlete) notFound();
 
-  const quests = await loadQuestProgress(id);
+  // Scored over every started quest — switched-off ones included, so hiding a
+  // quest never claws back EXP. Only the visible ones are rendered.
+  const scored = await loadQuestProgress(id);
+  const quests = visibleQuests(scored);
   // Quests that haven't started yet: shown as a locked preview so a member sees
   // what's coming (the in-window `quests` above hides them until they open).
   const upcoming = upcomingQuests(await loadQuests(true), new Date());
   const [stats, recent, progress] = await Promise.all([
     loadPlayerGames(id).then((games) => computePlayerStats(games)),
     loadPlayerMatchHistory(id, 10),
-    loadPlayerProgress(id, questExp(quests)),
+    loadPlayerProgress(id, questExp(scored)),
   ]);
 
   const theme = progress.level.theme;

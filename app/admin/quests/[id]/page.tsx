@@ -87,7 +87,9 @@ export default async function QuestDetailPage({
         </div>
         {!quest.active && (
           <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-500">
-            เควสนี้ปิดอยู่ — ไม่แจก EXP ให้ใคร จนกว่าจะเปิดใหม่
+            เควสนี้ปิดอยู่ — ซ่อนจากหน้าผู้เล่น แต่คนที่ทำสำเร็จไปแล้วยัง<b>ได้ EXP อยู่</b>
+            <br />
+            ถ้าอยากดึง EXP คืนจริงๆ ต้องกด <b>ลบ</b> เท่านั้น
           </p>
         )}
       </header>

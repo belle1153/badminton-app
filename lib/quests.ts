@@ -177,21 +177,37 @@ export function evaluateQuest(
   }
 }
 
-/** Quests whose window includes `now` — what a player is currently chasing. */
+/** Quests whose window includes `now` — what a player is currently chasing.
+ *  Honours `active`, because this is a display list. */
 export function activeQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
   return quests.filter((q) => q.active && inRange(now, q));
 }
 
 /**
- * Every quest that has already begun, finished ones included.
+ * The subset of a scored list a member should actually see. EXP is summed over
+ * everything started (`startedQuests`), so a switched-off quest still pays out
+ * — it just stops being shown.
+ */
+export function visibleQuests<T extends { active: boolean }>(quests: T[]): T[] {
+  return quests.filter((q) => q.active);
+}
+
+/**
+ * Every quest that has already begun — finished ones AND switched-off ones
+ * included.
  *
  * This — not `activeQuests` — is what EXP must be counted from. A completed
- * quest is a thing the player did; scoring only the currently-open ones meant
- * their reward silently vanished the moment the window closed, taking their
- * total (and possibly their level) down with it.
+ * quest is a thing the player did, and nothing an admin does to the listing
+ * afterwards can un-do it. Two separate bugs came from scoring a narrower set:
+ * counting only the currently-open ones wiped a reward the moment its window
+ * closed, and honouring `active` here meant switching an old quest off to tidy
+ * the admin list clawed EXP back off the whole club.
+ *
+ * `active` is a visibility flag — see `activeQuests` / `upcomingQuests`, which
+ * do honour it. To actually take a quest's EXP back, delete the quest.
  */
 export function startedQuests<T extends QuestDef>(quests: T[], now: Date): T[] {
-  return quests.filter((q) => q.active && now.getTime() >= q.startDate.getTime());
+  return quests.filter((q) => now.getTime() >= q.startDate.getTime());
 }
 
 export type QuestStatus = "upcoming" | "active" | "ended";

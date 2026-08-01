@@ -76,7 +76,16 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
   }
 
   async function remove(q: QuestRow) {
-    if (!confirm(`ลบเควส "${q.title}" ใช่ไหมครับ?`)) return;
+    // Delete is the only action that takes EXP back — ปิด just hides. Say so,
+    // because the two buttons sit next to each other.
+    if (
+      !confirm(
+        `ลบเควส "${q.title}" ใช่ไหมครับ?\n\n` +
+          `+${q.expReward} EXP ของทุกคนที่ทำสำเร็จจะหายไปด้วย และเลเวลอาจตกลง\n` +
+          `ถ้าแค่อยากซ่อนจากหน้าผู้เล่น ให้กด "ปิด" แทน`
+      )
+    )
+      return;
     await fetch(`/api/admin/quests/${q.id}`, { method: "DELETE" });
     router.refresh();
   }

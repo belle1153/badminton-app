@@ -168,14 +168,18 @@ function evaluateAthlete(
 }
 
 /**
- * One player's standing on every quest that has started — finished ones
- * included, so a completed quest keeps paying out after its window closes.
+ * One player's standing on every quest that has started — finished AND
+ * switched-off ones included, so neither the window closing nor an admin
+ * tidying the list takes back EXP already earned.
+ *
+ * The caller renders `visibleQuests(…)` of this and sums `questExp(…)` over all
+ * of it: hidden quests still pay, they just aren't shown.
  */
 export async function loadQuestProgress(
   athleteId: string,
   now: Date = new Date()
 ): Promise<QuestWithProgress[]> {
-  const quests = startedQuests(await loadQuests(true), now);
+  const quests = startedQuests(await loadQuests(false), now);
   if (quests.length === 0) return [];
   const { sessions, clubDays } = await loadQuestData(quests);
   return evaluateAthlete(athleteId, quests, sessions, clubDays, now);
@@ -188,7 +192,7 @@ export async function loadQuestProgress(
  * trips each, and on serverless Postgres that is seconds on a full leaderboard).
  */
 export async function loadQuestExpByAthlete(now: Date = new Date()): Promise<Map<string, number>> {
-  const quests = startedQuests(await loadQuests(true), now);
+  const quests = startedQuests(await loadQuests(false), now);
   const out = new Map<string, number>();
   if (quests.length === 0) return out;
 
