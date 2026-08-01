@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { QUEST_KINDS, type QuestKind } from "@/lib/quests";
+import { QUEST_KINDS, isPerDayKind, type QuestKind } from "@/lib/quests";
 
 interface QuestRow {
   id: string;
@@ -165,7 +165,9 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
             </label>
           )}
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-gray-700">รางวัล EXP</span>
+            <span className="font-medium text-gray-700">
+              รางวัล EXP{spec.perDay && " (ต่อ 1 วัน)"}
+            </span>
             <input
               required
               type="number"
@@ -174,7 +176,11 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
               onChange={(e) => setExpReward(e.target.value)}
               className="input"
             />
-            <span className="text-xs text-gray-500">มาเล่น 1 ครั้งได้ราว 236 EXP</span>
+            <span className="text-xs text-gray-500">
+              {spec.perDay
+                ? "ได้ทุกวันที่ทำสำเร็จ เช่น ติดอันดับ 8 วัน = คูณ 8"
+                : "มาเล่น 1 ครั้งได้ราว 236 EXP"}
+            </span>
           </label>
         </div>
 
@@ -212,7 +218,7 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
                     <span className="text-xs text-gray-500">
                       {label}
                       {q.target != null && ` (${q.target})`} · {thaiRange(q.startDate, q.endDate)} ·
-                      +{q.expReward} EXP
+                      +{q.expReward} EXP{isPerDayKind(q.kind) && " ต่อวัน"}
                     </span>
                   </Link>
                   <div className="ml-auto flex items-center gap-2">

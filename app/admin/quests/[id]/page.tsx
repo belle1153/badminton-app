@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isAdmin } from "@/lib/adminAuth";
 import { loadQuestRoster } from "@/lib/questProgress";
-import { QUEST_KINDS, thaiQuestRange } from "@/lib/quests";
+import { QUEST_KINDS, isPerDayKind, thaiQuestRange } from "@/lib/quests";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,8 @@ export default async function QuestDetailPage({
   const pending = entries.filter((e) => !e.progress.completed);
   const kindLabel = QUEST_KINDS.find((k) => k.kind === quest.kind)?.label ?? quest.kind;
   const badge = STATUS_LABEL[status];
+  const perDay = isPerDayKind(quest.kind);
+  const paidOut = entries.reduce((n, e) => n + e.progress.earnedExp, 0);
 
   const row = (e: (typeof entries)[number], completed: boolean) => {
     const { current, target, progressLabel } = e.progress;
@@ -49,6 +51,13 @@ export default async function QuestDetailPage({
             {e.name}
           </Link>
           <span className="shrink-0 text-xs tabular-nums text-gray-500">{progressLabel ?? "—"}</span>
+          {/* A per-day quest pays a different amount to each person, so the
+              header's rate isn't enough — show what this one actually earned. */}
+          {perDay && e.progress.earnedExp > 0 && (
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-green-600">
+              +{e.progress.earnedExp}
+            </span>
+          )}
         </div>
         {pct != null && (
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
@@ -77,6 +86,7 @@ export default async function QuestDetailPage({
               {kindLabel}
               {quest.target != null && ` (${quest.target})`} ·{" "}
               {thaiQuestRange(quest.startDate, quest.endDate)} · +{quest.expReward} EXP
+              {perDay && " ต่อวัน"}
             </p>
           </div>
           <span
@@ -98,7 +108,9 @@ export default async function QuestDetailPage({
         {[
           ["ผ่านแล้ว", `${done.length} คน`],
           ["ยังไม่ผ่าน", `${pending.length} คน`],
-          ["วันที่ก๊วนจัด", `${clubDaysInWindow} วัน`],
+          perDay
+            ? ["EXP ที่แจกไปแล้ว", paidOut.toLocaleString("th-TH")]
+            : ["วันที่ก๊วนจัด", `${clubDaysInWindow} วัน`],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-gray-200 px-2 py-3">
             <div className="text-lg font-bold tabular-nums">{value}</div>

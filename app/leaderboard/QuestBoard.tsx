@@ -1,5 +1,5 @@
 import { loadQuests } from "@/lib/questProgress";
-import { activeQuests, upcomingQuests, thaiQuestRange } from "@/lib/quests";
+import { activeQuests, upcomingQuests, isPerDayKind, thaiQuestRange } from "@/lib/quests";
 
 /**
  * Public quest board for the reward hub — every open quest that is running now
@@ -35,7 +35,10 @@ export default async function QuestBoard() {
         </span>
       </div>
       <div className="ml-auto flex shrink-0 flex-col items-end gap-0.5">
-        <span className="text-[12px] font-bold tabular-nums text-[#6fdc9a]">+{q.expReward}</span>
+        <span className="text-[12px] font-bold tabular-nums text-[#6fdc9a]">
+          +{q.expReward}
+          {isPerDayKind(q.kind) && <span className="font-normal">/วัน</span>}
+        </span>
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-medium"
           style={

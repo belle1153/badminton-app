@@ -5,7 +5,7 @@ import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadPlayerProgress } from "@/lib/playerProgress";
 import { loadQuestProgress, questExp, loadQuests } from "@/lib/questProgress";
-import { upcomingQuests, visibleQuests, thaiQuestRange } from "@/lib/quests";
+import { upcomingQuests, visibleQuests, isPerDayKind, thaiQuestRange } from "@/lib/quests";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import AchievementCoin from "./AchievementCoin";
 import RememberMe from "./RememberMe";
@@ -318,7 +318,13 @@ export default async function PlayerProfilePage({
                         className="ml-auto shrink-0 text-[12px] font-bold tabular-nums"
                         style={{ color: q.progress.completed ? "#6fdc9a" : "#54687e" }}
                       >
-                        {q.progress.completed ? "สำเร็จ " : ""}+{q.expReward}
+                        {/* A per-day quest pays a multiple, so show what they
+                            have actually banked — not the per-day rate. */}
+                        {q.progress.completed ? "สำเร็จ " : ""}+
+                        {q.progress.completed ? q.progress.earnedExp : q.expReward}
+                        {!q.progress.completed && isPerDayKind(q.kind) && (
+                          <span className="font-normal">/วัน</span>
+                        )}
                       </span>
                     </div>
                   ))}
@@ -338,6 +344,7 @@ export default async function PlayerProfilePage({
                       </div>
                       <span className="ml-auto shrink-0 text-[12px] font-bold tabular-nums text-[#54687e]">
                         +{q.expReward}
+                        {isPerDayKind(q.kind) && <span className="font-normal">/วัน</span>}
                       </span>
                     </div>
                   ))}

@@ -15,9 +15,12 @@ export interface QuestWithProgress extends QuestDef {
   status: QuestStatus;
 }
 
-/** Quest EXP a player has earned — completed quests only. */
+/**
+ * Quest EXP a player has earned. Sums `earnedExp`, not `expReward`, because a
+ * per-day quest pays a multiple of its reward — one definition, many payouts.
+ */
 export function questExp(quests: QuestWithProgress[]): number {
-  return quests.filter((q) => q.progress.completed).reduce((n, q) => n + q.expReward, 0);
+  return quests.reduce((n, q) => n + q.progress.earnedExp, 0);
 }
 
 type QuestRow = {
@@ -133,6 +136,7 @@ function evaluateAthlete(
     let gamesPlayed = 0;
     let checkinDays = 0;
     let bestSignupPlace: number | null = null;
+    const signupPlaces: number[] = [];
 
     for (const s of inWindow) {
       // Sign-up order counts only genuine user-side sign-ups — an admin
@@ -140,8 +144,9 @@ function evaluateAthlete(
       // sign themselves up.
       const userSignups = s.signUps.filter((su) => !su.addedByAdmin);
       const place = userSignups.findIndex((su) => su.athleteId === athleteId);
-      if (place >= 0 && (bestSignupPlace == null || place + 1 < bestSignupPlace)) {
-        bestSignupPlace = place + 1;
+      if (place >= 0) {
+        signupPlaces.push(place + 1);
+        if (bestSignupPlace == null || place + 1 < bestSignupPlace) bestSignupPlace = place + 1;
       }
 
       const mine = s.signUps.find((su) => su.athleteId === athleteId);
@@ -155,7 +160,13 @@ function evaluateAthlete(
       }
     }
 
-    const facts: QuestPlayerFacts = { daysPlayed, gamesPlayed, checkinDays, bestSignupPlace };
+    const facts: QuestPlayerFacts = {
+      daysPlayed,
+      gamesPlayed,
+      checkinDays,
+      bestSignupPlace,
+      signupPlaces,
+    };
     const clubDaysInRange = clubDays.filter(
       (d) => d.getTime() >= q.startDate.getTime() && d.getTime() < q.endDate.getTime()
     );

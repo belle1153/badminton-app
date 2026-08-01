@@ -31,6 +31,7 @@ const facts = (over: Partial<QuestPlayerFacts> = {}): QuestPlayerFacts => ({
   gamesPlayed: 0,
   checkinDays: 0,
   bestSignupPlace: null,
+  signupPlaces: [],
   ...over,
 });
 
@@ -122,6 +123,65 @@ describe("fastest-signup", () => {
     const p = evaluateQuest(q, facts({ bestSignupPlace: null }), []);
     expect(p.completed).toBe(false);
     expect(p.progressLabel).toBe("ยังไม่ติดอันดับ");
+  });
+});
+
+describe("fastest-signup-daily — one definition, many payouts", () => {
+  const q = quest({ kind: "fastest-signup-daily", target: 10, expReward: 200 });
+
+  it("pays the reward once for every day the player placed", () => {
+    // Signed up on five days, inside the top 10 on three of them.
+    const p = evaluateQuest(q, facts({ signupPlaces: [1, 4, 11, 9, 15] }), []);
+    expect(p.completed).toBe(true);
+    expect(p.current).toBe(3);
+    expect(p.earnedExp).toBe(600);
+    expect(p.progressLabel).toBe("ติดอันดับ 3 วัน");
+  });
+
+  it("pays nothing when they never made the cut", () => {
+    const p = evaluateQuest(q, facts({ signupPlaces: [11, 20] }), []);
+    expect(p.completed).toBe(false);
+    expect(p.earnedExp).toBe(0);
+  });
+
+  it("keeps growing as more days are added — this is the point of the rule", () => {
+    const once = evaluateQuest(q, facts({ signupPlaces: [1] }), []).earnedExp;
+    const twice = evaluateQuest(q, facts({ signupPlaces: [1, 2] }), []).earnedExp;
+    expect(twice).toBe(once * 2);
+  });
+
+  it("draws no progress bar — the count has no ceiling to fill", () => {
+    expect(evaluateQuest(q, facts({ signupPlaces: [1] }), []).target).toBeNull();
+  });
+
+  it("never completes when the admin left the placing empty", () => {
+    const noTarget = quest({ kind: "fastest-signup-daily", target: null });
+    const p = evaluateQuest(noTarget, facts({ signupPlaces: [1, 2, 3] }), []);
+    expect(p.completed).toBe(false);
+    expect(p.earnedExp).toBe(0);
+  });
+
+  it("differs from the once-only rule on the same facts", () => {
+    // The bug that prompted this: a month-long "top 10 each day" quest paid out
+    // once and then went dead for the rest of the window.
+    const daily = evaluateQuest(q, facts({ signupPlaces: [1, 2, 3] }), []);
+    const once = evaluateQuest(
+      quest({ kind: "fastest-signup", target: 10, expReward: 200 }),
+      facts({ signupPlaces: [1, 2, 3], bestSignupPlace: 1 }),
+      []
+    );
+    expect(once.earnedExp).toBe(200);
+    expect(daily.earnedExp).toBe(600);
+  });
+});
+
+describe("earnedExp on the once-only rules", () => {
+  it("is the full reward when complete and nothing when not", () => {
+    const q = quest({ kind: "days-played", target: 2, expReward: 150 });
+    expect(evaluateQuest(q, facts({ daysPlayed: [d("2026-08-01")] }), []).earnedExp).toBe(0);
+    expect(
+      evaluateQuest(q, facts({ daysPlayed: [d("2026-08-01"), d("2026-08-03")] }), []).earnedExp
+    ).toBe(150);
   });
 });
 
@@ -218,10 +278,19 @@ describe("QUEST_KINDS", () => {
     for (const k of kinds) {
       const p = evaluateQuest(
         quest({ kind: k, target: 1 }),
-        facts({ daysPlayed: [d("2026-08-01")], gamesPlayed: 5, checkinDays: 2, bestSignupPlace: 1 }),
+        facts({
+          daysPlayed: [d("2026-08-01")],
+          gamesPlayed: 5,
+          checkinDays: 2,
+          bestSignupPlace: 1,
+          signupPlaces: [1],
+        }),
         [d("2026-08-01")]
       );
       expect(p.completed).toBe(true);
+      // Winnable also means it actually pays — a rule that completes for 0 EXP
+      // would be just as useless as one nobody can finish.
+      expect(p.earnedExp).toBeGreaterThan(0);
     }
   });
 });

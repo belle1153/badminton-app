@@ -16,7 +16,8 @@ export type QuestKind =
   | "days-played"
   | "checkin-days"
   | "games-played"
-  | "fastest-signup";
+  | "fastest-signup"
+  | "fastest-signup-daily";
 
 export interface QuestKindSpec {
   kind: QuestKind;
@@ -24,6 +25,8 @@ export interface QuestKindSpec {
   /** How the admin should read the target field, or null when it takes none. */
   targetLabel: string | null;
   hint: string;
+  /** `expReward` is paid once per qualifying day, not once per quest. */
+  perDay?: boolean;
 }
 
 export const QUEST_KINDS: QuestKindSpec[] = [
@@ -53,11 +56,23 @@ export const QUEST_KINDS: QuestKindSpec[] = [
   },
   {
     kind: "fastest-signup",
-    label: "ลงชื่อไวสุด N อันดับแรก",
+    label: "ลงชื่อไวสุด N อันดับแรก (ครั้งเดียวจบ)",
     targetLabel: "กี่อันดับ",
-    hint: "นับจากเวลาที่กดลงชื่อ ต้องติดอันดับอย่างน้อย 1 รอบในช่วงนี้",
+    hint: "ติดอันดับแค่วันเดียวก็จบเควส ได้ EXP ก้อนเดียว",
+  },
+  {
+    kind: "fastest-signup-daily",
+    label: "ลงชื่อไวสุด N อันดับแรก — นับทุกวัน",
+    targetLabel: "กี่อันดับ",
+    hint: "ติดอันดับวันไหนได้ EXP วันนั้น ทำซ้ำได้ทุกวันที่ก๊วนจัดในช่วงนี้ (EXP ที่กรอกคือต่อ 1 วัน)",
+    perDay: true,
   },
 ];
+
+/** Kinds whose EXP is paid per qualifying day — `expReward` reads "per day",
+ *  and a player's total is a multiple of it. */
+export const isPerDayKind = (kind: string): boolean =>
+  QUEST_KINDS.some((k) => k.kind === kind && k.perDay);
 
 export interface QuestDef {
   id: string;
@@ -83,6 +98,9 @@ export interface QuestPlayerFacts {
   checkinDays: number;
   /** Best sign-up placing they achieved on any day in range (1 = first). */
   bestSignupPlace: number | null;
+  /** Their placing on every day in range they signed themselves up, one entry
+   *  per day — what a per-day rule counts over. */
+  signupPlaces: number[];
 }
 
 export interface QuestProgress {
@@ -91,6 +109,13 @@ export interface QuestProgress {
   progressLabel: string | null;
   current: number | null;
   target: number | null;
+  /**
+   * EXP this player has actually earned from the quest — normally the full
+   * reward once complete, but a per-day rule pays a multiple of it. Summing
+   * this rather than `expReward` is what lets one quest definition pay out on
+   * many days.
+   */
+  earnedExp: number;
 }
 
 const key = (d: Date) => d.toISOString().slice(0, 10);
@@ -110,6 +135,21 @@ export function evaluateQuest(
   facts: QuestPlayerFacts,
   clubDaysInRange: Date[]
 ): QuestProgress {
+  const p = scoreRule(quest, facts, clubDaysInRange);
+  return {
+    ...p,
+    // A per-day rule reports how many days it earned on; everything else is a
+    // single payout. Either way the reward is derived here, never stored.
+    earnedExp: p.payDays != null ? p.payDays * quest.expReward : p.completed ? quest.expReward : 0,
+  };
+}
+
+/** One rule's raw standing. `payDays` is set only by per-day rules. */
+function scoreRule(
+  quest: QuestDef,
+  facts: QuestPlayerFacts,
+  clubDaysInRange: Date[]
+): Omit<QuestProgress, "earnedExp"> & { payDays?: number } {
   switch (quest.kind as QuestKind) {
     case "perfect-attendance": {
       const played = new Set(facts.daysPlayed.map(key));
@@ -170,10 +210,25 @@ export function evaluateQuest(
       };
     }
 
+    case "fastest-signup-daily": {
+      // Paid per day, so one definition covers every day the club plays in the
+      // window instead of the admin creating a quest per night.
+      const target = quest.target ?? 0;
+      const days = target > 0 ? facts.signupPlaces.filter((p) => p <= target).length : 0;
+      return {
+        completed: days > 0,
+        progressLabel: days > 0 ? `ติดอันดับ ${days} วัน` : "ยังไม่ติดอันดับ",
+        current: days,
+        // No goal to fill — the count is open-ended, so there is no bar to draw.
+        target: null,
+        payDays: days,
+      };
+    }
+
     default:
       // An unknown kind (e.g. a rule removed after quests were created) must
       // never silently mark everyone complete.
-      return { completed: false, progressLabel: null, current: null, target: null };
+      return { completed: false, progressLabel: null, current: null, target: null, payDays: 0 };
   }
 }
 

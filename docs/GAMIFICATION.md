@@ -156,7 +156,8 @@ Rules available (`QUEST_KINDS`):
 | `days-played` | days | Days with a finished game |
 | `checkin-days` | days | Days checked in, games or not |
 | `games-played` | games | Finished games in the window |
-| `fastest-signup` | places | Best sign-up placing on any day in the window |
+| `fastest-signup` | places | Best sign-up placing on any day — pays **once** |
+| `fastest-signup-daily` | places | Placed inside the cutoff — pays **per day** |
 
 - `startDate` inclusive, `endDate` exclusive, both at UTC midnight like
   `Session.date`, so consecutive months tile without overlapping.
@@ -168,8 +169,23 @@ Rules available (`QUEST_KINDS`):
 - Quest EXP is computed once for all players (`loadQuestExpByAthlete`) and passed
   into `buildPlayerProgress`, so the profile and leaderboard agree.
 
+**`active` is a visibility flag, not a kill switch.** `startedQuests` — what EXP
+is summed over — ignores it, so hiding a quest never claws back a reward and
+neither does its window closing. `activeQuests` / `upcomingQuests` /
+`visibleQuests` honour it, because those are display lists. Deleting the quest is
+the only way to cancel one.
+
+**Per-day rules.** `QuestProgress.earnedExp` is what `questExp` sums, not
+`expReward`. For every rule except the per-day ones the two are the same (full
+reward once complete, else 0); a rule flagged `perDay` in `QUEST_KINDS` reports
+how many days it earned on and multiplies. That is what lets one definition cover
+a whole month of club nights instead of the admin creating a quest per night —
+and it means `expReward` reads "per day" for those kinds, everywhere it is shown.
+
 **Keep rewards modest.** A visit is worth ~236 EXP and level 2 costs 540; a
 single 500-EXP quest would skip a level outright. 100–300 is the sane range.
+For a per-day rule that ceiling applies to the **daily** figure — the club plays
+twice a week, so 200/day is ~1,600 over a month for someone who never misses.
 
 ## Leaderboard
 
