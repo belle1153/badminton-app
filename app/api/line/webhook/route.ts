@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rosterMessagesForText } from "@/lib/lineRoster";
 import { withdrawFromLine } from "@/lib/lineWithdraw";
+import { verifyLineSignature } from "@/lib/lineSignature";
 
 /**
  * LINE webhook.
+ *
+ * The URL is public, so every request is checked against LINE's
+ * `X-Line-Signature` before anything happens. Set `LINE_CHANNEL_SECRET` (LINE
+ * Developers Console, same page as the access token). Until it is set, requests
+ * can't be verified and ถอนชื่อ — the only thing here that changes data — is
+ * refused; the read-only replies carry on.
  *
  * - "<ชื่อ> ถอนชื่อ <วัน>" → withdraws that name (anyone in the group can),
  *   replies a confirmation + updated roster.
@@ -36,9 +43,37 @@ async function reply(replyToken: string, token: string, texts: string[]) {
 export async function POST(req: NextRequest) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   const echoId = process.env.LINE_ECHO_ID === "1";
+  const channelSecret = process.env.LINE_CHANNEL_SECRET;
+
+  // The raw text, not req.json(): the signature covers these exact bytes, and
+  // re-serialising the parsed object would never match.
+  let raw: string;
+  try {
+    raw = await req.text();
+  } catch {
+    return NextResponse.json({ ok: true });
+  }
+
+  let signed = false;
+  if (channelSecret) {
+    signed = await verifyLineSignature(raw, req.headers.get("x-line-signature"), channelSecret);
+    if (!signed) {
+      // 200 so a prober learns nothing from the status, but nothing is done.
+      console.warn("[LINE webhook] rejected: bad or missing signature");
+      return NextResponse.json({ ok: true });
+    }
+  } else {
+    // Without the secret nothing can be verified, so the destructive action is
+    // withheld (see below) while the read-only replies keep working. Set
+    // LINE_CHANNEL_SECRET to restore withdrawal over LINE.
+    console.warn(
+      "[LINE webhook] LINE_CHANNEL_SECRET is not set — requests cannot be verified, ถอนชื่อ is disabled"
+    );
+  }
+
   let body: { events?: LineEvent[] } = {};
   try {
-    body = await req.json();
+    body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ ok: true });
   }
@@ -54,8 +89,16 @@ export async function POST(req: NextRequest) {
 
     // "ถอน" → withdraw a name (checked before the roster keyword so a message
     // like "ถอนชื่อ Alex" isn't treated as a roster lookup).
+    //
+    // This is the one event that changes data, so it is the one that must be
+    // provably from LINE. Unsigned (no channel secret configured), it answers
+    // instead of acting — otherwise anyone who knew the URL could withdraw any
+    // player from any open day with a plain POST.
     if (text.includes("ถอน")) {
-      await reply(event.replyToken, token, await withdrawFromLine(text));
+      const messages = signed
+        ? await withdrawFromLine(text)
+        : ["ยังถอนผ่าน LINE ไม่ได้ครับ 🙏 ให้ถอนในเว็บแอป หรือแจ้งแอดมิน"];
+      await reply(event.replyToken, token, messages);
       continue;
     }
 
