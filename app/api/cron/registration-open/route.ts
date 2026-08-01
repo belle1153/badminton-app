@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const result = await announceRegistrationOpen();
+  // "cron" keeps the 24-hour freshness window: unattended, it must never
+  // retro-announce a day that opened last week.
+  const result = await announceRegistrationOpen(new Date(), "cron");
   return NextResponse.json(result);
 }

@@ -4,10 +4,20 @@ import { registrationOpensAt } from "@/lib/registration";
 
 const SIGNUP_URL = process.env.LINE_SIGNUP_URL ?? "https://tinyurl.com/54fk2r7s";
 
-// Only announce days whose sign-ups opened within the last day. Without this, a
-// first deploy (every OPEN session still has a null marker) would retro-announce
-// days that opened last week — the window keeps it to "just opened this Friday".
+// The unattended Friday cron only announces days whose sign-ups opened within
+// the last day. Without this, a first deploy (every OPEN session still has a
+// null marker) would retro-announce days that opened last week.
 const FRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Who is asking. The cron runs unattended and must never surprise the group, so
+ * it keeps the 24-hour window. The admin button is a person deciding to post
+ * right now — holding them to the same window meant that if Friday 11:00 came
+ * and went (a failed push, nobody around, a day added late) the announcement
+ * could never be sent at all, and the button just said "แจ้งไปแล้ว" when it
+ * never had been. `registrationOpenNotifiedAt` is the real don't-repeat guard.
+ */
+export type AnnounceMode = "cron" | "manual";
 
 /** "จันทร์ที่ 27 กรกฎาคม" — dates are stored at UTC midnight of the intended
  *  local date, so format in UTC to keep that calendar date. */
@@ -33,6 +43,27 @@ export function pickFreshlyOpen<T extends { date: Date }>(sessions: T[], now: Da
     const opensAt = registrationOpensAt(s.date).getTime();
     return opensAt <= now.getTime() && now.getTime() - opensAt < FRESH_WINDOW_MS;
   });
+}
+
+/** UTC midnight of today's ICT date — session dates are stored that way, so
+ *  this is the cut-off for "hasn't happened yet". */
+function ictToday(now: Date): number {
+  const ict = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return Date.UTC(ict.getUTCFullYear(), ict.getUTCMonth(), ict.getUTCDate());
+}
+
+/**
+ * Days the admin's button may announce: sign-ups already open, and the day
+ * itself still to come. No freshness window — a person pressing the button is
+ * the intent — but a day that has already been played is never announced, which
+ * is what stops a stale OPEN session from being posted weeks later.
+ */
+export function pickAnnounceable<T extends { date: Date }>(sessions: T[], now: Date): T[] {
+  const today = ictToday(now);
+  return sessions.filter(
+    (s) =>
+      registrationOpensAt(s.date).getTime() <= now.getTime() && s.date.getTime() >= today
+  );
 }
 
 /** The "sign-ups are open" group message for the given days. */
@@ -67,7 +98,10 @@ export interface AnnounceResult {
  * once — whichever fires first, the admin button or the Friday cron, claims it
  * and the other becomes a no-op. Never throws; a LINE hiccup just reports back.
  */
-export async function announceRegistrationOpen(now: Date = new Date()): Promise<AnnounceResult> {
+export async function announceRegistrationOpen(
+  now: Date = new Date(),
+  mode: AnnounceMode = "manual"
+): Promise<AnnounceResult> {
   if (!lineConfigured()) {
     return { sent: false, reason: "ยังไม่ได้ตั้งค่า LINE (env)", days: [] };
   }
@@ -77,9 +111,17 @@ export async function announceRegistrationOpen(now: Date = new Date()): Promise<
     orderBy: { date: "asc" },
   });
 
-  const fresh = pickFreshlyOpen(candidates, now);
+  const fresh =
+    mode === "cron" ? pickFreshlyOpen(candidates, now) : pickAnnounceable(candidates, now);
   if (fresh.length === 0) {
-    return { sent: false, reason: "ยังไม่ถึงเวลาเปิด หรือแจ้งไปแล้ว", days: [] };
+    // Say which of the two it was. The old combined wording ("ยังไม่ถึงเวลาเปิด
+    // หรือแจ้งไปแล้ว") hid a real failure: days that had never been announced
+    // looked identical to ones that had.
+    const reason =
+      candidates.length === 0
+        ? "แจ้งไปแล้วทุกวันที่เปิดอยู่"
+        : "ยังไม่ถึงเวลาเปิดลงชื่อ (ศุกร์ 11.00 น.)";
+    return { sent: false, reason, days: [] };
   }
 
   const message = formatOpenMessage(fresh);

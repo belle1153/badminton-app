@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickFreshlyOpen, formatOpenMessage } from "./registrationAnnounce";
+import { pickFreshlyOpen, pickAnnounceable, formatOpenMessage } from "./registrationAnnounce";
 
 // A Monday session; its sign-ups open the Friday before at 11:00 ICT
 // (2026-07-24 11:00 ICT = 2026-07-24 04:00 UTC).
@@ -21,6 +21,43 @@ describe("pickFreshlyOpen — Friday-11:00 timing", () => {
 
   it("excludes it once the 24h fresh window has passed (no stale backfill)", () => {
     expect(pickFreshlyOpen([monday], at("2026-07-25T05:00:00.000Z"))).toHaveLength(0);
+  });
+});
+
+describe("pickAnnounceable — what the admin's button may post", () => {
+  it("still allows it the day after it opened, where the cron will not", () => {
+    // The bug this exists for: sign-ups opened Friday 11:00, the push failed
+    // (429), and by Saturday the button reported "แจ้งไปแล้ว" for a day that
+    // had never been announced at all — the announcement became unsendable.
+    const saturday = at("2026-07-25T06:50:00.000Z"); // 27.2h after opening
+    expect(pickFreshlyOpen([monday], saturday)).toHaveLength(0);
+    expect(pickAnnounceable([monday], saturday)).toHaveLength(1);
+  });
+
+  it("still refuses before sign-ups open", () => {
+    expect(pickAnnounceable([monday], at("2026-07-24T03:59:00.000Z"))).toHaveLength(0);
+  });
+
+  it("includes the day itself, right up to the end of it", () => {
+    // 27 July 23:00 ICT — people can still be told the day is on.
+    expect(pickAnnounceable([monday], at("2026-07-27T16:00:00.000Z"))).toHaveLength(1);
+  });
+
+  it("refuses a day that has already been played", () => {
+    // Otherwise a session left OPEN could be announced weeks later.
+    expect(pickAnnounceable([monday], at("2026-07-28T01:00:00.000Z"))).toHaveLength(0);
+  });
+
+  it("is a superset of what the cron would send", () => {
+    for (const iso of [
+      "2026-07-24T04:00:00.000Z",
+      "2026-07-24T12:00:00.000Z",
+      "2026-07-25T03:00:00.000Z",
+    ]) {
+      const cron = pickFreshlyOpen([monday], at(iso)).length;
+      const manual = pickAnnounceable([monday], at(iso)).length;
+      expect(manual).toBeGreaterThanOrEqual(cron);
+    }
   });
 });
 
