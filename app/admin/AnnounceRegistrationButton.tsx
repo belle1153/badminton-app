@@ -12,7 +12,13 @@ import { useState } from "react";
  * admin can paste it into the group by hand. Typing in LINE is free; only push
  * draws on the quota.
  */
-export default function AnnounceRegistrationButton() {
+export default function AnnounceRegistrationButton({
+  /** Day labels whose announcement has not gone out — shown up front, because a
+   *  failed automatic send is otherwise completely silent. */
+  pending = [],
+}: {
+  pending?: string[];
+}) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [fallback, setFallback] = useState<string | null>(null);
@@ -52,10 +58,18 @@ export default function AnnounceRegistrationButton() {
     }
   }
 
+  // Once the admin has pressed the button this turn, `msg` is the live truth;
+  // `pending` is a snapshot from page load and would contradict it.
+  const showPending = pending.length > 0 && !msg;
+
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-brand-200 bg-brand-50/50 p-3">
+    <div
+      className={`flex flex-col gap-1.5 rounded-lg border p-3 ${
+        showPending ? "border-amber-300 bg-amber-50" : "border-brand-200 bg-brand-50/50"
+      }`}
+    >
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span className="text-sm text-gray-600">แจ้งเปิดรับสมัครเข้ากลุ่ม LINE (กด 11 โมง)</span>
+        <span className="text-sm text-gray-600">แจ้งเปิดรับสมัครเข้ากลุ่ม LINE (ระบบส่งเอง 11 โมง)</span>
         <button
           onClick={announce}
           disabled={loading}
@@ -64,6 +78,15 @@ export default function AnnounceRegistrationButton() {
           {loading ? "กำลังส่ง…" : "📣 แจ้งเปิดรับสมัคร"}
         </button>
       </div>
+
+      {showPending && (
+        <p className="text-xs font-medium text-amber-800">
+          ⚠️ ยังไม่ได้แจ้ง {pending.length} วัน — {pending.join(", ")}
+          <span className="block font-normal text-amber-700">
+            ระบบจะลองส่งเองอีกครั้งพรุ่งนี้ 11 โมง หรือกดปุ่มส่งเลยตอนนี้ก็ได้
+          </span>
+        </p>
+      )}
 
       {msg && <p className={`text-xs ${msg.ok ? "text-green-600" : "text-gray-500"}`}>{msg.text}</p>}
 

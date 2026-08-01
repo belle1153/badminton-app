@@ -19,19 +19,33 @@ describe("pickFreshlyOpen — Friday-11:00 timing", () => {
     expect(pickFreshlyOpen([monday], at("2026-07-24T03:59:00.000Z"))).toHaveLength(0);
   });
 
-  it("excludes it once the 24h fresh window has passed (no stale backfill)", () => {
-    expect(pickFreshlyOpen([monday], at("2026-07-25T05:00:00.000Z"))).toHaveLength(0);
+  it("keeps retrying the next day, so a failed Friday is not lost", () => {
+    // The cron runs daily now. A Friday send that failed (429, LINE down) gets
+    // another go on Saturday and Sunday; the stamp stops it once one lands.
+    expect(pickFreshlyOpen([monday], at("2026-07-25T04:00:00.000Z"))).toHaveLength(1);
+    expect(pickFreshlyOpen([monday], at("2026-07-26T04:00:00.000Z"))).toHaveLength(1);
+  });
+
+  it("gives up after the retry window, so a first deploy backfills nothing", () => {
+    // 3 days after opening, to the second.
+    expect(pickFreshlyOpen([monday], at("2026-07-27T03:59:00.000Z"))).toHaveLength(1);
+    expect(pickFreshlyOpen([monday], at("2026-07-27T04:00:00.000Z"))).toHaveLength(0);
+  });
+
+  it("never announces a day that has already been played", () => {
+    expect(pickFreshlyOpen([monday], at("2026-07-28T01:00:00.000Z"))).toHaveLength(0);
   });
 });
 
 describe("pickAnnounceable — what the admin's button may post", () => {
-  it("still allows it the day after it opened, where the cron will not", () => {
+  it("still allows it once the cron has given up, right up to game day", () => {
     // The bug this exists for: sign-ups opened Friday 11:00, the push failed
     // (429), and by Saturday the button reported "แจ้งไปแล้ว" for a day that
     // had never been announced at all — the announcement became unsendable.
-    const saturday = at("2026-07-25T06:50:00.000Z"); // 27.2h after opening
-    expect(pickFreshlyOpen([monday], saturday)).toHaveLength(0);
-    expect(pickAnnounceable([monday], saturday)).toHaveLength(1);
+    // Monday 13:00 ICT: past the cron's retry window, but the day is still on.
+    const gameDay = at("2026-07-27T06:00:00.000Z");
+    expect(pickFreshlyOpen([monday], gameDay)).toHaveLength(0);
+    expect(pickAnnounceable([monday], gameDay)).toHaveLength(1);
   });
 
   it("still refuses before sign-ups open", () => {

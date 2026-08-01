@@ -4,10 +4,18 @@ import { registrationOpensAt } from "@/lib/registration";
 
 const SIGNUP_URL = process.env.LINE_SIGNUP_URL ?? "https://tinyurl.com/54fk2r7s";
 
-// The unattended Friday cron only announces days whose sign-ups opened within
-// the last day. Without this, a first deploy (every OPEN session still has a
-// null marker) would retro-announce days that opened last week.
-const FRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
+/**
+ * How long after sign-ups open the unattended cron keeps trying.
+ *
+ * It runs daily rather than only on Friday, so a Friday that failed — a 429 on
+ * the push, LINE down, a deploy mid-flight — is retried the next morning and
+ * the one after instead of being lost. `registrationOpenNotifiedAt` is stamped
+ * only on a successful send, so the retries stop the moment one gets through.
+ *
+ * The window still exists to stop a first deploy (every OPEN session has a null
+ * marker) announcing days that opened weeks ago.
+ */
+const CRON_RETRY_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**
  * Who is asking. The cron runs unattended and must never surprise the group, so
@@ -36,13 +44,15 @@ export interface OpenDay {
   startTime: string;
 }
 
-/** Days whose sign-ups are open right now and opened within the fresh window —
- *  pure, so the timing rule is unit-testable without a DB. */
+/**
+ * Days the daily cron may announce: everything the button may, minus days whose
+ * sign-ups opened longer ago than the retry window. Pure, so the timing rule is
+ * unit-testable without a DB.
+ */
 export function pickFreshlyOpen<T extends { date: Date }>(sessions: T[], now: Date): T[] {
-  return sessions.filter((s) => {
-    const opensAt = registrationOpensAt(s.date).getTime();
-    return opensAt <= now.getTime() && now.getTime() - opensAt < FRESH_WINDOW_MS;
-  });
+  return pickAnnounceable(sessions, now).filter(
+    (s) => now.getTime() - registrationOpensAt(s.date).getTime() < CRON_RETRY_WINDOW_MS
+  );
 }
 
 /** UTC midnight of today's ICT date — session dates are stored that way, so
@@ -90,6 +100,22 @@ export interface AnnounceResult {
    * capped by the monthly quota that just blocked it.
    */
   message?: string;
+}
+
+/**
+ * Days the button would announce right now, for the admin dashboard.
+ *
+ * Read-only and cheap, so the page can show "2 days still unannounced" without
+ * anyone having to press the button to find out. A failed Friday used to be
+ * completely silent — the only symptom was a group that never got the message.
+ */
+export async function pendingAnnouncements(now: Date = new Date()): Promise<string[]> {
+  const candidates = await prisma.session.findMany({
+    where: { status: "OPEN", registrationOpenNotifiedAt: null },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  });
+  return pickAnnounceable(candidates, now).map((s) => thaiDay(s.date));
 }
 
 /**

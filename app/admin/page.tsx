@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import { pendingAnnouncements } from "@/lib/registrationAnnounce";
 import DeleteSessionButton from "./DeleteSessionButton";
 import AnnounceRegistrationButton from "./AnnounceRegistrationButton";
 
@@ -10,11 +11,16 @@ export default async function AdminDashboardPage() {
     redirect("/admin/login");
   }
 
-  const sessions = await prisma.session.findMany({
-    where: { status: "OPEN" },
-    orderBy: { date: "desc" },
-    include: { signUps: { where: { status: "CONFIRMED" } } },
-  });
+  const [sessions, pending] = await Promise.all([
+    prisma.session.findMany({
+      where: { status: "OPEN" },
+      orderBy: { date: "desc" },
+      include: { signUps: { where: { status: "CONFIRMED" } } },
+    }),
+    // Surfaced on the button so a failed automatic send is visible at a glance
+    // instead of only when someone thinks to press it.
+    pendingAnnouncements(),
+  ]);
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -28,7 +34,7 @@ export default async function AdminDashboardPage() {
         </Link>
       </div>
 
-      <AnnounceRegistrationButton />
+      <AnnounceRegistrationButton pending={pending} />
 
       {sessions.length === 0 && (
         <p className="text-gray-500 text-sm">
