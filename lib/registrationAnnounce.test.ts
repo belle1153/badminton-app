@@ -1,39 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { pickFreshlyOpen, pickAnnounceable, formatOpenMessage } from "./registrationAnnounce";
+import { pickCronRetryable, pickAnnounceable, formatOpenMessage } from "./registrationAnnounce";
 
 // A Monday session; its sign-ups open the Friday before at 11:00 ICT
 // (2026-07-24 11:00 ICT = 2026-07-24 04:00 UTC).
 const monday = { id: "m", date: new Date("2026-07-27T00:00:00.000Z"), startTime: "19:00" };
 const at = (iso: string) => new Date(iso);
 
-describe("pickFreshlyOpen — Friday-11:00 timing", () => {
+describe("pickCronRetryable — Friday-11:00 timing", () => {
   it("includes a day right after it opens", () => {
-    expect(pickFreshlyOpen([monday], at("2026-07-24T04:30:00.000Z"))).toHaveLength(1);
+    expect(pickCronRetryable([monday], at("2026-07-24T04:30:00.000Z"))).toHaveLength(1);
   });
 
   it("includes it exactly at the open instant", () => {
-    expect(pickFreshlyOpen([monday], at("2026-07-24T04:00:00.000Z"))).toHaveLength(1);
+    expect(pickCronRetryable([monday], at("2026-07-24T04:00:00.000Z"))).toHaveLength(1);
   });
 
   it("excludes it before sign-ups open", () => {
-    expect(pickFreshlyOpen([monday], at("2026-07-24T03:59:00.000Z"))).toHaveLength(0);
+    expect(pickCronRetryable([monday], at("2026-07-24T03:59:00.000Z"))).toHaveLength(0);
   });
 
   it("keeps retrying the next day, so a failed Friday is not lost", () => {
     // The cron runs daily now. A Friday send that failed (429, LINE down) gets
     // another go on Saturday and Sunday; the stamp stops it once one lands.
-    expect(pickFreshlyOpen([monday], at("2026-07-25T04:00:00.000Z"))).toHaveLength(1);
-    expect(pickFreshlyOpen([monday], at("2026-07-26T04:00:00.000Z"))).toHaveLength(1);
+    expect(pickCronRetryable([monday], at("2026-07-25T04:00:00.000Z"))).toHaveLength(1);
+    expect(pickCronRetryable([monday], at("2026-07-26T04:00:00.000Z"))).toHaveLength(1);
   });
 
   it("gives up after the retry window, so a first deploy backfills nothing", () => {
     // 3 days after opening, to the second.
-    expect(pickFreshlyOpen([monday], at("2026-07-27T03:59:00.000Z"))).toHaveLength(1);
-    expect(pickFreshlyOpen([monday], at("2026-07-27T04:00:00.000Z"))).toHaveLength(0);
+    expect(pickCronRetryable([monday], at("2026-07-27T03:59:00.000Z"))).toHaveLength(1);
+    expect(pickCronRetryable([monday], at("2026-07-27T04:00:00.000Z"))).toHaveLength(0);
   });
 
   it("never announces a day that has already been played", () => {
-    expect(pickFreshlyOpen([monday], at("2026-07-28T01:00:00.000Z"))).toHaveLength(0);
+    expect(pickCronRetryable([monday], at("2026-07-28T01:00:00.000Z"))).toHaveLength(0);
   });
 });
 
@@ -44,7 +44,7 @@ describe("pickAnnounceable — what the admin's button may post", () => {
     // had never been announced at all — the announcement became unsendable.
     // Monday 13:00 ICT: past the cron's retry window, but the day is still on.
     const gameDay = at("2026-07-27T06:00:00.000Z");
-    expect(pickFreshlyOpen([monday], gameDay)).toHaveLength(0);
+    expect(pickCronRetryable([monday], gameDay)).toHaveLength(0);
     expect(pickAnnounceable([monday], gameDay)).toHaveLength(1);
   });
 
@@ -68,7 +68,7 @@ describe("pickAnnounceable — what the admin's button may post", () => {
       "2026-07-24T12:00:00.000Z",
       "2026-07-25T03:00:00.000Z",
     ]) {
-      const cron = pickFreshlyOpen([monday], at(iso)).length;
+      const cron = pickCronRetryable([monday], at(iso)).length;
       const manual = pickAnnounceable([monday], at(iso)).length;
       expect(manual).toBeGreaterThanOrEqual(cron);
     }

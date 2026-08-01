@@ -19,11 +19,12 @@ const CRON_RETRY_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**
  * Who is asking. The cron runs unattended and must never surprise the group, so
- * it keeps the 24-hour window. The admin button is a person deciding to post
- * right now — holding them to the same window meant that if Friday 11:00 came
- * and went (a failed push, nobody around, a day added late) the announcement
- * could never be sent at all, and the button just said "แจ้งไปแล้ว" when it
- * never had been. `registrationOpenNotifiedAt` is the real don't-repeat guard.
+ * it gives up once the retry window closes. The admin button is a person
+ * deciding to post right now — holding them to the same window meant that if
+ * Friday 11:00 came and went (a failed push, nobody around, a day added late)
+ * the announcement could never be sent at all, and the button just said
+ * "แจ้งไปแล้ว" when it never had been. `registrationOpenNotifiedAt` is the real
+ * don't-repeat guard for both.
  */
 export type AnnounceMode = "cron" | "manual";
 
@@ -49,7 +50,7 @@ export interface OpenDay {
  * sign-ups opened longer ago than the retry window. Pure, so the timing rule is
  * unit-testable without a DB.
  */
-export function pickFreshlyOpen<T extends { date: Date }>(sessions: T[], now: Date): T[] {
+export function pickCronRetryable<T extends { date: Date }>(sessions: T[], now: Date): T[] {
   return pickAnnounceable(sessions, now).filter(
     (s) => now.getTime() - registrationOpensAt(s.date).getTime() < CRON_RETRY_WINDOW_MS
   );
@@ -120,9 +121,10 @@ export async function pendingAnnouncements(now: Date = new Date()): Promise<stri
 
 /**
  * Post a single "sign-ups are open" message to the club LINE group for the days
- * that just opened (this Friday 11:00 ICT), then stamp them so it goes out only
- * once — whichever fires first, the admin button or the Friday cron, claims it
- * and the other becomes a no-op. Never throws; a LINE hiccup just reports back.
+ * whose sign-ups have opened, then stamp them so it goes out only once —
+ * whichever fires first, the admin button or the daily cron, claims it and
+ * every later run becomes a no-op. Never throws; a LINE hiccup just reports
+ * back, and leaves the days unstamped so the next run retries them.
  */
 export async function announceRegistrationOpen(
   now: Date = new Date(),
@@ -137,9 +139,9 @@ export async function announceRegistrationOpen(
     orderBy: { date: "asc" },
   });
 
-  const fresh =
-    mode === "cron" ? pickFreshlyOpen(candidates, now) : pickAnnounceable(candidates, now);
-  if (fresh.length === 0) {
+  const due =
+    mode === "cron" ? pickCronRetryable(candidates, now) : pickAnnounceable(candidates, now);
+  if (due.length === 0) {
     // Say which of the two it was. The old combined wording ("ยังไม่ถึงเวลาเปิด
     // หรือแจ้งไปแล้ว") hid a real failure: days that had never been announced
     // looked identical to ones that had.
@@ -150,7 +152,7 @@ export async function announceRegistrationOpen(
     return { sent: false, reason, days: [] };
   }
 
-  const message = formatOpenMessage(fresh);
+  const message = formatOpenMessage(due);
   const push = await pushLineMessage(message);
   if (!push.ok) {
     // Surface exactly what LINE said — 401 bad token, 403 bot not in the group,
@@ -165,9 +167,9 @@ export async function announceRegistrationOpen(
 
   // Mark only after a successful push, so a failed send can be retried.
   await prisma.session.updateMany({
-    where: { id: { in: fresh.map((s) => s.id) } },
+    where: { id: { in: due.map((s) => s.id) } },
     data: { registrationOpenNotifiedAt: now },
   });
 
-  return { sent: true, days: fresh.map((s) => thaiDay(s.date)) };
+  return { sent: true, days: due.map((s) => thaiDay(s.date)) };
 }
