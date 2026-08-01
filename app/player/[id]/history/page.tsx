@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { loadPlayerProgress } from "@/lib/playerProgress";
 import { loadQuestProgress, questExp } from "@/lib/questProgress";
+import { isPerDayKind } from "@/lib/quests";
 import { expForBadge } from "@/lib/achievementRarity";
 import { EXP_RATES } from "@/lib/exp";
 
@@ -126,9 +127,21 @@ export default async function PointsHistoryPage({
                       className="flex items-center gap-2.5 border-b border-[#384a63] px-3 py-2.5 text-[13px] text-[#c7d2e0] last:border-b-0"
                     >
                       <span className="text-lg leading-none">{q.icon}</span>
-                      <span className="min-w-0 truncate">{q.title}</span>
-                      <span className="ml-auto tabular-nums font-semibold text-[#6fdc9a]">
-                        +{q.expReward.toLocaleString()}
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate">{q.title}</span>
+                        {/* Per-day quests: show the working, so "+400" reads as
+                            two nights rather than an unexplained number. */}
+                        {isPerDayKind(q.kind) && (
+                          <span className="text-[11px] text-[#8095ad]">
+                            {q.progress.progressLabel} × {q.expReward}
+                          </span>
+                        )}
+                      </div>
+                      <span className="ml-auto shrink-0 tabular-nums font-semibold text-[#6fdc9a]">
+                        {/* Earned, not the rate — a per-day quest pays a
+                            multiple, and this list has to add up to the total
+                            shown above it. */}
+                        +{q.progress.earnedExp.toLocaleString()}
                       </span>
                     </li>
                   ))}

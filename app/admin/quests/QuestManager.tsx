@@ -41,23 +41,53 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
   const [expReward, setExpReward] = useState("200");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Which quest the form is editing, or null when it is creating a new one. */
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const spec = QUEST_KINDS.find((k) => k.kind === kind)!;
 
-  async function create(e: React.FormEvent) {
+  function reset() {
+    setEditingId(null);
+    setTitle("");
+    setKind("perfect-attendance");
+    setIcon("🎯");
+    setStartDate("");
+    setEndDate("");
+    setTarget("");
+    setExpReward("200");
+    setError(null);
+  }
+
+  function startEdit(q: QuestRow) {
+    setEditingId(q.id);
+    setTitle(q.title);
+    setKind(q.kind as QuestKind);
+    setIcon(q.icon);
+    // <input type="date"> wants yyyy-mm-dd; the dates are UTC midnight already.
+    setStartDate(q.startDate.slice(0, 10));
+    setEndDate(q.endDate.slice(0, 10));
+    setTarget(q.target == null ? "" : String(q.target));
+    setExpReward(String(q.expReward));
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/quests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, kind, icon, startDate, endDate, target, expReward }),
-      });
+      const res = await fetch(
+        editingId ? `/api/admin/quests/${editingId}` : "/api/admin/quests",
+        {
+          method: editingId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, kind, icon, startDate, endDate, target, expReward }),
+        }
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "สร้างไม่สำเร็จ");
-      setTitle("");
-      setTarget("");
+      if (!res.ok) throw new Error(data.error ?? (editingId ? "แก้ไขไม่สำเร็จ" : "สร้างไม่สำเร็จ"));
+      reset();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -92,8 +122,19 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={create} className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
-        <h2 className="font-semibold">สร้างเควสใหม่</h2>
+      <form
+        onSubmit={submit}
+        className={`flex flex-col gap-3 rounded-lg border p-4 ${
+          editingId ? "border-brand-400 bg-brand-50" : "border-gray-200"
+        }`}
+      >
+        <h2 className="font-semibold">{editingId ? "แก้ไขเควส" : "สร้างเควสใหม่"}</h2>
+        {editingId && (
+          <p className="rounded-md bg-white px-3 py-2 text-xs text-gray-600">
+            เปลี่ยนเงื่อนไขหรือ EXP ได้เลย — ระบบคิดผู้ผ่านและ EXP ใหม่ให้ทันที
+            ไม่มีใครเสีย EXP ที่ได้ไปแล้ว
+          </p>
+        )}
 
         <div className="flex gap-2">
           <input
@@ -186,13 +227,30 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="self-start rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-        >
-          {busy ? "กำลังสร้าง…" : "+ สร้างเควส"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            {busy
+              ? editingId
+                ? "กำลังบันทึก…"
+                : "กำลังสร้าง…"
+              : editingId
+                ? "บันทึกการแก้ไข"
+                : "+ สร้างเควส"}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              ยกเลิก
+            </button>
+          )}
+        </div>
       </form>
 
       <section className="flex flex-col gap-2">
@@ -222,6 +280,12 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
                     </span>
                   </Link>
                   <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={() => startEdit(q)}
+                      className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                    >
+                      แก้ไข
+                    </button>
                     <button
                       onClick={() => toggle(q)}
                       className={`rounded-full px-3 py-1 text-xs font-medium ${
