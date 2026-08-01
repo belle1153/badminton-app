@@ -77,7 +77,7 @@ export async function withdrawFromLine(text: string): Promise<string[]> {
     include: { signUps: { where: { status: { not: "WITHDRAWN" } } } },
     take: 14,
   });
-  if (sessions.length === 0) return ["ยังไม่มีรอบเปิดรับสมัครครับ 🙏"];
+  if (sessions.length === 0) return ["ยังไม่มีรอบเปิดลงชื่อครับ 🙏"];
 
   // Which day? A weekday word or a date number; else the nearest open day.
   let session = sessions[0];

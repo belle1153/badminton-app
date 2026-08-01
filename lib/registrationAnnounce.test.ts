@@ -79,7 +79,7 @@ describe("formatOpenMessage", () => {
   const msg = formatOpenMessage([monday], "https://signup.example");
 
   it("announces registration is open with the sign-up link", () => {
-    expect(msg).toContain("เปิดรับสมัครแล้ว");
+    expect(msg).toContain("เปิดลงชื่อแล้ว");
     expect(msg).toContain("https://signup.example");
   });
 

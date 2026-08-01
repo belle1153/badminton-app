@@ -80,7 +80,7 @@ export function pickAnnounceable<T extends { date: Date }>(sessions: T[], now: D
 /** The "sign-ups are open" group message for the given days. */
 export function formatOpenMessage(days: OpenDay[], signupUrl: string = SIGNUP_URL): string {
   return [
-    "🏸 เปิดรับสมัครแล้ว! ตีแบดก๊วนตัวตึงแหลมฉบัง",
+    "🏸 เปิดลงชื่อแล้ว! ตีแบดก๊วนตัวตึงแหลมฉบัง",
     "",
     "ลงชื่อได้เลยตอนนี้ 👇",
     ...days.map((s) => `🗓 ${thaiDay(s.date)} · เริ่ม ${s.startTime} น.`),

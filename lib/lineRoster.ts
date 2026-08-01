@@ -120,7 +120,7 @@ export async function rosterMessagesForText(text: string): Promise<string[]> {
       },
     },
   });
-  if (sessions.length === 0) return ["ยังไม่มีรอบเปิดรับสมัครครับ 🙏"];
+  if (sessions.length === 0) return ["ยังไม่มีรอบเปิดลงชื่อครับ 🙏"];
 
   // Did the message pin a specific day? Weekday word first, else a date number.
   let specified = false;
