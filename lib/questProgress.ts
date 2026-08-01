@@ -20,22 +20,36 @@ export function questExp(quests: QuestWithProgress[]): number {
   return quests.filter((q) => q.progress.completed).reduce((n, q) => n + q.expReward, 0);
 }
 
+type QuestRow = {
+  id: string;
+  title: string;
+  kind: string;
+  icon: string;
+  startDate: Date;
+  endDate: Date;
+  target: number | null;
+  expReward: number;
+  active: boolean;
+};
+
+const toQuestDef = (r: QuestRow): QuestDef => ({
+  id: r.id,
+  title: r.title,
+  kind: r.kind,
+  icon: r.icon,
+  startDate: r.startDate,
+  endDate: r.endDate,
+  target: r.target,
+  expReward: r.expReward,
+  active: r.active,
+});
+
 export async function loadQuests(activeOnly = true): Promise<QuestDef[]> {
   const rows = await prisma.quest.findMany({
     where: activeOnly ? { active: true } : {},
     orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
   });
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    kind: r.kind,
-    icon: r.icon,
-    startDate: r.startDate,
-    endDate: r.endDate,
-    target: r.target,
-    expReward: r.expReward,
-    active: r.active,
-  }));
+  return rows.map(toQuestDef);
 }
 
 /** One session, in the shape the quest maths needs. */
@@ -43,6 +57,7 @@ interface QuestSession {
   date: Date;
   signUps: {
     athleteId: string | null;
+    name: string;
     addedByAdmin: boolean;
     checkedInAt: Date | null;
     matchSlots: { match: { finishedAt: Date | null } }[];
@@ -70,6 +85,9 @@ async function loadQuestData(
           orderBy: { createdAt: "asc" },
           select: {
             athleteId: true,
+            // The roster view names people without a second query; the same
+            // rows already carry it.
+            name: true,
             // Who signed themselves up (false) vs an admin quick-add (true) —
             // "fastest to sign up" only ranks genuine user-side sign-ups.
             addedByAdmin: true,
@@ -186,4 +204,77 @@ export async function loadQuestExpByAthlete(now: Date = new Date()): Promise<Map
     if (exp > 0) out.set(athleteId, exp);
   }
   return out;
+}
+
+export interface QuestRosterEntry {
+  athleteId: string;
+  name: string;
+  progress: QuestProgress;
+}
+
+export interface QuestRoster {
+  quest: QuestDef;
+  status: QuestStatus;
+  /** Everyone who appeared on a roster inside the window, best progress first. */
+  entries: QuestRosterEntry[];
+  /** Days the club actually played inside the window — what a perfect-attendance
+   *  quest is measured against, and useful context for the admin. */
+  clubDaysInWindow: number;
+}
+
+/**
+ * Who has finished one quest — the admin's "กดดูรายละเอียด" view.
+ *
+ * Scored the same way as everywhere else (recomputed from play history, never
+ * stored), so this list and the EXP a player is credited can never disagree.
+ * Works on switched-off and finished quests too: the admin needs to inspect
+ * exactly those.
+ *
+ * Only people who appeared in the window are listed. Someone who never turned
+ * up has no rows to score and would just be a wall of 0/N.
+ */
+export async function loadQuestRoster(
+  questId: string,
+  now: Date = new Date()
+): Promise<QuestRoster | null> {
+  const row = await prisma.quest.findUnique({ where: { id: questId } });
+  if (!row) return null;
+  const quest = toQuestDef(row);
+
+  const { sessions, clubDays } = await loadQuestData([quest]);
+
+  // Sign-ups carry a name of their own, but the athlete record is the identity
+  // quests are scored on — take the most recent spelling for each.
+  const names = new Map<string, string>();
+  for (const s of sessions) {
+    for (const su of s.signUps) if (su.athleteId) names.set(su.athleteId, su.name);
+  }
+
+  const entries: QuestRosterEntry[] = [...names].map(([athleteId, name]) => ({
+    athleteId,
+    name,
+    progress: evaluateAthlete(athleteId, [quest], sessions, clubDays, now)[0].progress,
+  }));
+
+  // "fastest-signup" counts a placing, where 1 is the best — every other rule
+  // counts upwards. Ranking it the same way would stand the list on its head.
+  const lowerIsBetter = quest.kind === "fastest-signup";
+  const rank = (p: QuestProgress) =>
+    p.current == null ? Number.POSITIVE_INFINITY : lowerIsBetter ? p.current : -p.current;
+
+  entries.sort(
+    (a, b) =>
+      Number(b.progress.completed) - Number(a.progress.completed) ||
+      rank(a.progress) - rank(b.progress) ||
+      a.name.localeCompare(b.name, "th")
+  );
+
+  return {
+    quest,
+    status: questStatus(quest, now),
+    entries,
+    clubDaysInWindow: clubDays.filter(
+      (d) => d.getTime() >= quest.startDate.getTime() && d.getTime() < quest.endDate.getTime()
+    ).length,
+  };
 }

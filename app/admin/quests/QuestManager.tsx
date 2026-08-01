@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { QUEST_KINDS, type QuestKind } from "@/lib/quests";
 
@@ -190,14 +191,21 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
               return (
                 <li key={q.id} className="flex flex-wrap items-center gap-3 p-3">
                   <span className="text-xl">{q.icon}</span>
-                  <div className="flex min-w-0 flex-col">
-                    <span className="font-medium">{q.title}</span>
+                  {/* Only the name block links through — เปิด/ปิด and ลบ sit in
+                      the same row and must stay their own hit areas. */}
+                  <Link
+                    href={`/admin/quests/${q.id}`}
+                    className="group flex min-w-0 flex-col rounded hover:bg-gray-50"
+                  >
+                    <span className="font-medium group-hover:underline">
+                      {q.title} <span className="text-gray-400">›</span>
+                    </span>
                     <span className="text-xs text-gray-500">
                       {label}
                       {q.target != null && ` (${q.target})`} · {thaiRange(q.startDate, q.endDate)} ·
                       +{q.expReward} EXP
                     </span>
-                  </div>
+                  </Link>
                   <div className="ml-auto flex items-center gap-2">
                     <button
                       onClick={() => toggle(q)}
