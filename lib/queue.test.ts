@@ -170,9 +170,14 @@ describe("planPendingAdditions — the four finishers must not lock back in toge
     expect(plan.leftover).toEqual([]); // held, not leftover — no earmark pair for them
   });
 
-  it("re-queues them rather than leaving courts idle when no คู่เตรียม is left", () => {
+  it("holds them even with an idle court and nothing else queued", () => {
+    // Deliberate, and stricter than the bad-mix rule next to it: a bad mix
+    // waits only while other คู่เตรียม can feed the courts, but an exact rerun
+    // never auto-queues at all. Sending the same four straight back out is
+    // worse than a court standing empty for a moment — the admin can still
+    // force it (see the next test).
     const plan = planPendingAdditions(four, [played], 0);
-    expect(plan.toQueue).toHaveLength(1);
+    expect(plan.toQueue).toEqual([]);
   });
 
   it("queues them when the admin forces it (explicit จัดคู่เตรียมจากคิว press)", () => {
