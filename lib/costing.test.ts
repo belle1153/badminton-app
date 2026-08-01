@@ -84,20 +84,25 @@ describe("buildCostRows", () => {
     expect(by.Y.courtBaht).toBe(267);
   });
 
-  it("rounds up per hour AND on the final court figure, like the club sheets", () => {
-    // The club's own spreadsheets round in both places, so a half-hour player
-    // pays half of an already-rounded rate and that is rounded up again. This
-    // is a baht more than rounding only at the end — deliberate, and the thing
-    // to re-check whenever these figures are compared against a sheet.
+  it("rounds up the hourly rate but leaves the court figure exact, like the จันทร์ sheet", () => {
+    // The club settled on the จันทร์ sheet's method: ROUNDUP the hourly rate,
+    // leave the court column exact, ROUNDUP the row total. Rounding the court
+    // column too (what the พุธ sheet does at a different step) costs a half-hour
+    // player an extra baht — re-check this whenever figures are compared to a
+    // sheet.
     const at = (h: number, m: number) => new Date(ict(h).getTime() + m * 60_000);
     const s1 = { ...session, courtsEarly: 1, courtsLate: 1 };
     // Hour 21-22 has 1.5 people present, so its rate rounds 133.33 -> 134.
-    const { rows } = buildCostRows(s1, [A("X", 0, ict(22)), A("Y", 0, at(21, 30))], 200, BALL, 3, ict(23));
+    const { rows } = buildCostRows(s1, [A("X", 3, ict(22)), A("Y", 3, at(21, 30))], 200, BALL, 4, ict(23));
     const by = Object.fromEntries(rows.map((r) => [r.name, r]));
-    // Y: 100 + 100 + 67 (= 134 * 0.5) + 3 fee = 270, already whole.
-    expect(by.Y.courtBaht).toBe(270);
-    // Every court figure is a whole number of baht — never a fraction.
-    for (const r of rows) expect(Number.isInteger(r.courtBaht)).toBe(true);
+    // Y: 100 + 100 + 67 (= 134 * 0.5) + 4 fee = 271 — whole here.
+    expect(by.Y.courtBaht).toBe(271);
+    // Half a rounded odd rate leaves a half baht, and it is NOT rounded away.
+    const { rows: odd } = buildCostRows(s1, [A("X", 3, ict(22)), A("Y", 3, at(21, 30))], 200, BALL, 3.5, ict(23));
+    const oddY = odd.find((r) => r.name === "Y")!;
+    expect(oddY.courtBaht).toBe(270.5);
+    // …it rides through to the total, which is the only figure rounded.
+    expect(oddY.totalBaht).toBe(Math.ceil(270.5 + 15)); // 3 games -> 3/4 * 20
   });
 
   it("uses the admin's real hourly costs when set, instead of courts × rate", () => {

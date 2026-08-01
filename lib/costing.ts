@@ -25,7 +25,8 @@ export interface CostRow {
   hours: number | null;
   games: number;
   /** Court share with the per-head fee already folded in — the club bills the
-   *  fee as part of the court cost and doesn't itemise it. */
+   *  fee as part of the court cost and doesn't itemise it. Exact, so it can end
+   *  in .5 for a half-hour player; only totalBaht is rounded. */
   courtBaht: number;
   ballShareBaht: number;
   totalBaht: number;
@@ -70,12 +71,14 @@ export function buildCostRows(
       // The per-head fee rides along with the court cost — the club quotes one
       // court number, so it is never shown as its own line.
       //
-      // Rounded up twice on purpose, matching the club's own sheets: once per
-      // hour inside courtCostByPerson (their ROUNDUP of cost ÷ heads), and once
-      // here so nobody is billed a fraction of a baht. Someone on court for half
-      // an hour therefore pays half of an already-rounded rate, then that is
-      // rounded up too — a baht more than rounding only at the end.
-      const courtBaht = Math.ceil((courtShare.get(a.id) ?? 0) + feePerPerson);
+      // Rounded up in exactly the two places the จันทร์ sheet rounds: the hourly
+      // rate (ROUNDUP of cost ÷ heads, inside courtCostByPerson) and the row
+      // total. NOT here — the sheet's court column is left exact, so someone on
+      // court half an hour carries a .5 through to the total rather than paying
+      // a baht extra. (The พุธ sheet rounds the other way round: exact rate,
+      // rounded court. Its figures are a baht lower for half-hour players; the
+      // club chose the จันทร์ method.)
+      const courtBaht = (courtShare.get(a.id) ?? 0) + feePerPerson;
       return {
         id: a.id,
         name: a.name,

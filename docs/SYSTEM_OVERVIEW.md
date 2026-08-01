@@ -119,8 +119,17 @@ then re-seats everyone.
   when they checked in.
 - Minimum 2 hours, then **half-hour steps with a 15-minute grace**: leaving
   21:00–21:15 bills to 21:00, 21:16–21:30 bills to 21:30.
-- Court cost is split per half-hour among whoever was present in that half-hour,
-  so leaving early genuinely costs less.
+- Court cost is split per **one-hour block** among whoever was present in that
+  hour, weighted by the fraction of it they were on court — so leaving early
+  genuinely costs less.
+- **Rounding follows the จันทร์ sheet**, and only these two steps round up:
+  1. each hour's per-head rate (`ROUNDUP(hour cost ÷ heads present)`), and
+  2. the row total.
+  The court column itself is left exact, so a half-hour player can carry a `.5`
+  into their total. The พุธ sheet rounds at different steps (exact rate, rounded
+  court column) and comes out a baht lower for those players — checked against
+  both files: the จันทร์ method matches all 28 rows of 20.07 and 18/20 of 22.07,
+  the พุธ method matches 22.07 but breaks 22 of 28 rows on 20.07.
 - Shuttlecock cost = games played ÷ 4 people × price per shuttle.
 - The per-person fee is folded into the court cost, not shown as a line item.
 - Prices and the fee are **frozen onto the Session when it closes**, so a later
