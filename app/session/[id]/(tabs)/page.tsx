@@ -9,6 +9,19 @@ import WithdrawForm from "../WithdrawForm";
 
 export const dynamic = "force-dynamic";
 
+// Reserves are listed under the block they'd play in, tagged like the admin
+// check-in list — no seat number, since they don't hold a seat yet.
+function WaitlistRow({ name }: { name: string }) {
+  return (
+    <li className="flex items-center justify-between gap-2 text-sm border-b border-gray-100 py-1">
+      <span className="text-gray-500">{name}</span>
+      <span className="text-xs rounded-full bg-gray-200 text-gray-600 px-1.5 py-0.5 shrink-0">
+        สำรอง
+      </span>
+    </li>
+  );
+}
+
 export default async function SessionSignUpPage({
   params,
 }: {
@@ -32,6 +45,10 @@ export default async function SessionSignUpPage({
   const waitlist = session.signUps
     .filter((s) => s.status === "WAITLIST")
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+  // Group reserves by the block they hold, same rule as the admin check-in list.
+  const earlyWaitlist = waitlist.filter((s) => s.timeSlot === "EARLY");
+  const lateWaitlist = waitlist.filter((s) => s.timeSlot === "LATE");
 
   const { earlyCapacity, totalCapacity } = blockCapacities(session);
   const slotAt = (slotNumber: number) =>
@@ -81,6 +98,9 @@ export default async function SessionSignUpPage({
               </span>
             </li>
           ))}
+          {earlyWaitlist.map((s) => (
+            <WaitlistRow key={s.id} name={s.name} />
+          ))}
         </ol>
       </section>
 
@@ -103,20 +123,17 @@ export default async function SessionSignUpPage({
                 </span>
               </li>
             ))}
+            {lateWaitlist.map((s) => (
+              <WaitlistRow key={s.id} name={s.name} />
+            ))}
           </ol>
         </section>
       )}
 
       {waitlist.length > 0 && (
-        <section>
-          <h2 className="font-semibold mb-2">
-            สำรอง ({waitlist.length}/{WAITLIST_LIMIT})
-          </h2>
-          {/* Count only — reserve names are kept private, same as the LINE roster. */}
-          <p className="text-sm text-gray-500">
-            มีคนรอสำรองอยู่ {waitlist.length} คน · ถ้ามีคนถอน ระบบจะเลื่อนคิวให้อัตโนมัติ
-          </p>
-        </section>
+        <p className="text-sm text-gray-500">
+          สำรอง {waitlist.length}/{WAITLIST_LIMIT} · ถ้ามีคนถอน ระบบจะเลื่อนคิวให้อัตโนมัติตามลำดับที่ลงชื่อ
+        </p>
       )}
     </>
   );
