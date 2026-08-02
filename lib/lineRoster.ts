@@ -44,7 +44,7 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
 
   const earlyUsed = confirmed.filter((s) => s.timeSlot === "EARLY").length;
   const lateUsed = confirmed.filter((s) => s.timeSlot === "LATE").length;
-  const waitlist = signups.filter((s) => s.status === "WAITLIST").length;
+  const waitlist = signups.filter((s) => s.status === "WAITLIST");
 
   const DIVIDER = "━━━━━━━━━━━━";
   const lines: string[] = [
@@ -73,12 +73,21 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
     }
   }
 
+  // Reserves are named too, in queue order — the group asks "ใครสำรอง" every
+  // time a count-only line goes out.
+  if (waitlist.length > 0) {
+    lines.push("", "🔸สำรอง🔸");
+    waitlist.forEach((s, i) => {
+      lines.push(`${i + 1}. ${s.name} (รอบ ${s.timeSlot === "EARLY" ? "1" : "2"} ทุ่ม)`);
+    });
+  }
+
   lines.push(
     "",
     DIVIDER,
     `🟢 ว่างรอบ 1 ทุ่ม = ${Math.max(0, earlyCapacity - earlyUsed)} คน`,
     `🟢 ว่างรอบ 2 ทุ่ม = ${Math.max(0, lateCapacity - lateUsed)} คน`,
-    `🟠 สำรอง = ${waitlist} คน`,
+    `🟠 สำรอง = ${waitlist.length} คน`,
     DIVIDER,
     `🗒 ลงชื่อผ่านเว็บแอป "Tua Tueng Go!" Click ที่นี่ ▶️ ${SIGNUP_URL}`
   );
