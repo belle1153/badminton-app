@@ -53,17 +53,26 @@ export default function CostExcelExport({
       });
 
       const safe = `${venue}-${dateLabel}`.replace(/[^\w฀-๿]+/g, "-").replace(/^-+|-+$/g, "");
-      const fileName = `cost-${safe || "export"}.xlsx`;
+      // A time stamp keeps every export a fresh filename — re-downloading while
+      // the previous file is still open in Excel would otherwise fail on Windows
+      // with "permission denied" (the browser can't overwrite the locked file).
+      const t = new Date();
+      const stamp = [t.getHours(), t.getMinutes(), t.getSeconds()]
+        .map((n) => String(n).padStart(2, "0"))
+        .join("");
+      const fileName = `cost-${safe || "export"}-${stamp}.xlsx`;
       const file = new File([blob], fileName, { type: blob.type });
 
-      // Phones (incl. the LINE in-app browser) can't do an a[download] blob save
-      // — it fails with "insufficient permissions". Hand the file to the share
-      // sheet there; fall back to a real download on desktop.
+      // Only phones (incl. the LINE in-app browser) need the share sheet — their
+      // a[download] blob save fails with "insufficient permissions". On a desktop
+      // (fine pointer) always download, even though desktop browsers can also
+      // "share": the admin wants the file in Downloads, not a share dialog.
       const nav = navigator as Navigator & {
         canShare?: (d: { files: File[] }) => boolean;
         share?: (d: { files: File[]; title?: string }) => Promise<void>;
       };
-      if (nav.canShare?.({ files: [file] }) && nav.share) {
+      const isTouch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+      if (isTouch && nav.canShare?.({ files: [file] }) && nav.share) {
         await nav.share({ files: [file], title: "สรุปค่าใช้จ่าย (Excel)" });
       } else {
         const url = URL.createObjectURL(blob);
