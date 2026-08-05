@@ -176,7 +176,9 @@ export default async function SessionCostPage({
               timeZone: "Asia/Bangkok",
             });
             const exportRows = rows.map((r) => ({
-              name: r.name,
+              // Tag the name too, so the no-show shows on the PNG (which has no
+              // checkout column) as well as in the Excel.
+              name: r.noShow ? `${r.name} (ไม่มา)` : r.name,
               slot: r.slot,
               out: r.noShow
                 ? "ไม่มา"
