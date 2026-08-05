@@ -20,7 +20,7 @@ export default function CostExcelExport({
 }) {
   const [error, setError] = useState<string | null>(null);
 
-  function makeExcel() {
+  async function makeExcel() {
     if (rows.length === 0) return;
     setError(null);
     try {
@@ -54,13 +54,28 @@ export default function CostExcelExport({
 
       const safe = `${venue}-${dateLabel}`.replace(/[^\w฀-๿]+/g, "-").replace(/^-+|-+$/g, "");
       const fileName = `cost-${safe || "export"}.xlsx`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
+      const file = new File([blob], fileName, { type: blob.type });
+
+      // Phones (incl. the LINE in-app browser) can't do an a[download] blob save
+      // — it fails with "insufficient permissions". Hand the file to the share
+      // sheet there; fall back to a real download on desktop.
+      const nav = navigator as Navigator & {
+        canShare?: (d: { files: File[] }) => boolean;
+        share?: (d: { files: File[]; title?: string }) => Promise<void>;
+      };
+      if (nav.canShare?.({ files: [file] }) && nav.share) {
+        await nav.share({ files: [file], title: "สรุปค่าใช้จ่าย (Excel)" });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
     } catch (err) {
+      // Share sheet dismissed isn't an error worth showing.
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "สร้างไฟล์ Excel ไม่สำเร็จ");
     }
   }
