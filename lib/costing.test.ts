@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildCostRows, sessionPrices, type CostAttendee } from "./costing";
+import { buildCostRows, sessionPrices, NO_SHOW_FEE, type CostAttendee } from "./costing";
 
 const session = {
   date: new Date("2026-07-15T00:00:00.000Z"), // 19:00 ICT = 12:00 UTC
@@ -112,6 +112,26 @@ describe("buildCostRows", () => {
     const { rows } = buildCostRows(s1, [A("X", 0, ict(22)), A("Y", 0, ict(22))], 200, BALL, 0, ict(23));
     // Two players present all three hours: 300 + 400 + 260 each.
     expect(rows[0].courtBaht).toBe(960);
+  });
+
+  it("bills a confirmed no-show the flat fee only, and doesn't shift the court split", () => {
+    const missed: CostAttendee = {
+      id: "missed",
+      name: "missed",
+      timeSlot: "EARLY",
+      checkedOutAt: null,
+      gamesPlayed: 0,
+      noShow: true,
+    };
+    const { rows } = buildCostRows(session, [A("came", 4), missed], RATE, BALL, FEE, ict(21));
+    const by = Object.fromEntries(rows.map((r) => [r.name, r]));
+    expect(by.missed.noShow).toBe(true);
+    expect(by.missed.courtBaht).toBe(0);
+    expect(by.missed.ballShareBaht).toBe(0);
+    expect(by.missed.totalBaht).toBe(NO_SHOW_FEE);
+    // The no-show never took a court, so "came" pays the same as if alone.
+    const alone = buildCostRows(session, [A("came", 4)], RATE, BALL, FEE, ict(21)).rows[0];
+    expect(by.came.courtBaht).toBe(alone.courtBaht);
   });
 
   it("keeps the ball share an exact quarter-ball and rounds only the row total", () => {

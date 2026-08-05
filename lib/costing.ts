@@ -7,12 +7,17 @@ import { blockStart, billedHours, courtCostByPerson, parseCourtHourCosts } from 
  * games played → ball share, hours present → court share.
  */
 
+/** Flat fee charged to a confirmed sign-up who never checked in (a no-show). */
+export const NO_SHOW_FEE = 10;
+
 export interface CostAttendee {
   id: string;
   name: string;
   timeSlot: "EARLY" | "LATE";
   checkedOutAt: Date | null;
   gamesPlayed: number;
+  /** Signed up for a seat but never checked in — billed the flat no-show fee. */
+  noShow?: boolean;
 }
 
 export interface CostRow {
@@ -32,6 +37,8 @@ export interface CostRow {
   totalBaht: number;
   /** Still on the clock: their court share can still grow. */
   live: boolean;
+  /** Confirmed sign-up who never came — billed the flat no-show fee only. */
+  noShow: boolean;
 }
 
 interface CostSession {
@@ -54,7 +61,11 @@ export function buildCostRows(
 ): { rows: CostRow[]; courtHourUnits: number } {
   const { perPerson: courtShare, units } = courtCostByPerson(
     session,
-    attendees.map((a) => ({ id: a.id, timeSlot: a.timeSlot, checkedOutAt: a.checkedOutAt })),
+    // No-shows never used a court, so they don't share the court cost or shift
+    // anyone else's split.
+    attendees
+      .filter((a) => !a.noShow)
+      .map((a) => ({ id: a.id, timeSlot: a.timeSlot, checkedOutAt: a.checkedOutAt })),
     rate,
     now,
     parseCourtHourCosts(session.courtHourCosts)
@@ -62,6 +73,23 @@ export function buildCostRows(
 
   const rows = attendees
     .map((a) => {
+      // Didn't come: flat no-show fee, no court/ball, no clock.
+      if (a.noShow) {
+        return {
+          id: a.id,
+          name: a.name,
+          slot: a.timeSlot === "EARLY" ? "19.00" : "20.00",
+          timeSlot: a.timeSlot,
+          out: null,
+          hours: null,
+          games: 0,
+          courtBaht: 0,
+          ballShareBaht: 0,
+          totalBaht: NO_SHOW_FEE,
+          live: false,
+          noShow: true,
+        };
+      }
       const start = blockStart(session.date, a.timeSlot);
       const hours = a.checkedOutAt ? billedHours(start, a.checkedOutAt) : null;
       // 1 ball per game shared by 4 players → each pays a quarter of a ball.
@@ -91,6 +119,7 @@ export function buildCostRows(
         ballShareBaht,
         totalBaht: Math.ceil(courtBaht + ballShareBaht),
         live: a.checkedOutAt == null,
+        noShow: false,
       };
     })
     // 1 ทุ่ม (19.00) block first, then 2 ทุ่ม, each A-Z by name.

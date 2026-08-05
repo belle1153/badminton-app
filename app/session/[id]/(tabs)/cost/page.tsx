@@ -43,13 +43,14 @@ export default async function SessionCostPage({
   const { rows } = buildCostRows(
     session,
     session.signUps
-      .filter((s) => s.checkedInAt != null || s.checkedOutAt != null)
+      .filter((s) => s.status === "CONFIRMED" || s.checkedInAt != null || s.checkedOutAt != null)
       .map((s) => ({
         id: s.id,
         name: s.name,
         timeSlot: s.timeSlot as "EARLY" | "LATE",
         checkedOutAt: s.checkedOutAt,
         gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
+        noShow: s.checkedInAt == null && s.checkedOutAt == null,
       })),
     rate,
     ballPrice,

@@ -41,18 +41,20 @@ export default async function SessionCostPage({
     session.status === "CLOSED" ? (session.feePerPerson ?? 0) : (settings?.feePerPerson ?? 0);
   const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
 
-  // Everyone who actually showed up (checked in or out) — same rows the players'
-  // own cost tab renders, so both sides always agree.
+  // Everyone with a confirmed seat, plus anyone who actually turned up (a
+  // waitlist player pulled in). A confirmed seat with no check-in is a no-show —
+  // it still appears, marked ไม่มา and billed the flat no-show fee.
   const { rows, courtHourUnits } = buildCostRows(
     session,
     session.signUps
-      .filter((s) => s.checkedInAt != null || s.checkedOutAt != null)
+      .filter((s) => s.status === "CONFIRMED" || s.checkedInAt != null || s.checkedOutAt != null)
       .map((s) => ({
         id: s.id,
         name: s.name,
         timeSlot: s.timeSlot as "EARLY" | "LATE",
         checkedOutAt: s.checkedOutAt,
         gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
+        noShow: s.checkedInAt == null && s.checkedOutAt == null,
       })),
     rate,
     ballPrice,
@@ -128,17 +130,21 @@ export default async function SessionCostPage({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-gray-50">
+                  <tr key={r.id} className={`border-b border-gray-50 ${r.noShow ? "text-gray-400" : ""}`}>
                     <td className="px-2 py-1.5">{r.name}</td>
                     <td className="px-2 py-1.5 text-gray-500">{r.slot}</td>
                     <td className="px-2 py-1.5 text-gray-500">
-                      {r.out
-                        ? r.out.toLocaleTimeString("th-TH", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            timeZone: "Asia/Bangkok",
-                          })
-                        : "ยังเล่นอยู่"}
+                      {r.noShow ? (
+                        <span className="text-amber-600 font-medium">ไม่มา</span>
+                      ) : r.out ? (
+                        r.out.toLocaleTimeString("th-TH", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "Asia/Bangkok",
+                        })
+                      ) : (
+                        "ยังเล่นอยู่"
+                      )}
                     </td>
                     <td className="px-2 py-1.5 text-right">
                       {r.hours != null ? formatHours(r.hours) : "—"}
@@ -172,13 +178,15 @@ export default async function SessionCostPage({
             const exportRows = rows.map((r) => ({
               name: r.name,
               slot: r.slot,
-              out: r.out
-                ? r.out.toLocaleTimeString("th-TH", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "Asia/Bangkok",
-                  })
-                : "ยังเล่นอยู่",
+              out: r.noShow
+                ? "ไม่มา"
+                : r.out
+                  ? r.out.toLocaleTimeString("th-TH", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Asia/Bangkok",
+                    })
+                  : "ยังเล่นอยู่",
               hours: r.hours != null ? formatHours(r.hours) : "—",
               games: r.games,
               courtBaht: r.courtBaht,
