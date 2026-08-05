@@ -8,7 +8,7 @@ import { blockStart, billedHours, courtCostByPerson, parseCourtHourCosts } from 
  */
 
 /** Flat fee charged to a confirmed sign-up who never checked in (a no-show). */
-export const NO_SHOW_FEE = 10;
+export const NO_SHOW_FEE = 100;
 
 export interface CostAttendee {
   id: string;
@@ -122,9 +122,11 @@ export function buildCostRows(
         noShow: false,
       };
     })
-    // 1 ทุ่ม (19.00) block first, then 2 ทุ่ม, each A-Z by name.
+    // No-shows first (grouped at the top so the fine is easy to collect), then
+    // 1 ทุ่ม (19.00) before 2 ทุ่ม, each A-Z by name.
     .sort(
       (a, b) =>
+        (a.noShow ? 0 : 1) - (b.noShow ? 0 : 1) ||
         (a.timeSlot === "EARLY" ? 0 : 1) - (b.timeSlot === "EARLY" ? 0 : 1) ||
         a.name.localeCompare(b.name, "th")
     );
