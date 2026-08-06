@@ -42,16 +42,17 @@ export default async function SessionCostPage({
   // sees, so the number here is the number they're asked for.
   const { rows } = buildCostRows(
     session,
-    session.signUps
-      .filter((s) => s.status === "CONFIRMED" || s.checkedInAt != null || s.checkedOutAt != null)
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        timeSlot: s.timeSlot as "EARLY" | "LATE",
-        checkedOutAt: s.checkedOutAt,
-        gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
-        noShow: s.checkedInAt == null && s.checkedOutAt == null,
-      })),
+    // Everyone who signed up and didn't withdraw (the query drops WITHDRAWN).
+    // Never checked in or out = no-show, billed the flat fine — a สำรอง who
+    // signed up and didn't turn up owes it too, same as a confirmed seat.
+    session.signUps.map((s) => ({
+      id: s.id,
+      name: s.name,
+      timeSlot: s.timeSlot as "EARLY" | "LATE",
+      checkedOutAt: s.checkedOutAt,
+      gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
+      noShow: s.checkedInAt == null && s.checkedOutAt == null,
+    })),
     rate,
     ballPrice,
     feePerPerson
@@ -93,9 +94,12 @@ export default async function SessionCostPage({
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-gray-50">
-                  <td className="px-2 py-1.5">{r.name}</td>
-                  <td className="px-2 py-1.5 text-gray-500">{r.slot}</td>
+                <tr key={r.id} className={`border-b border-gray-50 ${r.noShow ? "text-gray-400" : ""}`}>
+                  <td className="px-2 py-1.5">
+                    {r.name}
+                    {r.noShow && <span className="ml-1.5 text-amber-600 font-medium">ไม่มา</span>}
+                  </td>
+                  <td className="px-2 py-1.5 text-gray-500">{r.noShow ? "—" : r.slot}</td>
                   <td className="px-2 py-1.5 text-right">{r.hours != null ? formatHours(r.hours) : "—"}</td>
                   <td className="px-2 py-1.5 text-right">{r.games}</td>
                   <td className="px-2 py-1.5 text-right">{r.courtBaht}</td>

@@ -41,21 +41,22 @@ export default async function SessionCostPage({
     session.status === "CLOSED" ? (session.feePerPerson ?? 0) : (settings?.feePerPerson ?? 0);
   const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
 
-  // Everyone with a confirmed seat, plus anyone who actually turned up (a
-  // waitlist player pulled in). A confirmed seat with no check-in is a no-show —
-  // it still appears, marked ไม่มา and billed the flat no-show fee.
+  // Everyone who signed up and didn't withdraw is billed (the query already
+  // drops WITHDRAWN). Anyone who never checked in or out is a no-show — shown
+  // ไม่มา and charged the flat no-show fee. That holds for a สำรอง (waitlist)
+  // too: signing up and not turning up still owes the fine, same as a confirmed
+  // seat. Someone who was on the waitlist but got pulled in and played has a
+  // checkout, so they bill normally.
   const { rows, courtHourUnits } = buildCostRows(
     session,
-    session.signUps
-      .filter((s) => s.status === "CONFIRMED" || s.checkedInAt != null || s.checkedOutAt != null)
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        timeSlot: s.timeSlot as "EARLY" | "LATE",
-        checkedOutAt: s.checkedOutAt,
-        gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
-        noShow: s.checkedInAt == null && s.checkedOutAt == null,
-      })),
+    session.signUps.map((s) => ({
+      id: s.id,
+      name: s.name,
+      timeSlot: s.timeSlot as "EARLY" | "LATE",
+      checkedOutAt: s.checkedOutAt,
+      gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
+      noShow: s.checkedInAt == null && s.checkedOutAt == null,
+    })),
     rate,
     ballPrice,
     feePerPerson
