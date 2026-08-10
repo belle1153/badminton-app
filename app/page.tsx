@@ -83,7 +83,7 @@ export default async function Home() {
           >
             <span className="text-4xl">🏆</span>
             <span className="font-bold text-lg text-sky-300">อันดับโคตรตึง!</span>
-            <span className="text-xs text-slate-400">5 อันดับแรกของก๊วน</span>
+            <span className="text-xs text-slate-400">10 อันดับแรกของก๊วน</span>
           </Link>
         </div>
       </div>
