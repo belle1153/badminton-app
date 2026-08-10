@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/adminAuth";
 import { deriveCourtState, readyPendingCount } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
 import { type SkillLevel } from "@/lib/matching";
+import { buildPairHistory } from "@/lib/rematch";
 import CourtCountEditor from "../CourtCountEditor";
 import MatchControls from "../MatchControls";
 import LiveCourts, { type LiveMatch, type FinishedGame } from "../LiveCourts";
@@ -160,9 +161,16 @@ export default async function SessionMatchPage({
   };
   // Rematch check: how many of a คู่เตรียม's four already met in one finished
   // game — flag 3 or 4 so the admin can swap someone.
-  const finishedSets = matches
-    .filter((m) => m.finishedAt != null)
-    .map((m) => new Set(m.players.map((p) => p.signUpId)));
+  const finishedMatches = matches.filter((m) => m.finishedAt != null);
+  const finishedSets = finishedMatches.map((m) => new Set(m.players.map((p) => p.signUpId)));
+  // Pair-level history (same partner / same opponent again), used by the
+  // คู่เตรียม rows and live while the admin hand-picks a foursome.
+  const pairHistory = buildPairHistory(
+    finishedMatches.map((m) => ({
+      team1: m.players.filter((p) => p.team === 1).map((p) => p.signUpId),
+      team2: m.players.filter((p) => p.team !== 1).map((p) => p.signUpId),
+    }))
+  );
   const bestOverlap = (ids: string[]): { count: number; ids: string[] } => {
     let best = { count: 0, ids: [] as string[] };
     for (const fs of finishedSets) {
@@ -242,6 +250,7 @@ export default async function SessionMatchPage({
           sessionId={id}
           candidates={candidates}
           pendingPairs={pendingPairs}
+          pairHistory={pairHistory}
           freeCourts={freeCts}
           freeUnqueuedSignature={freeUnqueuedSignature}
         />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PENDING_QUEUE_CAP, SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { foursomeRepeats, type PairHistory } from "@/lib/rematch";
 
 type Lite = {
   id: string;
@@ -49,12 +50,14 @@ export default function UpcomingPlanner({
   sessionId,
   candidates,
   pendingPairs,
+  pairHistory,
   freeCourts,
   freeUnqueuedSignature,
 }: {
   sessionId: string;
   candidates: Candidate[];
   pendingPairs: PersistedPending[];
+  pairHistory: PairHistory;
   freeCourts: number[];
   freeUnqueuedSignature: string;
 }) {
@@ -281,6 +284,12 @@ export default function UpcomingPlanner({
                     — เปลี่ยนคนไหม? (กด ✎ ที่ชื่อ)
                   </div>
                 )}
+                <RepeatWarning
+                  team1={pair.team1.map((p) => p.id)}
+                  team2={pair.team2.map((p) => p.id)}
+                  history={pairHistory}
+                  nameOf={(pid) => members.find((m) => m.id === pid)?.name ?? "?"}
+                />
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <button
                     onClick={() => cancel(pair.id)}
@@ -340,14 +349,67 @@ export default function UpcomingPlanner({
         </ol>
       )}
 
-      <ManualPendingPairForm sessionId={sessionId} candidates={candidates} />
+      <ManualPendingPairForm sessionId={sessionId} candidates={candidates} pairHistory={pairHistory} />
     </section>
+  );
+}
+
+/**
+ * "These two have played together already" — the pair-level rematch warning,
+ * shown both on a queued คู่เตรียม and live while the admin hand-picks four.
+ * Partnering again is the loud one (red); meeting the same opponent again is
+ * only worth mentioning from the second rerun on, or it fires on every court.
+ */
+function RepeatWarning({
+  team1,
+  team2,
+  history,
+  nameOf,
+}: {
+  team1: string[];
+  team2: string[];
+  history: PairHistory;
+  nameOf: (id: string) => string;
+}) {
+  const { partners, opponents } = foursomeRepeats(team1, team2, history);
+  const repeatedOpponents = opponents.filter((o) => o.count >= 2);
+  if (partners.length === 0 && repeatedOpponents.length === 0) return null;
+  const times = (n: number) => (n > 1 ? ` ${n} ครั้ง` : "");
+  return (
+    <div className="flex flex-col gap-1">
+      {partners.map((p) => (
+        <div
+          key={`p-${p.ids.join("-")}`}
+          className="rounded-md bg-red-600 border-2 border-red-700 text-white text-[11px] font-medium px-2 py-1.5"
+        >
+          ⚠️ <span className="font-bold">{nameOf(p.ids[0])} + {nameOf(p.ids[1])}</span>{" "}
+          เคยเป็นคู่ตีด้วยกันแล้ว{times(p.count)} — เปลี่ยนคู่ไหม?
+        </div>
+      ))}
+      {repeatedOpponents.map((o) => (
+        <div
+          key={`o-${o.ids.join("-")}`}
+          className="rounded-md bg-amber-100 border border-amber-300 text-amber-800 text-[11px] px-2 py-1.5"
+        >
+          🔁 <span className="font-semibold">{nameOf(o.ids[0])}</span> เจอ{" "}
+          <span className="font-semibold">{nameOf(o.ids[1])}</span> มาแล้ว {o.count} ครั้ง
+        </div>
+      ))}
+    </div>
   );
 }
 
 /** Hand-pick any four checked-in people (including those currently playing) and
  *  append them to the คู่เตรียม queue. */
-function ManualPendingPairForm({ sessionId, candidates }: { sessionId: string; candidates: Candidate[] }) {
+function ManualPendingPairForm({
+  sessionId,
+  candidates,
+  pairHistory,
+}: {
+  sessionId: string;
+  candidates: Candidate[];
+  pairHistory: PairHistory;
+}) {
   const router = useRouter();
   const [picks, setPicks] = useState<string[]>(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -355,6 +417,11 @@ function ManualPendingPairForm({ sessionId, candidates }: { sessionId: string; c
 
   const chosen = new Set(picks.filter(Boolean));
   const ready = picks.every(Boolean) && chosen.size === 4;
+  const nameOf = (id: string) => candidates.find((c) => c.id === id)?.name ?? "?";
+  // Warn as soon as a repeat is visible — a teammate pair fires on the second
+  // pick, no need to wait for all four.
+  const picked1 = [picks[0], picks[1]].filter(Boolean);
+  const picked2 = [picks[2], picks[3]].filter(Boolean);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -432,6 +499,12 @@ function ManualPendingPairForm({ sessionId, candidates }: { sessionId: string; c
               {playerSelect(3, "คนที่ 2")}
             </div>
           </div>
+          <RepeatWarning
+            team1={picked1}
+            team2={picked2}
+            history={pairHistory}
+            nameOf={nameOf}
+          />
           <button
             type="submit"
             disabled={!ready || loading}
