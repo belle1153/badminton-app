@@ -1,19 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-export interface ExportRow {
-  name: string;
-  slot: string;
-  /** Checkout time (e.g. "22:10"), or "ยังเล่นอยู่" if still on court. */
-  out: string;
-  hours: string;
-  games: number;
-  courtBaht: number;
-  ballBaht: number;
-  totalBaht: number;
-  live: boolean;
-}
+import type { ExportRow } from "@/lib/costReport";
 
 const FONT = '"Noto Sans Thai","Sarabun",system-ui,-apple-system,"Segoe UI",sans-serif';
 const font = (weight: number, size: number) => `${weight} ${size}px ${FONT}`;

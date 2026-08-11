@@ -2,9 +2,14 @@ import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import { formatHours, billingBlocks, courtsOpenAt, parseCourtHourCosts } from "@/lib/billing";
 import { buildCostRows, sessionPrices } from "@/lib/costing";
+import {
+  COST_SIGNUP_INCLUDE,
+  costAttendees,
+  costDateLabel,
+  toExportRows,
+} from "@/lib/costReport";
 import CostPanel from "../CostPanel";
 import CostImageExport from "../CostImageExport";
-import CostExcelExport from "../CostExcelExport";
 import CourtHourCostEditor from "../CourtHourCostEditor";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +28,7 @@ export default async function SessionCostPage({
       include: {
         signUps: {
           where: { status: { not: "WITHDRAWN" } },
-          include: { matchSlots: { include: { match: { select: { finishedAt: true } } } } },
+          include: COST_SIGNUP_INCLUDE,
           orderBy: { name: "asc" },
         },
       },
@@ -49,14 +54,7 @@ export default async function SessionCostPage({
   // checkout, so they bill normally.
   const { rows, courtHourUnits } = buildCostRows(
     session,
-    session.signUps.map((s) => ({
-      id: s.id,
-      name: s.name,
-      timeSlot: s.timeSlot as "EARLY" | "LATE",
-      checkedOutAt: s.checkedOutAt,
-      gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
-      noShow: s.checkedInAt == null && s.checkedOutAt == null,
-    })),
+    costAttendees(session.signUps),
     rate,
     ballPrice,
     feePerPerson
@@ -167,48 +165,24 @@ export default async function SessionCostPage({
           * คนที่ยังไม่เช็คเอาท์ = ค่าคอร์ทยังไม่นิ่ง (คิดถึงตอนนี้) จะนิ่งเมื่อกดเช็คเอาท์
         </p>
 
-        {rows.length > 0 &&
-          (() => {
-            const dateLabel = session.date.toLocaleDateString("th-TH", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              timeZone: "Asia/Bangkok",
-            });
-            const exportRows = rows.map((r) => ({
-              // Tag the name too, so the no-show shows on the PNG (which has no
-              // checkout column) as well as in the Excel.
-              name: r.noShow ? `${r.name} (ไม่มา)` : r.name,
-              slot: r.slot,
-              out: r.noShow
-                ? "ไม่มา"
-                : r.out
-                  ? r.out.toLocaleTimeString("th-TH", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      timeZone: "Asia/Bangkok",
-                    })
-                  : "ยังเล่นอยู่",
-              hours: r.hours != null ? formatHours(r.hours) : "—",
-              games: r.games,
-              courtBaht: r.courtBaht,
-              ballBaht: r.ballShareBaht,
-              totalBaht: r.totalBaht,
-              live: r.live,
-            }));
-            return (
-              <div className="flex flex-wrap gap-2">
-                <CostImageExport
-                  venue={session.venue}
-                  dateLabel={dateLabel}
-                  rows={exportRows}
-                  note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
-                />
-                <CostExcelExport venue={session.venue} dateLabel={dateLabel} rows={exportRows} />
-              </div>
-            );
-          })()}
+        {rows.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <CostImageExport
+              venue={session.venue}
+              dateLabel={costDateLabel(session.date)}
+              rows={toExportRows(rows)}
+              note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
+            />
+            {/* A plain link, not an in-browser build: phones refuse to save a
+                blob download, so the file comes from the server instead. */}
+            <a
+              href={`/api/sessions/${id}/cost/xlsx`}
+              className="self-start rounded-md border-2 border-green-600 text-green-700 text-sm font-medium px-3 py-1.5 hover:bg-green-50"
+            >
+              📊 ดาวน์โหลด Excel
+            </a>
+          </div>
+        )}
       </section>
     </>
   );

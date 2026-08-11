@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { formatHours } from "@/lib/billing";
 import { buildCostRows, sessionPrices, type CostRow } from "@/lib/costing";
+import { COST_SIGNUP_INCLUDE, costAttendees, finishedGameCount } from "@/lib/costReport";
 import { ictTodayMidnight, matchesWhen, parseWhen, weekStart } from "@/lib/lineWhen";
 
 /**
@@ -110,7 +111,7 @@ export async function costMessagesForText(text: string, now: Date = new Date()):
     include: {
       signUps: {
         where: { status: { not: "WITHDRAWN" } },
-        include: { matchSlots: { include: { match: { select: { finishedAt: true } } } } },
+        include: COST_SIGNUP_INCLUDE,
         orderBy: { name: "asc" },
       },
     },
@@ -147,14 +148,7 @@ export async function costMessagesForText(text: string, now: Date = new Date()):
     const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
     const { rows } = buildCostRows(
       session,
-      session.signUps.map((s) => ({
-        id: s.id,
-        name: s.name,
-        timeSlot: s.timeSlot as "EARLY" | "LATE",
-        checkedOutAt: s.checkedOutAt,
-        gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
-        noShow: s.checkedInAt == null && s.checkedOutAt == null,
-      })),
+      costAttendees(session.signUps),
       rate,
       ballPrice,
       // A closed day carries the fee it was actually charged at.
@@ -164,12 +158,7 @@ export async function costMessagesForText(text: string, now: Date = new Date()):
       messages.push(`🗓 ${dateLabel(session.date)}\nไม่มีคนเช็คอินในรอบนี้ครับ`);
       continue;
     }
-    const gamesPlayed = new Set(
-      session.signUps.flatMap((s) =>
-        s.matchSlots.filter((ms) => ms.match.finishedAt != null).map((ms) => ms.matchId)
-      )
-    ).size;
-    messages.push(formatCostMessage(session, rows, gamesPlayed));
+    messages.push(formatCostMessage(session, rows, finishedGameCount(session.signUps)));
   }
   return messages;
 }
