@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
+import { WEEKDAY_WORDS } from "@/lib/lineWhen";
 
 /** Where the LINE message tells people to sign up. Overridable so a new short
  *  link doesn't need a redeploy; defaults to the club's current link. */
@@ -94,18 +95,6 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
 
   return lines.join("\n");
 }
-
-// Thai weekday word → getUTCDay() index (session dates read in UTC, same as the
-// label). "พฤหัส" covers "พฤหัสบดี" too.
-const WEEKDAY_WORDS: [string, number][] = [
-  ["อาทิตย์", 0],
-  ["จันทร์", 1],
-  ["อังคาร", 2],
-  ["พุธ", 3],
-  ["พฤหัส", 4],
-  ["ศุกร์", 5],
-  ["เสาร์", 6],
-];
 
 /**
  * Roster messages for the keyword lookup in the group. Bare "รายชื่อ" → the

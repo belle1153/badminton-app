@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rosterMessagesForText } from "@/lib/lineRoster";
+import { costMessagesForText } from "@/lib/lineCost";
 import { withdrawFromLine } from "@/lib/lineWithdraw";
 import { verifyLineSignature } from "@/lib/lineSignature";
 
@@ -17,6 +18,9 @@ import { verifyLineSignature } from "@/lib/lineSignature";
  * - "รายชื่อ" (or "เช็คชื่อ" / "list") → the bot replies with the nearest
  *   upcoming day's roster; add a day (จันทร์ / พุธ …) or a date number (20) and
  *   it replies just that day. Otherwise it stays quiet.
+ * - "สรุปค่าใช้จ่าย" → the per-person bill, looking BACKWARDS: bare keyword =
+ *   every day already played this week (both จันทร์ and พุธ from Thursday on),
+ *   or name a day / date ("วันจันทร์", "10/08/2026", "วันจันทร์ที่ 10").
  * - Logs the source id of every event (find a new group id in the Vercel logs).
  *   Set LINE_ECHO_ID=1 temporarily to have it reply the id in chat, then unset.
  *
@@ -24,6 +28,7 @@ import { verifyLineSignature } from "@/lib/lineSignature";
  */
 const REPLY_URL = "https://api.line.me/v2/bot/message/reply";
 const ROSTER_KEYWORDS = ["รายชื่อ", "เช็คชื่อ", "list"];
+const COST_KEYWORDS = ["สรุปค่าใช้จ่าย", "ค่าใช้จ่าย", "สรุปเงิน", "ยอดจ่าย"];
 
 async function reply(replyToken: string, token: string, texts: string[]) {
   try {
@@ -99,6 +104,14 @@ export async function POST(req: NextRequest) {
         ? await withdrawFromLine(text)
         : ["ยังถอนผ่าน LINE ไม่ได้ครับ 🙏 ให้ถอนในเว็บแอป หรือแจ้งแอดมิน"];
       await reply(event.replyToken, token, messages);
+      continue;
+    }
+
+    // "สรุปค่าใช้จ่าย" → the per-person bill for a day that has been played.
+    // Checked before the roster keyword: a cost message can name a day too, and
+    // this is the more specific request.
+    if (COST_KEYWORDS.some((k) => text.includes(k))) {
+      await reply(event.replyToken, token, await costMessagesForText(text));
       continue;
     }
 
