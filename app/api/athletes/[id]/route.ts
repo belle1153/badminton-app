@@ -100,7 +100,25 @@ export async function DELETE(
 
   const { id } = await params;
 
+  const target = await prisma.athlete.findUnique({ where: { id }, select: { name: true } });
+  if (!target) return NextResponse.json({ error: "ไม่พบนักกีฬานี้" }, { status: 404 });
+
   try {
+    // Deleting an athlete would SetNull every sign-up that pointed at them (the
+    // FK default), orphaning that play out of EXP history. When this is a
+    // duplicate being tidied up and a same-name athlete survives, move the
+    // history to the survivor first so nothing is lost. (No survivor = a real
+    // removal; the sign-ups fall to NULL as before.)
+    const survivor = await prisma.athlete.findFirst({
+      where: { name: { equals: target.name, mode: "insensitive" }, NOT: { id } },
+      select: { id: true },
+    });
+    if (survivor) {
+      await prisma.signUp.updateMany({
+        where: { athleteId: id },
+        data: { athleteId: survivor.id },
+      });
+    }
     await prisma.athlete.delete({ where: { id } });
   } catch {
     return NextResponse.json({ error: "ไม่พบนักกีฬานี้" }, { status: 404 });
