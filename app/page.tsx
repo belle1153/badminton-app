@@ -90,7 +90,16 @@ export default async function Home() {
 
       <AnnouncementCarousel items={announcements} />
 
-      <p className="text-right text-[11px] text-gray-400 mt-auto pt-2">{BUILD_LABEL}</p>
+      {/* Doubles as the admin's way back in: the proxy 404s /admin when logged
+          out, so there's no visible admin link — tapping the build label opens
+          the PIN page. Unobtrusive to everyone else; /admin/login is the one
+          open admin path anyway. */}
+      <Link
+        href="/admin/login"
+        className="block text-right text-[11px] text-gray-400 mt-auto pt-2 hover:text-gray-600"
+      >
+        {BUILD_LABEL}
+      </Link>
     </main>
   );
 }
