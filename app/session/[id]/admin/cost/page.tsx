@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { billingBlocks, courtsOpenAt, parseCourtHourCosts, courtCostByPerson } from "@/lib/billing";
+import { courtCostByPerson } from "@/lib/billing";
 import { buildCostRows, sessionPrices, sessionFees } from "@/lib/costing";
 import {
   COST_SIGNUP_INCLUDE,
@@ -10,7 +10,6 @@ import {
 } from "@/lib/costReport";
 import CostPanel from "../CostPanel";
 import CostImageExport from "../CostImageExport";
-import CourtHourCostEditor from "../CourtHourCostEditor";
 import CostPersonTable from "../CostPersonTable";
 
 export const dynamic = "force-dynamic";
@@ -56,23 +55,12 @@ export default async function SessionCostPage({
   // separate record, previewed/frozen by CostPanel. courtHourUnits = Σ (open
   // courts × block-hours) actually played; no-shows never took a court.
   const { rate } = sessionPrices(session, courtRates, shuttlecockTypes);
-  const overrideHourCosts = parseCourtHourCosts(session.courtHourCosts);
   const { units: courtHourUnits } = courtCostByPerson(
     session,
     attendees.filter((a) => !a.noShow).map((a) => ({ id: a.id, timeSlot: a.timeSlot, checkedOutAt: a.checkedOutAt })),
     rate,
-    new Date(),
-    overrideHourCosts
+    new Date()
   );
-
-  // The real per-hour court baht the admin can override when courts empty late.
-  const HOUR_MARKS = [19, 20, 21, 22];
-  const blocks = billingBlocks(session.date);
-  const computedHourCosts = HOUR_MARKS.map((h) => {
-    const b = blocks.find((bl) => bl.hourIct === h);
-    return b ? Math.round(courtsOpenAt(session, b.start) * rate * b.hours) : 0;
-  });
-  const initialHourCosts = HOUR_MARKS.map((h, i) => overrideHourCosts?.get(h) ?? computedHourCosts[i]);
 
   const tableRows = rows.map((r) => ({
     id: r.id,
@@ -116,13 +104,6 @@ export default async function SessionCostPage({
           แต่ละคน = ค่าแรกเข้า {entryFee}฿ + ค่าเกม (เกมละ {gameFee}฿ × จำนวนเกมที่เล่นจบ) · คนไม่มา
           ปรับ 100฿ · ติ๊ก &quot;จ่ายแล้ว&quot; เมื่อเก็บเงินหน้างาน คนที่ยังไม่ติ๊กจะขึ้นยอดค้างในไลน์
         </p>
-
-        <CourtHourCostEditor
-          sessionId={id}
-          initial={initialHourCosts}
-          computed={computedHourCosts}
-          isOverride={overrideHourCosts != null}
-        />
 
         {rows.length === 0 ? (
           <p className="text-sm text-gray-400">ยังไม่มีคนเช็คอินวันนี้</p>
