@@ -1,12 +1,11 @@
 import { type CostAttendee, type CostRow } from "@/lib/costing";
-import { formatHours } from "@/lib/billing";
 import { type Cell } from "@/lib/xlsx";
 
 /**
  * Turning a session's sign-up rows into billing input, in one place.
  *
- * The admin page, the .xlsx download and the LINE summary all bill the same
- * people the same way — including the two rules that are easy to get subtly
+ * The admin page, the .xlsx download, the PNG and the LINE summary all bill the
+ * same people the same way — including the two rules that are easy to get subtly
  * wrong elsewhere: a game only counts once it has finished, and someone with no
  * check-in and no check-out is a no-show.
  */
@@ -22,6 +21,7 @@ export interface CostSignUpLike {
   timeSlot: string;
   checkedInAt: Date | null;
   checkedOutAt: Date | null;
+  paidAt: Date | null;
   matchSlots: { matchId: string; match: { finishedAt: Date | null } }[];
 }
 
@@ -33,6 +33,7 @@ export function costAttendees(signUps: CostSignUpLike[]): CostAttendee[] {
     checkedOutAt: s.checkedOutAt,
     gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
     noShow: s.checkedInAt == null && s.checkedOutAt == null,
+    paid: s.paidAt != null,
   }));
 }
 
@@ -69,12 +70,13 @@ export interface ExportRow {
   name: string;
   slot: string;
   out: string;
-  hours: string;
   games: number;
-  courtBaht: number;
-  ballBaht: number;
+  entryBaht: number;
+  gameBaht: number;
   totalBaht: number;
   live: boolean;
+  /** "จ่ายแล้ว" vs "ค้าง" — so a printed/LINE bill shows who still owes. */
+  paid: boolean;
 }
 
 export function toExportRows(rows: CostRow[]): ExportRow[] {
@@ -84,12 +86,12 @@ export function toExportRows(rows: CostRow[]): ExportRow[] {
     name: r.noShow ? `${r.name} (ไม่มา)` : r.name,
     slot: r.slot,
     out: r.noShow ? "ไม่มา" : r.out ? timeLabel(r.out) : "ยังเล่นอยู่",
-    hours: r.hours != null ? formatHours(r.hours) : "—",
     games: r.games,
-    courtBaht: r.courtBaht,
-    ballBaht: r.ballShareBaht,
+    entryBaht: r.entryBaht,
+    gameBaht: r.gameBaht,
     totalBaht: r.totalBaht,
     live: r.live,
+    paid: r.paid,
   }));
 }
 
@@ -97,14 +99,14 @@ export const XLSX_HEADER: Cell[] = [
   "ชื่อ",
   "เริ่ม",
   "เช็คเอาท์",
-  "ชม.คิด",
   "เกม",
-  "ค่าคอร์ท (฿)",
-  "ค่าลูก (฿)",
+  "ค่าแรกเข้า (฿)",
+  "ค่าเกม (฿)",
   "รวม (฿)",
+  "สถานะ",
 ];
 
-export const XLSX_COL_WIDTHS = [18, 8, 10, 9, 6, 13, 11, 11];
+export const XLSX_COL_WIDTHS = [18, 8, 10, 6, 13, 11, 11, 10];
 
 /** Header + body + totals, ready for buildXlsxBytes. */
 export function xlsxSheetRows(rows: ExportRow[]): Cell[][] {
@@ -112,21 +114,21 @@ export function xlsxSheetRows(rows: ExportRow[]): Cell[][] {
     r.name,
     r.slot,
     r.out,
-    r.hours,
     r.games,
-    r.courtBaht,
-    r.ballBaht,
+    r.entryBaht,
+    r.gameBaht,
     r.totalBaht,
+    r.paid ? "จ่ายแล้ว" : "ค้าง",
   ]);
   const total: Cell[] = [
     `รวม ${rows.length} คน`,
     "",
     "",
-    "",
     rows.reduce((a, r) => a + r.games, 0),
-    rows.reduce((a, r) => a + r.courtBaht, 0),
-    rows.reduce((a, r) => a + r.ballBaht, 0),
+    rows.reduce((a, r) => a + r.entryBaht, 0),
+    rows.reduce((a, r) => a + r.gameBaht, 0),
     rows.reduce((a, r) => a + r.totalBaht, 0),
+    `ค้าง ${rows.filter((r) => !r.paid).length} คน`,
   ];
   return [XLSX_HEADER, ...body, total];
 }

@@ -19,36 +19,39 @@ export default function MasterDataForm({
   courtRates,
   shuttlecockTypes,
   qrImageDataUrl,
-  feePerPerson,
+  entryFee,
+  gameFee,
 }: {
   courtRates: CourtRate[];
   shuttlecockTypes: ShuttlecockType[];
   qrImageDataUrl: string | null;
-  feePerPerson: number;
+  entryFee: number;
+  gameFee: number;
 }) {
   const router = useRouter();
   const [rateName, setRateName] = useState("");
   const [ratePrice, setRatePrice] = useState("");
   const [shuttleName, setShuttleName] = useState("");
   const [shuttlePrice, setShuttlePrice] = useState("");
-  const [fee, setFee] = useState(String(feePerPerson));
-  const [feeMsg, setFeeMsg] = useState<string | null>(null);
+  const [entry, setEntry] = useState(String(entryFee));
+  const [game, setGame] = useState(String(gameFee));
+  const [priceMsg, setPriceMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(qrImageDataUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function saveFee(e: React.FormEvent) {
+  async function savePricing(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setFeeMsg(null);
+    setPriceMsg(null);
     const res = await fetch("/api/admin/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ feePerPerson: Number(fee) }),
+      body: JSON.stringify({ entryFee: Number(entry), gameFee: Number(game) }),
     });
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "บันทึกไม่สำเร็จ");
-    setFeeMsg("บันทึกแล้ว");
+    setPriceMsg("บันทึกแล้ว");
     router.refresh();
   }
 
@@ -203,26 +206,40 @@ export default function MasterDataForm({
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="font-semibold">ค่าธรรมเนียม (บาท/คน)</h2>
+        <h2 className="font-semibold">ราคาเก็บรายคน</h2>
         <p className="text-xs text-gray-400">
-          บวกรวมเข้ากับ<strong>ค่าคอร์ท</strong>ของแต่ละคนในหน้าคำนวณ — ไม่แสดงเป็นบรรทัดแยกให้ผู้เล่นเห็น
-          · ปรับได้ตลอด ใช้ค่าล่าสุดกับทุกวัน
+          แต่ละคนจ่าย = <strong>ค่าแรกเข้า</strong> + (<strong>ค่าเกม</strong> × จำนวนเกมที่เล่นจบ) ·
+          ปรับได้ตลอด ใช้ค่าล่าสุดกับวันที่ยังไม่ปิด (วันปิดแล้วล็อกราคาที่ใช้ตอนนั้นไว้)
         </p>
-        <form onSubmit={saveFee} className="flex gap-2 items-center">
-          <input
-            type="number"
-            min={0}
-            value={fee}
-            onChange={(e) => setFee(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            className="input w-32"
-            required
-          />
-          <span className="text-sm text-gray-500">บาท/คน</span>
+        <form onSubmit={savePricing} className="flex flex-wrap gap-3 items-end">
+          <label className="flex flex-col gap-1 text-sm text-gray-600">
+            ค่าแรกเข้า (บาท)
+            <input
+              type="number"
+              min={0}
+              value={entry}
+              onChange={(e) => setEntry(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              className="input w-32"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-600">
+            ค่าเกม (บาท/เกม)
+            <input
+              type="number"
+              min={0}
+              value={game}
+              onChange={(e) => setGame(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              className="input w-32"
+              required
+            />
+          </label>
           <button type="submit" className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700">
             บันทึก
           </button>
-          {feeMsg && <span className="text-sm text-brand-700">{feeMsg}</span>}
+          {priceMsg && <span className="text-sm text-brand-700 pb-2">{priceMsg}</span>}
         </form>
       </section>
 

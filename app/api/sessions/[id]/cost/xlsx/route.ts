@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { buildCostRows, sessionPrices } from "@/lib/costing";
+import { buildCostRows, sessionFees } from "@/lib/costing";
 import {
   COST_SIGNUP_INCLUDE,
   costAttendees,
@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
   const { id } = await params;
 
-  const [session, courtRates, shuttlecockTypes, settings] = await Promise.all([
+  const [session, settings] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
       include: {
@@ -39,23 +39,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         },
       },
     }),
-    prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
   if (!session) return NextResponse.json({ error: "ไม่พบรอบเล่นนี้" }, { status: 404 });
 
-  // Same rule as the page: a closed day bills at the fee frozen when it closed.
-  const feePerPerson =
-    session.status === "CLOSED" ? (session.feePerPerson ?? 0) : (settings?.feePerPerson ?? 0);
-  const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
-  const { rows } = buildCostRows(
-    session,
-    costAttendees(session.signUps),
-    rate,
-    ballPrice,
-    feePerPerson
-  );
+  // Same rule as the page: a closed day bills at the fees frozen when it closed.
+  const { entryFee, gameFee } = sessionFees(session, settings);
+  const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee);
 
   const dateLabel = costDateLabel(session.date);
   const bytes = buildXlsxBytes(

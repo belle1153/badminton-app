@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { formatHours, billingBlocks, courtsOpenAt, parseCourtHourCosts } from "@/lib/billing";
-import { buildCostRows, sessionPrices } from "@/lib/costing";
+import { billingBlocks, courtsOpenAt, parseCourtHourCosts, courtCostByPerson } from "@/lib/billing";
+import { buildCostRows, sessionPrices, sessionFees } from "@/lib/costing";
 import {
   COST_SIGNUP_INCLUDE,
   costAttendees,
@@ -11,8 +11,12 @@ import {
 import CostPanel from "../CostPanel";
 import CostImageExport from "../CostImageExport";
 import CourtHourCostEditor from "../CourtHourCostEditor";
+import CostPersonTable from "../CostPersonTable";
 
 export const dynamic = "force-dynamic";
+
+const timeLabel = (d: Date) =>
+  d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 
 export default async function SessionCostPage({
   params,
@@ -40,37 +44,49 @@ export default async function SessionCostPage({
   ]);
   if (!session) return null;
 
-  // Closed day → the fee frozen at close (what was actually charged). Still
-  // open → the club's current fee, since that's what closing it now would use.
-  const feePerPerson =
-    session.status === "CLOSED" ? (session.feePerPerson ?? 0) : (settings?.feePerPerson ?? 0);
-  const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
+  // Per-person bill = ค่าแรกเข้า + เกม × ค่าเกม (frozen at close, else current).
+  const { entryFee, gameFee } = sessionFees(session, settings);
+  const attendees = costAttendees(session.signUps);
+  // Everyone who signed up and didn't withdraw is billed. Someone with no
+  // check-in and no check-out never came = no-show, shown ไม่มา and charged the
+  // flat fine — a waitlist sign-up who didn't turn up owes it just the same.
+  const { rows } = buildCostRows(attendees, entryFee, gameFee);
 
-  // Everyone who signed up and didn't withdraw is billed (the query already
-  // drops WITHDRAWN). Anyone who never checked in or out is a no-show — shown
-  // ไม่มา and charged the flat no-show fee. That holds for a สำรอง (waitlist)
-  // too: signing up and not turning up still owes the fine, same as a confirmed
-  // seat. Someone who was on the waitlist but got pulled in and played has a
-  // checkout, so they bill normally.
-  const { rows, courtHourUnits } = buildCostRows(
+  // What the club itself owes the venue (court rent + shuttlecocks) is a
+  // separate record, previewed/frozen by CostPanel. courtHourUnits = Σ (open
+  // courts × block-hours) actually played; no-shows never took a court.
+  const { rate } = sessionPrices(session, courtRates, shuttlecockTypes);
+  const overrideHourCosts = parseCourtHourCosts(session.courtHourCosts);
+  const { units: courtHourUnits } = courtCostByPerson(
     session,
-    costAttendees(session.signUps),
+    attendees.filter((a) => !a.noShow).map((a) => ({ id: a.id, timeSlot: a.timeSlot, checkedOutAt: a.checkedOutAt })),
     rate,
-    ballPrice,
-    feePerPerson
+    new Date(),
+    overrideHourCosts
   );
 
-  // What the system would charge per hour (open courts × rate), and what's in
-  // effect now — the editor lets the admin replace these with the venue's real
-  // per-hour figures when courts empty out late.
+  // The real per-hour court baht the admin can override when courts empty late.
   const HOUR_MARKS = [19, 20, 21, 22];
   const blocks = billingBlocks(session.date);
   const computedHourCosts = HOUR_MARKS.map((h) => {
     const b = blocks.find((bl) => bl.hourIct === h);
     return b ? Math.round(courtsOpenAt(session, b.start) * rate * b.hours) : 0;
   });
-  const overrideHourCosts = parseCourtHourCosts(session.courtHourCosts);
   const initialHourCosts = HOUR_MARKS.map((h, i) => overrideHourCosts?.get(h) ?? computedHourCosts[i]);
+
+  const tableRows = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    slot: r.slot,
+    outLabel: r.noShow ? "ไม่มา" : r.out ? timeLabel(r.out) : "ยังเล่นอยู่",
+    games: r.games,
+    entryBaht: r.entryBaht,
+    gameBaht: r.gameBaht,
+    totalBaht: r.totalBaht,
+    live: r.live,
+    noShow: r.noShow,
+    paid: r.paid,
+  }));
 
   return (
     <>
@@ -97,10 +113,8 @@ export default async function SessionCostPage({
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">สรุปรายคน (วันนี้)</h2>
         <p className="text-xs text-gray-400">
-          เวลาเริ่มนับตามช่วงที่ลง (1 ทุ่ม/2 ทุ่ม) · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) ·
-          ค่าลูก = เกมละ 1 ลูก หาร 4 คน · ค่าคอร์ท = ค่าคอร์ทแต่ละชั่วโมง หารตามเวลาที่แต่ละคนอยู่
-          {rate > 0 && ` (เรท ${rate} ฿/ชม./สนาม)`}
-          {feePerPerson > 0 && ` · ค่าคอร์ทรวมค่าธรรมเนียม ${feePerPerson} ฿/คน ไว้แล้ว`}
+          แต่ละคน = ค่าแรกเข้า {entryFee}฿ + ค่าเกม (เกมละ {gameFee}฿ × จำนวนเกมที่เล่นจบ) · คนไม่มา
+          ปรับ 100฿ · ติ๊ก &quot;จ่ายแล้ว&quot; เมื่อเก็บเงินหน้างาน คนที่ยังไม่ติ๊กจะขึ้นยอดค้างในไลน์
         </p>
 
         <CourtHourCostEditor
@@ -113,56 +127,10 @@ export default async function SessionCostPage({
         {rows.length === 0 ? (
           <p className="text-sm text-gray-400">ยังไม่มีคนเช็คอินวันนี้</p>
         ) : (
-          <div className="overflow-x-auto border border-gray-100 rounded-md">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                  <th className="px-2 py-1.5 font-medium">ชื่อ</th>
-                  <th className="px-2 py-1.5 font-medium">เริ่ม</th>
-                  <th className="px-2 py-1.5 font-medium">เช็คเอาท์</th>
-                  <th className="px-2 py-1.5 font-medium text-right">ชม.คิด</th>
-                  <th className="px-2 py-1.5 font-medium text-right">เกม</th>
-                  <th className="px-2 py-1.5 font-medium text-right">ค่าคอร์ท (฿)</th>
-                  <th className="px-2 py-1.5 font-medium text-right">ค่าลูก (฿)</th>
-                  <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className={`border-b border-gray-50 ${r.noShow ? "text-gray-400" : ""}`}>
-                    <td className="px-2 py-1.5">{r.name}</td>
-                    <td className="px-2 py-1.5 text-gray-500">{r.slot}</td>
-                    <td className="px-2 py-1.5 text-gray-500">
-                      {r.noShow ? (
-                        <span className="text-amber-600 font-medium">ไม่มา</span>
-                      ) : r.out ? (
-                        r.out.toLocaleTimeString("th-TH", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          timeZone: "Asia/Bangkok",
-                        })
-                      ) : (
-                        "ยังเล่นอยู่"
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
-                      {r.hours != null ? formatHours(r.hours) : "—"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">{r.games}</td>
-                    <td className="px-2 py-1.5 text-right">
-                      {r.courtBaht}
-                      {r.live && <span className="text-[10px] text-amber-500"> *</span>}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">{r.ballShareBaht}</td>
-                    <td className="px-2 py-1.5 text-right font-semibold">{r.totalBaht}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CostPersonTable sessionId={id} rows={tableRows} />
         )}
         <p className="text-xs text-gray-400">
-          * คนที่ยังไม่เช็คเอาท์ = ค่าคอร์ทยังไม่นิ่ง (คิดถึงตอนนี้) จะนิ่งเมื่อกดเช็คเอาท์
+          * คนที่ยังไม่เช็คเอาท์ = จำนวนเกมยังเพิ่มได้ จะนิ่งเมื่อกดเช็คเอาท์
         </p>
 
         {rows.length > 0 && (
@@ -171,7 +139,7 @@ export default async function SessionCostPage({
               venue={session.venue}
               dateLabel={costDateLabel(session.date)}
               rows={toExportRows(rows)}
-              note="* ยังไม่เช็คเอาท์ — ค่าคอร์ทยังไม่นิ่ง · ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
+              note={`* ยังเล่นอยู่ = จำนวนเกมยังไม่นิ่ง · ค่าแรกเข้า ${entryFee}฿ + เกมละ ${gameFee}฿ · คนไม่มา ปรับ 100฿`}
             />
             {/* A plain link, not an in-browser build: phones refuse to save a
                 blob download, so the file comes from the server instead. */}

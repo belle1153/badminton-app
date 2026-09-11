@@ -62,6 +62,11 @@ model Session {
   // comma-separated e.g. "400,600,520,0". Null = compute from open courts × rate.
   // Lets the bill match the venue's real charge when courts empty out late.
   courtHourCosts       String?
+  // Per-person bill = entryFee + gamesPlayed × gameFee. Frozen at close so a
+  // closed day reads back what it charged; null on an open day → use the club's
+  // current AppSettings values.
+  entryFee             Int?
+  gameFee              Int?
   courtRateId          String?
   courtRate            CourtRate?       @relation(fields: [courtRateId], references: [id])
   courtHours           Float?
@@ -97,6 +102,7 @@ model SignUp {
   slotNumber     Int?
   checkedInAt    DateTime?
   checkedOutAt   DateTime? // when they left (per-person billing clock stops)
+  paidAt         DateTime? // when the admin marked their bill collected (null = ยอดค้าง)
   addedByAdmin   Boolean       @default(false) // true = admin quick-add, false = self sign-up
   withdrawnAt    DateTime? // when the name was withdrawn (for the withdrawal log)
   createdAt      DateTime      @default(now())
@@ -159,6 +165,10 @@ model AppSettings {
   // defaulted to 0 since the column was reworked; the 5 here was drift, and a
   // fresh database should not invent a fee the club never set.
   feePerPerson   Int      @default(0)
+  // Current per-person pricing. The bill is entryFee + gamesPlayed × gameFee;
+  // the admin edits these on the Master page, and each day freezes them at close.
+  entryFee       Int      @default(95)
+  gameFee        Int      @default(25)
   updatedAt      DateTime @updatedAt
 }
 

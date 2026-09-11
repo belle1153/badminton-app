@@ -66,9 +66,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       courtCost,
       shuttlecockCost,
       totalCost,
-      // Freeze the fee that applied today — the cost pages read this back
-      // instead of whatever the club's current fee happens to be later.
+      // Freeze the pricing that applied today — the cost pages read these back
+      // instead of whatever the club's current values happen to be later.
       feePerPerson: settings?.feePerPerson ?? 0,
+      entryFee: settings?.entryFee ?? 95,
+      gameFee: settings?.gameFee ?? 25,
       status: "CLOSED",
       closedAt: new Date(),
     },

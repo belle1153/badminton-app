@@ -1,19 +1,19 @@
 import { prisma } from "@/lib/db";
-import { formatHours } from "@/lib/billing";
-import { buildCostRows, sessionPrices, type CostRow } from "@/lib/costing";
+import { buildCostRows, sessionFees, type CostRow } from "@/lib/costing";
 import { COST_SIGNUP_INCLUDE, costAttendees, finishedGameCount } from "@/lib/costReport";
 import { ictTodayMidnight, matchesWhen, parseWhen, weekStart } from "@/lib/lineWhen";
 
 /**
  * "สรุปค่าใช้จ่าย" over LINE — the same per-person bill the admin sees, posted
- * into the group.
+ * into the group. Bill = ค่าแรกเข้า + เกม × ค่าเกม; a no-show pays the flat fine.
  *
- * Numbers come from buildCostRows, exactly like the web page and the Excel
- * export, so there is one costing path and the three can never disagree.
+ * Numbers come from buildCostRows, exactly like the web page and the exports, so
+ * there is one costing path and they can never disagree. People already marked
+ * จ่ายแล้ว get a ✅; the footer totals whoever still owes, so the same message
+ * doubles as the "เรียกเก็บเงิน" reminder.
  *
  * Only CLOSED days are itemised: while a day is still open, people are still on
- * court and every figure moves (a player who left early temporarily carries the
- * whole last hour). An open day gets a short "รอปิดรอบก่อน" reply instead.
+ * court and the game counts move. An open day gets a short "รอปิดรอบก่อน" reply.
  */
 
 const BAHT = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -36,13 +36,15 @@ interface CostSessionLike {
 export function formatCostMessage(
   session: CostSessionLike,
   rows: CostRow[],
-  gamesPlayed: number
+  gamesPlayed: number,
+  entryFee: number,
+  gameFee: number
 ): string {
   const DIVIDER = "━━━━━━━━━━━━";
   const played = rows.filter((r) => !r.noShow);
   const noShows = rows.filter((r) => r.noShow);
   const line = (r: CostRow) =>
-    `${r.name} — ${BAHT(r.totalBaht)}฿ (${r.hours != null ? formatHours(r.hours) : "—"} ชม. · ${r.games} เกม)`;
+    `${r.paid ? "✅ " : ""}${r.name} — ${BAHT(r.totalBaht)}฿ (${r.games} เกม)`;
 
   const lines: string[] = [
     "💰 สรุปค่าใช้จ่าย",
@@ -63,19 +65,21 @@ export function formatCostMessage(
     lines.push(
       "",
       `🔴 ไม่มา (ปรับ ${BAHT(noShows[0].totalBaht)}฿)`,
-      ...noShows.map((r) => `${r.name} — ${BAHT(r.totalBaht)}฿`)
+      ...noShows.map((r) => `${r.paid ? "✅ " : ""}${r.name} — ${BAHT(r.totalBaht)}฿`)
     );
   }
 
-  const sum = (pick: (r: CostRow) => number) => rows.reduce((a, r) => a + pick(r), 0);
+  const sumTotal = rows.reduce((a, r) => a + r.totalBaht, 0);
+  const unpaid = rows.filter((r) => !r.paid);
+  const unpaidBaht = unpaid.reduce((a, r) => a + r.totalBaht, 0);
+
+  lines.push("", DIVIDER, `💵 รวมเก็บ ${BAHT(sumTotal)} ฿ · ${rows.length} คน`);
   lines.push(
-    "",
-    DIVIDER,
-    `💵 รวมเก็บ ${BAHT(sum((r) => r.totalBaht))} ฿ · ${rows.length} คน`,
-    `🏟 ค่าคอร์ท ${BAHT(sum((r) => r.courtBaht))} ฿ · 🏸 ค่าลูก ${BAHT(sum((r) => r.ballShareBaht))} ฿`,
-    DIVIDER,
-    "📌 ขั้นต่ำ 2 ชม. · ปัดครึ่งชม. (เผื่อ 15 นาที) · ค่าลูก = เกมละ 1 ลูก หาร 4 คน"
+    unpaid.length > 0
+      ? `🔴 ค้างจ่าย ${unpaid.length} คน · ${BAHT(unpaidBaht)} ฿`
+      : "✅ เก็บครบแล้ว"
   );
+  lines.push(DIVIDER, `📌 ค่าแรกเข้า ${BAHT(entryFee)}฿ + เกมละ ${BAHT(gameFee)}฿`);
 
   return lines.join("\n");
 }
@@ -84,7 +88,7 @@ export function formatCostMessage(
 export function openDayMessage(session: CostSessionLike): string {
   return [
     `🗓 ${dateLabel(session.date)}`,
-    "ยังไม่ปิดรอบครับ 🙏 ยอดค่าคอร์ทจะยังไม่นิ่งจนกว่าทุกคนจะเช็คเอาท์และแอดมินปิดรอบ",
+    "ยังไม่ปิดรอบครับ 🙏 ยอดจะยังไม่นิ่งจนกว่าทุกคนจะเช็คเอาท์และแอดมินปิดรอบ",
     "ปิดรอบแล้วพิมพ์ “สรุปค่าใช้จ่าย” อีกครั้งได้เลยครับ",
   ].join("\n");
 }
@@ -134,10 +138,7 @@ export async function costMessagesForText(text: string, now: Date = new Date()):
   // Oldest first, so จันทร์ is read before พุธ.
   matched = [...matched].sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  const [courtRates, shuttlecockTypes] = await Promise.all([
-    prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
-  ]);
+  const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
 
   const messages: string[] = [];
   for (const session of matched) {
@@ -145,20 +146,13 @@ export async function costMessagesForText(text: string, now: Date = new Date()):
       messages.push(openDayMessage(session));
       continue;
     }
-    const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
-    const { rows } = buildCostRows(
-      session,
-      costAttendees(session.signUps),
-      rate,
-      ballPrice,
-      // A closed day carries the fee it was actually charged at.
-      session.feePerPerson ?? 0
-    );
+    const { entryFee, gameFee } = sessionFees(session, settings);
+    const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee);
     if (rows.length === 0) {
       messages.push(`🗓 ${dateLabel(session.date)}\nไม่มีคนเช็คอินในรอบนี้ครับ`);
       continue;
     }
-    messages.push(formatCostMessage(session, rows, finishedGameCount(session.signUps)));
+    messages.push(formatCostMessage(session, rows, finishedGameCount(session.signUps), entryFee, gameFee));
   }
   return messages;
 }

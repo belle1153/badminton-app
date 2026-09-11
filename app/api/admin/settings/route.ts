@@ -14,9 +14,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
-  // Update whichever fields were sent — the QR image and the per-person fee are
-  // edited from different places in Master ข้อมูล.
-  const data: { qrImageDataUrl?: string; feePerPerson?: number } = {};
+  // Update whichever fields were sent — the QR image and the pricing are edited
+  // from different places in Master ข้อมูล.
+  const data: { qrImageDataUrl?: string; feePerPerson?: number; entryFee?: number; gameFee?: number } = {};
 
   if (body.qrImageDataUrl !== undefined) {
     if (typeof body.qrImageDataUrl !== "string" || !body.qrImageDataUrl.startsWith("data:image/")) {
@@ -31,6 +31,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ค่าธรรมเนียมไม่ถูกต้อง" }, { status: 400 });
     }
     data.feePerPerson = fee;
+  }
+
+  for (const key of ["entryFee", "gameFee"] as const) {
+    if (body[key] !== undefined) {
+      const v = Number(body[key]);
+      if (!Number.isInteger(v) || v < 0) {
+        return NextResponse.json({ error: "ราคาไม่ถูกต้อง" }, { status: 400 });
+      }
+      data[key] = v;
+    }
   }
 
   if (Object.keys(data).length === 0) {

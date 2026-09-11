@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { formatHours } from "@/lib/billing";
-import { buildCostRows, sessionPrices } from "@/lib/costing";
+import { buildCostRows, sessionFees } from "@/lib/costing";
+import { COST_SIGNUP_INCLUDE, costAttendees } from "@/lib/costReport";
 
 export const dynamic = "force-dynamic";
 
@@ -11,19 +11,18 @@ export default async function SessionCostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [session, settings, courtRates, shuttlecockTypes] = await Promise.all([
+  const [session, settings] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
       include: {
         signUps: {
           where: { status: { not: "WITHDRAWN" } },
-          include: { matchSlots: { include: { match: { select: { finishedAt: true } } } } },
+          include: COST_SIGNUP_INCLUDE,
+          orderBy: { name: "asc" },
         },
       },
     }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
-    prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
   if (!session) notFound();
@@ -32,48 +31,28 @@ export default async function SessionCostPage({
     return <p className="text-sm text-gray-500">ยังไม่ปิดยอด รอแอดมินปิดวันก่อนครับ</p>;
   }
 
-  // The day is closed, so bill the fee that was frozen onto it — not the club's
-  // current fee, which may have changed since. (Days closed before the fee
-  // existed have none, and charged none.)
-  const feePerPerson = session.feePerPerson ?? 0;
-  const { rate, ballPrice } = sessionPrices(session, courtRates, shuttlecockTypes);
-
-  // Charged per person on what they actually played — the same rows the admin
-  // sees, so the number here is the number they're asked for.
-  const { rows } = buildCostRows(
-    session,
-    // Everyone who signed up and didn't withdraw (the query drops WITHDRAWN).
-    // Never checked in or out = no-show, billed the flat fine — a สำรอง who
-    // signed up and didn't turn up owes it too, same as a confirmed seat.
-    session.signUps.map((s) => ({
-      id: s.id,
-      name: s.name,
-      timeSlot: s.timeSlot as "EARLY" | "LATE",
-      checkedOutAt: s.checkedOutAt,
-      gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
-      noShow: s.checkedInAt == null && s.checkedOutAt == null,
-    })),
-    rate,
-    ballPrice,
-    feePerPerson
-  );
+  // Closed day bills at the fees frozen onto it. Everyone who signed up and
+  // didn't withdraw is charged; a no-show (no check-in/out) pays the flat fine.
+  const { entryFee, gameFee } = sessionFees(session, settings);
+  const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee);
 
   const grandTotal = rows.reduce((sum, r) => sum + r.totalBaht, 0);
+  const unpaidBaht = rows.filter((r) => !r.paid).reduce((sum, r) => sum + r.totalBaht, 0);
 
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-semibold">สรุปค่าใช้จ่าย</h2>
 
       <div className="text-sm flex flex-col gap-1 rounded-md bg-gray-50 border border-gray-100 p-2.5">
-        <p>ค่าคอร์ททั้งวัน: {session.courtCost} บาท</p>
-        <p>ค่าลูกแบดทั้งวัน: {session.shuttlecockCost} บาท</p>
-        <p className="font-semibold pt-0.5">รวมเก็บ: {grandTotal} บาท ({rows.length} คน)</p>
+        <p className="font-semibold">รวมเก็บ: {grandTotal} บาท ({rows.length} คน)</p>
+        {unpaidBaht > 0 && <p className="text-red-600">ค้างจ่าย: {unpaidBaht} บาท</p>}
+        <p className="text-xs text-gray-400 pt-0.5">
+          (ต้นทุนสนามวันนี้ — ค่าคอร์ท {session.courtCost} ฿ · ค่าลูก {session.shuttlecockCost} ฿)
+        </p>
       </div>
 
       <p className="text-xs text-gray-400">
-        คิดตามที่เล่นจริง — ค่าคอร์ท = ค่าสนามแต่ละครึ่งชม. หารกับคนที่อยู่ช่วงนั้น (ขั้นต่ำ 2 ชม.
-        ปัดครึ่งชม. เผื่อ 15 นาที){rate > 0 && ` · เรท ${rate} ฿/ชม./สนาม`} · ค่าลูก = เกมที่เล่น ÷ 4 คน
-        {ballPrice > 0 && ` × ${ballPrice} ฿/ลูก`}
+        แต่ละคน = ค่าแรกเข้า {entryFee}฿ + ค่าเกม (เกมละ {gameFee}฿ × จำนวนเกม) · คนไม่มา ปรับ 100฿
       </p>
 
       {rows.length === 0 ? (
@@ -85,11 +64,11 @@ export default async function SessionCostPage({
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                 <th className="px-2 py-1.5 font-medium">ชื่อ</th>
                 <th className="px-2 py-1.5 font-medium">ช่วง</th>
-                <th className="px-2 py-1.5 font-medium text-right">ชม.</th>
                 <th className="px-2 py-1.5 font-medium text-right">เกม</th>
-                <th className="px-2 py-1.5 font-medium text-right">ค่าคอร์ท</th>
-                <th className="px-2 py-1.5 font-medium text-right">ค่าลูก</th>
+                <th className="px-2 py-1.5 font-medium text-right">ค่าแรกเข้า</th>
+                <th className="px-2 py-1.5 font-medium text-right">ค่าเกม</th>
                 <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
+                <th className="px-2 py-1.5 font-medium text-center">สถานะ</th>
               </tr>
             </thead>
             <tbody>
@@ -100,11 +79,17 @@ export default async function SessionCostPage({
                     {r.noShow && <span className="ml-1.5 text-amber-600 font-medium">ไม่มา</span>}
                   </td>
                   <td className="px-2 py-1.5 text-gray-500">{r.noShow ? "—" : r.slot}</td>
-                  <td className="px-2 py-1.5 text-right">{r.hours != null ? formatHours(r.hours) : "—"}</td>
                   <td className="px-2 py-1.5 text-right">{r.games}</td>
-                  <td className="px-2 py-1.5 text-right">{r.courtBaht}</td>
-                  <td className="px-2 py-1.5 text-right">{r.ballShareBaht}</td>
+                  <td className="px-2 py-1.5 text-right">{r.entryBaht || "—"}</td>
+                  <td className="px-2 py-1.5 text-right">{r.gameBaht}</td>
                   <td className="px-2 py-1.5 text-right font-semibold">{r.totalBaht}</td>
+                  <td className="px-2 py-1.5 text-center">
+                    {r.paid ? (
+                      <span className="text-green-700">จ่ายแล้ว</span>
+                    ) : (
+                      <span className="text-red-500">ค้าง</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

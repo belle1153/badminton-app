@@ -69,11 +69,10 @@ export default function CostImageExport({
       // Columns: [label, x, align]. Right-aligned columns give x as right edge.
       const cols: [string, number, CanvasTextAlign][] = [
         ["ชื่อ", pad, "left"],
-        ["เริ่ม", 272, "left"],
-        ["ชม.", 400, "right"],
-        ["เกม", 462, "right"],
-        ["ค่าคอร์ท", 600, "right"],
-        ["ค่าลูก", 716, "right"],
+        ["เริ่ม", 300, "left"],
+        ["เกม", 430, "right"],
+        ["ค่าแรกเข้า", 580, "right"],
+        ["ค่าเกม", 710, "right"],
         ["รวม (฿)", W - pad, "right"],
       ];
 
@@ -88,8 +87,8 @@ export default function CostImageExport({
       }
       y += headH;
 
-      let sumCourt = 0;
-      let sumBall = 0;
+      let sumEntry = 0;
+      let sumGame = 0;
       let sumTotal = 0;
       rows.forEach((r, i) => {
         if (i % 2 === 1) {
@@ -98,12 +97,11 @@ export default function CostImageExport({
         }
         const mid = y + rowH / 2;
         const cells: [string, number, CanvasTextAlign, string, number][] = [
-          [r.name, pad, "left", "#0f172a", 600],
-          [r.slot, 272, "left", "#64748b", 400],
-          [r.hours, 400, "right", "#0f172a", 400],
-          [String(r.games), 462, "right", "#0f172a", 400],
-          [`${r.courtBaht}${r.live ? " *" : ""}`, 600, "right", "#0f172a", 400],
-          [String(r.ballBaht), 716, "right", "#0f172a", 400],
+          [`${r.paid ? "✅ " : ""}${r.name}`, pad, "left", "#0f172a", 600],
+          [r.slot, 300, "left", "#64748b", 400],
+          [String(r.games), 430, "right", "#0f172a", 400],
+          [r.entryBaht ? String(r.entryBaht) : "—", 580, "right", "#0f172a", 400],
+          [`${r.gameBaht}${r.live ? " *" : ""}`, 710, "right", "#0f172a", 400],
           [String(r.totalBaht), W - pad, "right", "#0f172a", 700],
         ];
         for (const [text, x, align, color, weight] of cells) {
@@ -119,8 +117,8 @@ export default function CostImageExport({
         g.lineTo(W, y + rowH);
         g.stroke();
 
-        sumCourt += r.courtBaht;
-        sumBall += r.ballBaht;
+        sumEntry += r.entryBaht;
+        sumGame += r.gameBaht;
         sumTotal += r.totalBaht;
         y += rowH;
       });
@@ -134,8 +132,8 @@ export default function CostImageExport({
       g.textAlign = "left";
       g.fillText(`รวม ${rows.length} คน`, pad, tmid);
       g.textAlign = "right";
-      g.fillText(String(sumCourt), 600, tmid);
-      g.fillText(String(sumBall), 716, tmid);
+      g.fillText(String(sumEntry), 580, tmid);
+      g.fillText(String(sumGame), 710, tmid);
       g.font = font(700, 18);
       g.fillText(`${sumTotal} ฿`, W - pad, tmid);
       y += totalH;

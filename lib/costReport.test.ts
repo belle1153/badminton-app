@@ -20,6 +20,7 @@ const signUp = (over: Partial<CostSignUpLike>): CostSignUpLike => ({
   timeSlot: "EARLY",
   checkedInAt: new Date(),
   checkedOutAt: null,
+  paidAt: null,
   matchSlots: [],
   ...over,
 });
@@ -38,6 +39,11 @@ describe("costAttendees", () => {
   it("does not call a checked-out player a no-show", () => {
     const [a] = costAttendees([signUp({ checkedInAt: null, checkedOutAt: new Date() })]);
     expect(a.noShow).toBe(false);
+  });
+
+  it("reads the paid flag from paidAt", () => {
+    expect(costAttendees([signUp({ paidAt: new Date() })])[0].paid).toBe(true);
+    expect(costAttendees([signUp({ paidAt: null })])[0].paid).toBe(false);
   });
 });
 
@@ -58,31 +64,34 @@ const row = (over: Partial<CostRow>): CostRow => ({
   slot: "19.00",
   timeSlot: "EARLY",
   out: null,
-  hours: 2,
   games: 3,
-  courtBaht: 66,
-  ballShareBaht: 73.5,
-  totalBaht: 140,
+  entryBaht: 95,
+  gameBaht: 75,
+  totalBaht: 170,
   live: false,
   noShow: false,
+  paid: false,
   ...over,
 });
 
 describe("toExportRows", () => {
   it("tags a no-show in the name and the checkout column", () => {
-    const [r] = toExportRows([row({ noShow: true, hours: null })]);
+    const [r] = toExportRows([row({ noShow: true })]);
     expect(r.name).toBe("Alex (ไม่มา)");
     expect(r.out).toBe("ไม่มา");
-    expect(r.hours).toBe("—");
   });
 
   it("says ยังเล่นอยู่ for someone still on court", () => {
     expect(toExportRows([row({ live: true })])[0].out).toBe("ยังเล่นอยู่");
   });
+
+  it("carries the paid flag through", () => {
+    expect(toExportRows([row({ paid: true })])[0].paid).toBe(true);
+  });
 });
 
 describe("xlsxSheetRows", () => {
-  const sheet = xlsxSheetRows(toExportRows([row({}), row({ totalBaht: 100, games: 1 })]));
+  const sheet = xlsxSheetRows(toExportRows([row({}), row({ totalBaht: 100, games: 1, gameBaht: 25 })]));
 
   it("is header + body + totals", () => {
     expect(sheet).toHaveLength(4);
@@ -91,8 +100,8 @@ describe("xlsxSheetRows", () => {
 
   it("sums the money columns on the last row", () => {
     expect(sheet[3][0]).toBe("รวม 2 คน");
-    expect(sheet[3][4]).toBe(4); // games
-    expect(sheet[3][7]).toBe(240); // total baht
+    expect(sheet[3][3]).toBe(4); // games (3 + 1)
+    expect(sheet[3][6]).toBe(270); // total baht (170 + 100)
   });
 });
 
