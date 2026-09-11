@@ -12,6 +12,17 @@ const FOUNDING_WINDOW = 4;
 /** Hours on court that make a day count toward the อึด badges. */
 const LONG_DAY_HOURS = 3;
 
+/**
+ * Paying is "on time" if it lands by noon the day after play (Monday play →
+ * Tuesday 12:00, Wednesday → Thursday 12:00). Session dates are stored at UTC
+ * midnight of the local play day and 12:00 ICT is 05:00 UTC, so the cutoff is
+ * +29h. Drives the จ่ายตรงเวลา badge family.
+ */
+const ON_TIME_CUTOFF_MS = 29 * 3_600_000;
+function paidOnTime(paidAt: Date | null, sessionDate: Date): boolean {
+  return paidAt != null && paidAt.getTime() <= sessionDate.getTime() + ON_TIME_CUTOFF_MS;
+}
+
 export interface PlayerProgress {
   exp: ExpBreakdown;
   level: LevelProgress;
@@ -29,6 +40,8 @@ export interface PlayerProgress {
  */
 export interface ProgressSignUp {
   timeSlot: string;
+  /** When the admin marked this bill collected — drives the จ่ายตรงเวลา badge. */
+  paidAt: Date | null;
   session: { date: Date };
   matchSlots: {
     team: number;
@@ -131,6 +144,9 @@ export function buildPlayerProgress(
     d.lastFinishedAt ? hoursOnCourt(d.blockStartAt, d.lastFinishedAt) : 0
   );
   const gamesPlayed = days.reduce((n, d) => n + d.games, 0);
+  // Counted over every sign-up (a no-show still has a bill to pay on time), not
+  // just days with a finished game.
+  const onTimePayments = signUps.filter((s) => paidOnTime(s.paidAt, s.session.date)).length;
 
   const achievements = computeAchievements({
     gamesPlayed,
@@ -145,6 +161,7 @@ export function buildPlayerProgress(
     longDays: dayHours.filter((h) => h >= LONG_DAY_HOURS).length,
     bestDayPartners: days.reduce((n, d) => Math.max(n, d.partnerIds.length), 0),
     bestDayWinStreak: days.reduce((n, d) => Math.max(n, longestWinRun(d.results)), 0),
+    onTimePayments,
     isFoundingMember,
   });
 
@@ -182,6 +199,7 @@ export function loadClubPlayDays(): Promise<Date[]> {
 /** What both callers need to select for buildPlayerProgress to work. */
 export const PROGRESS_SIGNUP_SELECT = {
   timeSlot: true,
+  paidAt: true,
   session: { select: { date: true } },
   matchSlots: {
     select: {

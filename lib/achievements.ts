@@ -25,6 +25,8 @@ export interface AchievementContext {
   bestDayPartners: number;
   /** Longest run of consecutive wins within one day. */
   bestDayWinStreak: number;
+  /** Days the player paid their bill on time (by noon the day after play). */
+  onTimePayments: number;
   /** Played within the club's first FOUNDING_WINDOW recorded play-days. */
   isFoundingMember: boolean;
 }
@@ -104,6 +106,13 @@ const NUMERIC_DEFS: Def[] = [
 
   // ลูกเล่น
   { id: "diplomat", icon: "🎭", label: "นักการทูต — เกมเสมอ 10 ครั้ง", target: 10, metric: (c) => c.draws },
+
+  // จ่ายเงินตรงเวลา — จ่ายบิลภายในเที่ยงของวันถัดจากวันเล่น
+  { id: "ontime-1", icon: "🧾", label: "จ่ายตรงเวลาครั้งแรก", target: 1, metric: (c) => c.onTimePayments },
+  { id: "ontime-5", icon: "💵", label: "จ่ายตรงเวลา 5 ครั้ง", target: 5, metric: (c) => c.onTimePayments },
+  { id: "ontime-10", icon: "💰", label: "จ่ายตรงเวลา 10 ครั้ง", target: 10, metric: (c) => c.onTimePayments },
+  { id: "ontime-20", icon: "🏦", label: "จ่ายตรงเวลา 20 ครั้ง", target: 20, metric: (c) => c.onTimePayments },
+  { id: "ontime-30", icon: "👑", label: "จ่ายตรงเวลา 30 ครั้ง", target: 30, metric: (c) => c.onTimePayments },
 ];
 
 // Nothing here rewards checking out: only the admin can do that, so it would be

@@ -14,6 +14,7 @@ const ctx = (over: Partial<AchievementContext> = {}): AchievementContext => ({
   longDays: 0,
   bestDayPartners: 0,
   bestDayWinStreak: 0,
+  onTimePayments: 0,
   isFoundingMember: false,
   ...over,
 });
@@ -113,6 +114,19 @@ describe("computeAchievements", () => {
     const ids = computeAchievements(ctx()).map((a) => a.id);
     expect(ids).not.toContain("night-owl");
     expect(ids).not.toContain("court-explorer");
+  });
+
+  it("unlocks จ่ายตรงเวลา tiers by on-time payment count", () => {
+    const none = computeAchievements(ctx());
+    expect(byId(none, "ontime-1").earned).toBe(false);
+
+    const few = computeAchievements(ctx({ onTimePayments: 5 }));
+    expect(byId(few, "ontime-1").earned).toBe(true);
+    expect(byId(few, "ontime-5").earned).toBe(true);
+    expect(byId(few, "ontime-10").earned).toBe(false);
+
+    const many = computeAchievements(ctx({ onTimePayments: 30 }));
+    expect(byId(many, "ontime-30").earned).toBe(true);
   });
 
   it("นักการทูต now needs 10 draws, not 5", () => {

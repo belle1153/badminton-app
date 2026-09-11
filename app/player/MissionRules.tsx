@@ -46,6 +46,7 @@ export default function MissionRules() {
     longDays: 0,
     bestDayPartners: 0,
     bestDayWinStreak: 0,
+    onTimePayments: 0,
     isFoundingMember: false,
   });
 
