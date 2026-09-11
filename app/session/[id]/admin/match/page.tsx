@@ -38,6 +38,12 @@ export default async function SessionMatchPage({
 
   const confirmedSignUps = session.signUps.filter((s) => s.status === "CONFIRMED");
 
+  // Attendance at a glance, so the admin can size the courts. Checking someone
+  // out clears their check-in, so "อยู่" = checked in and not yet checked out.
+  const presentCount = session.signUps.filter((s) => s.checkedInAt != null && s.checkedOutAt == null).length;
+  const checkedOutCount = session.signUps.filter((s) => s.checkedOutAt != null).length;
+  const notArrivedCount = session.signUps.filter((s) => s.checkedInAt == null && s.checkedOutAt == null).length;
+
   const state = deriveCourtState(
     session.signUps.map((s) => ({
       id: s.id,
@@ -224,6 +230,25 @@ export default async function SessionMatchPage({
   return (
     <>
       {session.status === "OPEN" && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+          <span>
+            👥 ลงชื่อ <b>{session.signUps.length}</b> คน
+          </span>
+          <span className="text-green-700">
+            🟢 อยู่ <b>{presentCount}</b>
+          </span>
+          <span className="text-gray-500">
+            🏁 กลับแล้ว <b>{checkedOutCount}</b>
+          </span>
+          {notArrivedCount > 0 && (
+            <span className="text-amber-600">
+              ⏳ ยังไม่มา <b>{notArrivedCount}</b>
+            </span>
+          )}
+        </div>
+      )}
+
+      {session.status === "OPEN" && (
         <CourtCountEditor sessionId={id} courtsEarly={session.courtsEarly} courtsLate={session.courtsLate} />
       )}
 
@@ -245,17 +270,8 @@ export default async function SessionMatchPage({
         />
       )}
 
-      {session.status === "OPEN" && (
-        <UpcomingPlanner
-          sessionId={id}
-          candidates={candidates}
-          pendingPairs={pendingPairs}
-          pairHistory={pairHistory}
-          freeCourts={freeCts}
-          freeUnqueuedSignature={freeUnqueuedSignature}
-        />
-      )}
-
+      {/* คู่ซ้อมแข่ง (fixed-partner pairing) sits above คู่เตรียม — the admin
+          locks the day's fixed pairs before the queue fills. */}
       <MatchControls
         sessionId={id}
         status={session.status}
@@ -268,6 +284,17 @@ export default async function SessionMatchPage({
         }))}
         hasMatches={matches.length > 0}
       />
+
+      {session.status === "OPEN" && (
+        <UpcomingPlanner
+          sessionId={id}
+          candidates={candidates}
+          pendingPairs={pendingPairs}
+          pairHistory={pairHistory}
+          freeCourts={freeCts}
+          freeUnqueuedSignature={freeUnqueuedSignature}
+        />
+      )}
     </>
   );
 }
