@@ -71,8 +71,8 @@ export default function CostImageExport({
         ["ชื่อ", pad, "left"],
         ["เริ่ม", 300, "left"],
         ["เกม", 430, "right"],
-        ["ค่าแรกเข้า", 580, "right"],
-        ["ค่าเกม", 710, "right"],
+        ["ค่าสนาม", 580, "right"],
+        ["ค่าลูก", 710, "right"],
         ["รวม (฿)", W - pad, "right"],
       ];
 

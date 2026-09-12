@@ -24,7 +24,7 @@ export default async function SessionCostPage({
   const { id } = await params;
   if (!(await isAdmin())) return null; // layout renders the PIN gate
 
-  const [session, shuttlecockTypes, gamesPlayed, settings] = await Promise.all([
+  const [session, settings] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
       include: {
@@ -35,13 +35,11 @@ export default async function SessionCostPage({
         },
       },
     }),
-    prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
   if (!session) return null;
 
-  // Per-person bill = ค่าแรกเข้า + เกม × ค่าเกม (frozen at close, else current).
+  // Per-person bill = ค่าสนาม + เกม × ค่าลูก (frozen at close, else current).
   const { entryFee, gameFee } = sessionFees(session, settings);
   const attendees = costAttendees(session.signUps);
   // Everyone who signed up and didn't withdraw is billed. Someone with no
@@ -65,27 +63,12 @@ export default async function SessionCostPage({
 
   return (
     <>
-      <CostPanel
-        sessionId={id}
-        status={session.status}
-        shuttlecockTypes={shuttlecockTypes}
-        gamesPlayed={gamesPlayed}
-        defaultShuttlecockTypeId={session.shuttlecockTypeId}
-        closedSummary={
-          session.status === "CLOSED"
-            ? {
-                courtCost: session.courtCost,
-                shuttlecockCost: session.shuttlecockCost,
-                totalCost: session.totalCost,
-              }
-            : null
-        }
-      />
+      <CostPanel sessionId={id} status={session.status} />
 
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">สรุปรายคน (วันนี้)</h2>
         <p className="text-xs text-gray-400">
-          แต่ละคน = ค่าแรกเข้า {entryFee}฿ + ค่าเกม (เกมละ {gameFee}฿ × จำนวนเกมที่เล่นจบ) · คนไม่มา
+          แต่ละคน = ค่าสนาม {entryFee}฿ + ค่าลูก (เกมละ {gameFee}฿ × จำนวนเกมที่เล่นจบ) · คนไม่มา
           ปรับ 100฿ · ติ๊ก &quot;จ่ายแล้ว&quot; เมื่อเก็บเงินหน้างาน คนที่ยังไม่ติ๊กจะขึ้นยอดค้างในไลน์
         </p>
 
@@ -104,7 +87,7 @@ export default async function SessionCostPage({
               venue={session.venue}
               dateLabel={costDateLabel(session.date)}
               rows={toExportRows(rows)}
-              note={`* ยังเล่นอยู่ = จำนวนเกมยังไม่นิ่ง · ค่าแรกเข้า ${entryFee}฿ + เกมละ ${gameFee}฿ · คนไม่มา ปรับ 100฿`}
+              note={`* ยังเล่นอยู่ = จำนวนเกมยังไม่นิ่ง · ค่าสนาม ${entryFee}฿ + เกมละ ${gameFee}฿ · คนไม่มา ปรับ 100฿`}
             />
             {/* A plain link, not an in-browser build: phones refuse to save a
                 blob download, so the file comes from the server instead. */}

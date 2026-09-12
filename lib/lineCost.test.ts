@@ -56,7 +56,7 @@ describe("formatCostMessage", () => {
   it("totals everyone and flags the outstanding balance", () => {
     expect(text).toContain("💵 รวมเก็บ 415 ฿ · 3 คน");
     expect(text).toContain("🔴 ค้างจ่าย 3 คน · 415 ฿");
-    expect(text).toContain("📌 ค่าแรกเข้า 95฿ + เกมละ 25฿");
+    expect(text).toContain("📌 ค่าสนาม 95฿ + เกมละ 25฿");
   });
 
   it("ticks people already marked จ่ายแล้ว and drops them from the outstanding total", () => {

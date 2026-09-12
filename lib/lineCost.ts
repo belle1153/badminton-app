@@ -5,7 +5,7 @@ import { ictTodayMidnight, matchesWhen, parseWhen, weekStart } from "@/lib/lineW
 
 /**
  * "สรุปค่าใช้จ่าย" over LINE — the same per-person bill the admin sees, posted
- * into the group. Bill = ค่าแรกเข้า + เกม × ค่าเกม; a no-show pays the flat fine.
+ * into the group. Bill = ค่าสนาม + เกม × ค่าลูก; a no-show pays the flat fine.
  *
  * Numbers come from buildCostRows, exactly like the web page and the exports, so
  * there is one costing path and they can never disagree. People already marked
@@ -79,7 +79,7 @@ export function formatCostMessage(
       ? `🔴 ค้างจ่าย ${unpaid.length} คน · ${BAHT(unpaidBaht)} ฿`
       : "✅ เก็บครบแล้ว"
   );
-  lines.push(DIVIDER, `📌 ค่าแรกเข้า ${BAHT(entryFee)}฿ + เกมละ ${BAHT(gameFee)}฿`);
+  lines.push(DIVIDER, `📌 ค่าสนาม ${BAHT(entryFee)}฿ + เกมละ ${BAHT(gameFee)}฿`);
 
   return lines.join("\n");
 }

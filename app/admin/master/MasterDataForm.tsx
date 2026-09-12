@@ -3,26 +3,16 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface ShuttlecockType {
-  id: string;
-  name: string;
-  pricePerPiece: number;
-}
-
 export default function MasterDataForm({
-  shuttlecockTypes,
   qrImageDataUrl,
   entryFee,
   gameFee,
 }: {
-  shuttlecockTypes: ShuttlecockType[];
   qrImageDataUrl: string | null;
   entryFee: number;
   gameFee: number;
 }) {
   const router = useRouter();
-  const [shuttleName, setShuttleName] = useState("");
-  const [shuttlePrice, setShuttlePrice] = useState("");
   const [entry, setEntry] = useState(String(entryFee));
   const [game, setGame] = useState(String(gameFee));
   const [priceMsg, setPriceMsg] = useState<string | null>(null);
@@ -42,28 +32,6 @@ export default function MasterDataForm({
     const data = await res.json();
     if (!res.ok) return setError(data.error ?? "บันทึกไม่สำเร็จ");
     setPriceMsg("บันทึกแล้ว");
-    router.refresh();
-  }
-
-  async function addShuttlecock(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    const res = await fetch("/api/admin/shuttlecocks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: shuttleName, pricePerPiece: shuttlePrice }),
-    });
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "เพิ่มไม่สำเร็จ");
-    setShuttleName("");
-    setShuttlePrice("");
-    router.refresh();
-  }
-
-  async function deleteShuttlecock(id: string) {
-    const res = await fetch(`/api/admin/shuttlecocks/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) return setError(data.error ?? "ลบไม่สำเร็จ");
     router.refresh();
   }
 
@@ -92,53 +60,14 @@ export default function MasterDataForm({
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       <section className="flex flex-col gap-2">
-        <h2 className="font-semibold">ลูกแบด (บาท/ลูก)</h2>
-        <ul className="flex flex-col gap-1">
-          {shuttlecockTypes.map((s) => (
-            <li key={s.id} className="flex items-center justify-between text-sm border-b border-gray-100 py-1">
-              <span>
-                {s.name} — {s.pricePerPiece} บาท/ลูก
-              </span>
-              <button onClick={() => deleteShuttlecock(s.id)} className="text-xs text-red-600 hover:underline">
-                ลบ
-              </button>
-            </li>
-          ))}
-          {shuttlecockTypes.length === 0 && <li className="text-sm text-gray-400">ยังไม่มีข้อมูล</li>}
-        </ul>
-        <form onSubmit={addShuttlecock} className="flex gap-2">
-          <input
-            placeholder="ชื่อ เช่น Yonex AS-50"
-            value={shuttleName}
-            onChange={(e) => setShuttleName(e.target.value)}
-            className="input flex-1"
-            required
-          />
-          <input
-            type="number"
-            min={0}
-            placeholder="บาท/ลูก"
-            value={shuttlePrice}
-            onChange={(e) => setShuttlePrice(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            className="input w-28"
-            required
-          />
-          <button type="submit" className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700">
-            เพิ่ม
-          </button>
-        </form>
-      </section>
-
-      <section className="flex flex-col gap-2">
         <h2 className="font-semibold">ราคาเก็บรายคน</h2>
         <p className="text-xs text-gray-400">
-          แต่ละคนจ่าย = <strong>ค่าแรกเข้า</strong> + (<strong>ค่าเกม</strong> × จำนวนเกมที่เล่นจบ) ·
+          แต่ละคนจ่าย = <strong>ค่าสนาม</strong> + (<strong>ค่าลูก</strong> × จำนวนเกมที่เล่นจบ) ·
           ปรับได้ตลอด ใช้ค่าล่าสุดกับวันที่ยังไม่ปิด (วันปิดแล้วล็อกราคาที่ใช้ตอนนั้นไว้)
         </p>
         <form onSubmit={savePricing} className="flex flex-wrap gap-3 items-end">
           <label className="flex flex-col gap-1 text-sm text-gray-600">
-            ค่าแรกเข้า (บาท)
+            ค่าสนาม / ค่าแรกเข้า (บาท)
             <input
               type="number"
               min={0}
@@ -150,7 +79,7 @@ export default function MasterDataForm({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-gray-600">
-            ค่าเกม (บาท/เกม)
+            ค่าลูก / ค่าเกม (บาท/เกม)
             <input
               type="number"
               min={0}

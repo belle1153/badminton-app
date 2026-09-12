@@ -46,11 +46,10 @@ export default async function SessionCostPage({
       <div className="text-sm flex flex-col gap-1 rounded-md bg-gray-50 border border-gray-100 p-2.5">
         <p className="font-semibold">รวมเก็บ: {grandTotal} บาท ({rows.length} คน)</p>
         {unpaidBaht > 0 && <p className="text-red-600">ค้างจ่าย: {unpaidBaht} บาท</p>}
-        <p className="text-xs text-gray-400 pt-0.5">(ต้นทุนค่าลูกวันนี้ {session.shuttlecockCost} ฿)</p>
       </div>
 
       <p className="text-xs text-gray-400">
-        แต่ละคน = ค่าแรกเข้า {entryFee}฿ + ค่าเกม (เกมละ {gameFee}฿ × จำนวนเกม) · คนไม่มา ปรับ 100฿
+        แต่ละคน = ค่าสนาม {entryFee}฿ + ค่าลูก (เกมละ {gameFee}฿ × จำนวนเกม) · คนไม่มา ปรับ 100฿
       </p>
 
       {rows.length === 0 ? (
@@ -63,8 +62,8 @@ export default async function SessionCostPage({
                 <th className="px-2 py-1.5 font-medium">ชื่อ</th>
                 <th className="px-2 py-1.5 font-medium">ช่วง</th>
                 <th className="px-2 py-1.5 font-medium text-right">เกม</th>
-                <th className="px-2 py-1.5 font-medium text-right">ค่าแรกเข้า</th>
-                <th className="px-2 py-1.5 font-medium text-right">ค่าเกม</th>
+                <th className="px-2 py-1.5 font-medium text-right">ค่าสนาม</th>
+                <th className="px-2 py-1.5 font-medium text-right">ค่าลูก</th>
                 <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
                 <th className="px-2 py-1.5 font-medium text-center">สถานะ</th>
               </tr>

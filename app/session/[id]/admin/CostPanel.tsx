@@ -3,60 +3,30 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface ShuttlecockType {
-  id: string;
-  name: string;
-  pricePerPiece: number;
-}
-
-interface ClosedSummary {
-  courtCost: number | null;
-  shuttlecockCost: number | null;
-  totalCost: number | null;
-}
-
 /**
- * Closing the day freezes the club's own cost record — the shuttlecocks used
- * (finished games × price). Players are billed separately (flat entry + per-game
- * fee); court rent is not tracked here.
+ * Close / reopen the day. Closing locks the day and reveals the per-person bill
+ * (flat entry + per-game fee) to players; it carries no cost figures of its own
+ * anymore — the club doesn't track court or ball cost in the app.
  */
 export default function CostPanel({
   sessionId,
   status,
-  shuttlecockTypes,
-  gamesPlayed,
-  defaultShuttlecockTypeId,
-  closedSummary,
 }: {
   sessionId: string;
   status: "OPEN" | "CLOSED";
-  shuttlecockTypes: ShuttlecockType[];
-  /** Finished games so far — 1 ball per game, so ball cost = games × price. */
-  gamesPlayed: number;
-  defaultShuttlecockTypeId: string | null;
-  closedSummary: ClosedSummary | null;
 }) {
   const router = useRouter();
   const isClosed = status === "CLOSED";
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [shuttlecockTypeId, setShuttlecockTypeId] = useState(
-    defaultShuttlecockTypeId ?? shuttlecockTypes[0]?.id ?? ""
-  );
-
-  const selectedShuttle = shuttlecockTypes.find((s) => s.id === shuttlecockTypeId);
-  const previewShuttleCost = selectedShuttle ? selectedShuttle.pricePerPiece * gamesPlayed : 0;
 
   async function handleClose() {
+    if (!confirm("ปิดวันนี้? ผู้เล่นจะเห็นยอดที่ต้องจ่าย")) return;
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/close`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shuttlecockTypeId }),
-      });
+      const res = await fetch(`/api/sessions/${sessionId}/close`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "ปิดวันไม่สำเร็จ");
       router.refresh();
@@ -68,7 +38,7 @@ export default function CostPanel({
   }
 
   async function handleReopen() {
-    if (!confirm("เปิดวันนี้อีกครั้ง? ยอดที่คำนวณไว้จะถูกล้าง")) return;
+    if (!confirm("เปิดวันนี้อีกครั้ง? ยอดจะกลับไปแก้ไขได้")) return;
     setError(null);
     setLoading(true);
     try {
@@ -85,14 +55,12 @@ export default function CostPanel({
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="font-semibold">ค่าใช้จ่าย{isClosed ? " (ปิดวันแล้ว)" : " & ปิดวัน"}</h2>
+      <h2 className="font-semibold">ปิดวัน{isClosed ? " (ปิดแล้ว)" : ""}</h2>
       {error && <p className="text-red-600 text-sm">{error}</p>}
 
       {isClosed ? (
-        <div className="text-sm flex flex-col gap-2">
-          {(closedSummary?.courtCost ?? 0) > 0 && <p>ค่าคอร์ท: {closedSummary?.courtCost} บาท</p>}
-          <p>ค่าลูกแบด: {closedSummary?.shuttlecockCost} บาท</p>
-          <p className="font-semibold">รวม: {closedSummary?.totalCost} บาท</p>
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="text-gray-500">ปิดวันแล้ว — ผู้เล่นเห็นยอดที่ต้องจ่ายในหน้าค่าใช้จ่ายแล้ว</p>
           <button
             onClick={handleReopen}
             disabled={loading}
@@ -101,46 +69,17 @@ export default function CostPanel({
             {loading ? "กำลังเปิด..." : "เปิดวันอีกครั้ง"}
           </button>
         </div>
-      ) : shuttlecockTypes.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          ยังไม่มีข้อมูลลูกแบด ไปเพิ่มที่{" "}
-          <a href="/admin/master" className="text-brand-700 hover:underline">
-            หน้า Master ข้อมูล
-          </a>{" "}
-          ก่อนครับ
-        </p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <p className="text-xs text-gray-400">
-            ต้นทุนก๊วน = ค่าลูกแบด (จำนวนลูกดึงจากเกมที่เล่นจบ) — เลือกแค่รุ่นลูกที่ใช้
+            ปิดวันเพื่อล็อกยอด — หลังปิด ผู้เล่นจะเห็นยอดรายคน (ค่าสนาม + ค่าลูก) และยอดค้างในไลน์
           </p>
-          <label className="text-sm text-gray-600 flex flex-col gap-1">
-            ลูกแบด
-            <select
-              value={shuttlecockTypeId}
-              onChange={(e) => setShuttlecockTypeId(e.target.value)}
-              className="input"
-            >
-              {shuttlecockTypes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.pricePerPiece} บาท/ลูก)
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="text-sm text-gray-600 rounded-md bg-gray-50 border border-gray-100 p-2.5 flex flex-col gap-0.5">
-            <p>
-              ค่าลูกแบด: {selectedShuttle?.pricePerPiece ?? 0} × {gamesPlayed} เกม ={" "}
-              <span className="font-medium">{previewShuttleCost}</span> บาท
-            </p>
-            <p className="font-semibold pt-0.5">รวม: {previewShuttleCost} บาท</p>
-          </div>
           <button
             onClick={handleClose}
             disabled={loading}
             className="rounded-md bg-red-600 text-white px-4 py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50 self-start"
           >
-            {loading ? "กำลังปิดวัน..." : "คำนวณและปิดวัน"}
+            {loading ? "กำลังปิดวัน..." : "ปิดวัน"}
           </button>
         </div>
       )}

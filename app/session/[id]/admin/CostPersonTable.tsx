@@ -78,8 +78,8 @@ export default function CostPersonTable({
               <th className="px-2 py-1.5 font-medium">เริ่ม</th>
               <th className="px-2 py-1.5 font-medium">เช็คเอาท์</th>
               <th className="px-2 py-1.5 font-medium text-right">เกม</th>
-              <th className="px-2 py-1.5 font-medium text-right">ค่าแรกเข้า</th>
-              <th className="px-2 py-1.5 font-medium text-right">ค่าเกม</th>
+              <th className="px-2 py-1.5 font-medium text-right">ค่าสนาม</th>
+              <th className="px-2 py-1.5 font-medium text-right">ค่าลูก</th>
               <th className="px-2 py-1.5 font-medium text-right">รวม (฿)</th>
               <th className="px-2 py-1.5 font-medium text-center">จ่ายแล้ว</th>
             </tr>
