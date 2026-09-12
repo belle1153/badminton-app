@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { courtCostByPerson } from "@/lib/billing";
-import { buildCostRows, sessionPrices, sessionFees } from "@/lib/costing";
+import { buildCostRows, sessionFees } from "@/lib/costing";
 import {
   COST_SIGNUP_INCLUDE,
   costAttendees,
@@ -25,7 +24,7 @@ export default async function SessionCostPage({
   const { id } = await params;
   if (!(await isAdmin())) return null; // layout renders the PIN gate
 
-  const [session, courtRates, shuttlecockTypes, gamesPlayed, settings] = await Promise.all([
+  const [session, shuttlecockTypes, gamesPlayed, settings] = await Promise.all([
     prisma.session.findUnique({
       where: { id },
       include: {
@@ -36,7 +35,6 @@ export default async function SessionCostPage({
         },
       },
     }),
-    prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
@@ -50,17 +48,6 @@ export default async function SessionCostPage({
   // check-in and no check-out never came = no-show, shown ไม่มา and charged the
   // flat fine — a waitlist sign-up who didn't turn up owes it just the same.
   const { rows } = buildCostRows(attendees, entryFee, gameFee);
-
-  // What the club itself owes the venue (court rent + shuttlecocks) is a
-  // separate record, previewed/frozen by CostPanel. courtHourUnits = Σ (open
-  // courts × block-hours) actually played; no-shows never took a court.
-  const { rate } = sessionPrices(session, courtRates, shuttlecockTypes);
-  const { units: courtHourUnits } = courtCostByPerson(
-    session,
-    attendees.filter((a) => !a.noShow).map((a) => ({ id: a.id, timeSlot: a.timeSlot, checkedOutAt: a.checkedOutAt })),
-    rate,
-    new Date()
-  );
 
   const tableRows = rows.map((r) => ({
     id: r.id,
@@ -81,11 +68,8 @@ export default async function SessionCostPage({
       <CostPanel
         sessionId={id}
         status={session.status}
-        courtRates={courtRates}
         shuttlecockTypes={shuttlecockTypes}
-        courtHourUnits={courtHourUnits}
         gamesPlayed={gamesPlayed}
-        defaultCourtRateId={session.courtRateId}
         defaultShuttlecockTypeId={session.shuttlecockTypeId}
         closedSummary={
           session.status === "CLOSED"

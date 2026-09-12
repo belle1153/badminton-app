@@ -46,9 +46,7 @@ export default async function SessionCostPage({
       <div className="text-sm flex flex-col gap-1 rounded-md bg-gray-50 border border-gray-100 p-2.5">
         <p className="font-semibold">รวมเก็บ: {grandTotal} บาท ({rows.length} คน)</p>
         {unpaidBaht > 0 && <p className="text-red-600">ค้างจ่าย: {unpaidBaht} บาท</p>}
-        <p className="text-xs text-gray-400 pt-0.5">
-          (ต้นทุนสนามวันนี้ — ค่าคอร์ท {session.courtCost} ฿ · ค่าลูก {session.shuttlecockCost} ฿)
-        </p>
+        <p className="text-xs text-gray-400 pt-0.5">(ต้นทุนค่าลูกวันนี้ {session.shuttlecockCost} ฿)</p>
       </div>
 
       <p className="text-xs text-gray-400">

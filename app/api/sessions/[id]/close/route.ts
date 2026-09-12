@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { courtCostByPerson, parseCourtHourCosts } from "@/lib/billing";
 
 /**
- * Close the day and freeze the totals. Everything is derived from actual play:
- * court cost = rate × Σ (open courts × block-hours) the group actually used,
- * ball cost = finished games × price (1 ball per game). The admin only picks
- * which rate / ball price applied.
+ * Close the day and freeze the totals. Players are billed a flat entry + per-game
+ * fee (frozen here so a closed day reads back exactly as charged); the club's own
+ * cost record is the shuttlecocks used — finished games × price. Court rent is no
+ * longer tracked in the app.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) {
@@ -16,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const { courtRateId, shuttlecockTypeId } = body;
+  const { shuttlecockTypeId } = body;
 
   const session = await prisma.session.findUnique({ where: { id } });
   if (!session) {
@@ -26,46 +25,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "รอบนี้ปิดไปแล้ว" }, { status: 400 });
   }
 
-  const [courtRate, shuttlecockType, signUps, gamesPlayed, settings] = await Promise.all([
-    prisma.courtRate.findUnique({ where: { id: courtRateId } }),
+  const [shuttlecockType, gamesPlayed, settings] = await Promise.all([
     prisma.shuttlecockType.findUnique({ where: { id: shuttlecockTypeId } }),
-    prisma.signUp.findMany({
-      where: { sessionId: id, status: { not: "WITHDRAWN" } },
-      select: { id: true, timeSlot: true, checkedInAt: true, checkedOutAt: true },
-    }),
     prisma.match.count({ where: { sessionId: id, finishedAt: { not: null } } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
 
-  if (!courtRate || !shuttlecockType) {
-    return NextResponse.json({ error: "ข้อมูลค่าคอร์ท/ลูกแบดไม่ถูกต้อง" }, { status: 400 });
+  if (!shuttlecockType) {
+    return NextResponse.json({ error: "ข้อมูลลูกแบดไม่ถูกต้อง" }, { status: 400 });
   }
 
-  const attendees = signUps
-    .filter((s) => s.checkedInAt != null || s.checkedOutAt != null)
-    .map((s) => ({ id: s.id, timeSlot: s.timeSlot, checkedOutAt: s.checkedOutAt }));
-
-  const { total } = courtCostByPerson(
-    session,
-    attendees,
-    courtRate.pricePerHour,
-    new Date(),
-    parseCourtHourCosts(session.courtHourCosts)
-  );
-  const courtCost = Math.round(total);
   const shuttlecockCost = shuttlecockType.pricePerPiece * gamesPlayed;
-  const totalCost = courtCost + shuttlecockCost;
 
   const updated = await prisma.session.update({
     where: { id },
     data: {
-      courtRateId,
-      courtHours: total / (courtRate.pricePerHour || 1), // court·hour units, for the record
       shuttlecockTypeId,
       shuttlecockQty: gamesPlayed,
-      courtCost,
+      // Court rent is no longer tracked — the per-person bill covers it.
+      courtRateId: null,
+      courtHours: 0,
+      courtCost: 0,
       shuttlecockCost,
-      totalCost,
+      totalCost: shuttlecockCost,
       // Freeze the pricing that applied today — the cost pages read these back
       // instead of whatever the club's current values happen to be later.
       feePerPerson: settings?.feePerPerson ?? 0,

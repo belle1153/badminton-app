@@ -8,8 +8,7 @@ export default async function MasterDataPage() {
     redirect("/admin/login");
   }
 
-  const [courtRates, shuttlecockTypes, settings] = await Promise.all([
-    prisma.courtRate.findMany({ orderBy: { createdAt: "asc" } }),
+  const [shuttlecockTypes, settings] = await Promise.all([
     prisma.shuttlecockType.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
   ]);
@@ -18,7 +17,6 @@ export default async function MasterDataPage() {
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
       <h1 className="text-xl font-bold">Master ข้อมูล (ค่าใช้จ่าย)</h1>
       <MasterDataForm
-        courtRates={courtRates}
         shuttlecockTypes={shuttlecockTypes}
         qrImageDataUrl={settings?.qrImageDataUrl ?? null}
         entryFee={settings?.entryFee ?? 95}
