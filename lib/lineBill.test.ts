@@ -9,7 +9,7 @@ describe("formatBillMessages", () => {
   const text = formatBillMessages(debts).join("\n");
 
   it("heads with the bill title", () => {
-    expect(text).toContain("🧾 เรียกเก็บเงิน");
+    expect(text).toContain("น้องหมีขอวางบิลครับ");
   });
 
   it("gives each person their running total", () => {

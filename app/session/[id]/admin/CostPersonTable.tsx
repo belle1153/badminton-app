@@ -38,6 +38,10 @@ export default function CostPersonTable({
   const isPaid = (r: CostTableRow) => paidOverlay.get(r.id) ?? r.paid;
 
   async function togglePaid(id: string, paid: boolean) {
+    // Un-ticking reverses a collected bill back to ยอดค้าง — the box is easy to
+    // brush by accident, so confirm before undoing it. (Controlled checkbox, so
+    // returning here leaves it ticked.)
+    if (!paid && !confirm('เปลี่ยนสถานะเป็น "ค้างจ่าย" ใช่ไหมครับ?')) return;
     setPaidOverlay((m) => new Map(m).set(id, paid));
     setPending(id);
     try {

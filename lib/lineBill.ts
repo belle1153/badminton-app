@@ -17,13 +17,21 @@ const BAHT = (n: number) => Math.round(n).toLocaleString("en-US");
 const DIVIDER = "━━━━━━━━━━━━";
 /** How far back "2 อาทิตย์ล่าสุด" reaches. */
 const WINDOW_DAYS = 14;
+/**
+ * The paid-tracking system went live on Mon 14 Sep 2026. Session dates are
+ * stored as the day BEFORE the played weekday, so that Monday is stored as Sun
+ * 13 Sep. Nothing before it has paid data, so it must never show as outstanding.
+ */
+const BILLING_START = Date.UTC(2026, 8, 13);
 /** Stay well under LINE's 5000-char per-message limit when packing people. */
 const MAX_CHARS = 4500;
 
-/** "จ 4/8" — Thai weekday initial + day/month, from the UTC-midnight date. */
+/** "จ 14/9" — Thai weekday initial + day/month. Session dates are stored a day
+ *  before the played weekday, so add a day to show the real Mon/Wed date. */
 function shortDay(date: Date): string {
-  const wd = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"][date.getUTCDay()];
-  return `${wd} ${date.getUTCDate()}/${date.getUTCMonth() + 1}`;
+  const d = new Date(date.getTime() + 86_400_000);
+  const wd = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"][d.getUTCDay()];
+  return `${wd} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 }
 
 export interface Debt {
@@ -43,7 +51,7 @@ export function formatBillMessages(debts: Debt[]): string[] {
   const people = [...debts].sort((a, b) => a.name.localeCompare(b.name, "th"));
   const grand = people.reduce((n, d) => n + d.total, 0);
 
-  const header = "🧾 เรียกเก็บเงิน (ค้าง 2 อาทิตย์ล่าสุด)";
+  const header = "น้องหมีขอวางบิลครับ อย่าลืมเคลียร์บิลวันต่อวันนะครับทุกคน🐻 💸";
   const footer = `${DIVIDER}\nรวมค้าง ${people.length} คน · ${BAHT(grand)}฿`;
   const blocks = people.map((d) => {
     const lines = [`👤 ${d.name} — ค้าง ${BAHT(d.total)}฿`];
@@ -75,7 +83,8 @@ export function formatBillMessages(debts: Debt[]): string[] {
 /** Everyone's outstanding tab over the last two weeks, ready to post to LINE. */
 export async function outstandingBillMessages(now: Date = new Date()): Promise<string[]> {
   const today = ictTodayMidnight(now);
-  const from = new Date(today.getTime() - WINDOW_DAYS * 86_400_000);
+  // Last two weeks, but never before the system went live.
+  const from = new Date(Math.max(today.getTime() - WINDOW_DAYS * 86_400_000, BILLING_START));
 
   const [sessions, settings] = await Promise.all([
     prisma.session.findMany({

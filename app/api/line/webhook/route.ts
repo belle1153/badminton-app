@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rosterMessagesForText } from "@/lib/lineRoster";
-import { costMessagesForText } from "@/lib/lineCost";
 import { outstandingBillMessages } from "@/lib/lineBill";
 import { withdrawFromLine } from "@/lib/lineWithdraw";
 import { verifyLineSignature } from "@/lib/lineSignature";
@@ -19,11 +18,8 @@ import { verifyLineSignature } from "@/lib/lineSignature";
  * - "รายชื่อ" (or "เช็คชื่อ" / "list") → the bot replies with the nearest
  *   upcoming day's roster; add a day (จันทร์ / พุธ …) or a date number (20) and
  *   it replies just that day. Otherwise it stays quiet.
- * - "สรุปค่าใช้จ่าย" → the per-person bill, looking BACKWARDS: bare keyword =
- *   every day already played this week (both จันทร์ and พุธ from Thursday on),
- *   or name a day / date ("วันจันทร์", "10/08/2026", "วันจันทร์ที่ 10").
- * - "เก็บเงิน" / "วางบิล" / "เคลียร์บิล" → everyone's running unpaid tab over the
- *   last two weeks, one line per person (the whole collection sheet).
+ * - "น้องหมีวางบิล" → everyone's running unpaid tab over the last two weeks, one
+ *   line per person (the whole collection sheet).
  * - Logs the source id of every event (find a new group id in the Vercel logs).
  *   Set LINE_ECHO_ID=1 temporarily to have it reply the id in chat, then unset.
  *
@@ -31,10 +27,8 @@ import { verifyLineSignature } from "@/lib/lineSignature";
  */
 const REPLY_URL = "https://api.line.me/v2/bot/message/reply";
 const ROSTER_KEYWORDS = ["รายชื่อ", "เช็คชื่อ", "list"];
-const COST_KEYWORDS = ["สรุปค่าใช้จ่าย", "ค่าใช้จ่าย", "สรุปเงิน", "ยอดจ่าย"];
-// Everyone's running unpaid tab over the last two weeks (one line per person),
-// vs COST_KEYWORDS which itemises a single day.
-const BILL_KEYWORDS = ["เก็บเงิน", "วางบิล", "เคลียร์บิล", "น้องหมีวางบิล"];
+// Everyone's running unpaid tab (one line per person) over the last two weeks.
+const BILL_KEYWORDS = ["น้องหมีวางบิล"];
 
 async function reply(replyToken: string, token: string, texts: string[]) {
   try {
@@ -113,18 +107,10 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    // "เก็บเงิน" / "วางบิล" → everyone's running unpaid tab (last 2 weeks). No
-    // day argument — it's always the whole outstanding list.
+    // "น้องหมีวางบิล" → everyone's running unpaid tab (last 2 weeks). No day
+    // argument — it's always the whole outstanding list.
     if (BILL_KEYWORDS.some((k) => text.includes(k))) {
       await reply(event.replyToken, token, await outstandingBillMessages());
-      continue;
-    }
-
-    // "สรุปค่าใช้จ่าย" → the per-person bill for a day that has been played.
-    // Checked before the roster keyword: a cost message can name a day too, and
-    // this is the more specific request.
-    if (COST_KEYWORDS.some((k) => text.includes(k))) {
-      await reply(event.replyToken, token, await costMessagesForText(text));
       continue;
     }
 
