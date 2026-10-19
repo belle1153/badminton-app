@@ -5,14 +5,13 @@ import QuestBoard from "./QuestBoard";
 export const dynamic = "force-dynamic";
 
 /**
- * Top 10 by EXP, with the first three on a podium.
+ * Everyone with EXP, ranked, with the first three on a podium.
  *
- * Ten places, not the whole club: a full table mostly tells the other twenty-odd
- * people how far down they are, which is the opposite of what this is for.
+ * The whole club, not a top 10: members asked to see where they stand even
+ * when it's further down the list.
  *
  * Shares the player profile's retro treatment — it's the same reward world.
  */
-const TOP_PLACES = 10;
 
 /** Podium metals, tallest block first. Deliberately not the rank colours: a
  *  podium reads as gold/silver/bronze regardless of anyone's level. */
@@ -55,7 +54,7 @@ function Avatar({
 }
 
 export default async function LeaderboardPage() {
-  const top = await loadLeaderboard(TOP_PLACES);
+  const top = await loadLeaderboard();
 
   // Everyone who holds each of the top three places — a tie puts two or more
   // people on the same block rather than pushing one of them off it.
@@ -92,7 +91,7 @@ export default async function LeaderboardPage() {
 
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-bold text-[#f2f5fa]">🏆 อันดับโคตรตึง!</h1>
-          <p className="text-[12.5px] text-[#8095ad]">{TOP_PLACES} อันดับแรกของก๊วน — วัดจาก EXP</p>
+          <p className="text-[12.5px] text-[#8095ad]">อันดับทุกคนในก๊วน — วัดจาก EXP</p>
         </div>
 
         {top.length === 0 ? (
@@ -154,7 +153,7 @@ export default async function LeaderboardPage() {
               })}
             </section>
 
-            {/* 4th place down to TOP_PLACES */}
+            {/* 4th place down to the last player with EXP */}
             {rest.length > 0 && (
               <section className="flex flex-col rounded border border-[#384a63] bg-[#232f42]">
                 {rest.map((entry) => (
@@ -163,8 +162,8 @@ export default async function LeaderboardPage() {
                     href={`/player/${entry.athleteId}`}
                     className="flex items-center gap-3 border-b border-[#384a63] px-3 py-2.5 last:border-b-0 hover:bg-[#2a3950]"
                   >
-                    {/* Wide enough for "=10" — two digits plus the tie marker. */}
-                    <span className="w-9 shrink-0 font-[family-name:var(--font-pixel-display)] text-[11px] text-[#54687e]">
+                    {/* Wide enough for "=100" — three digits plus the tie marker. */}
+                    <span className="w-11 shrink-0 font-[family-name:var(--font-pixel-display)] text-[11px] text-[#54687e]">
                       {sharedRanks.has(entry.rank) ? "=" : ""}
                       {entry.rank}
                     </span>

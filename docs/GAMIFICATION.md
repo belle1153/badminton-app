@@ -189,8 +189,10 @@ twice a week, so 200/day is ~1,600 over a month for someone who never misses.
 
 ## Leaderboard
 
-Top 5 **places** by EXP, not top 5 people — cutting at a fixed number of players
-would drop someone genuinely tied with the last person shown.
+Every player with EXP, ranked. `loadLeaderboard(maxRank)` can still cut at a
+number of **places** (not people — cutting at a fixed number of players would
+drop someone genuinely tied with the last person shown), but the page passes no
+limit.
 
 - Tied EXP shares a place and consumes the places below it (1, 1, 3).
 - Every holder of a podium place stands on the block; avatars shrink (64/52 →
@@ -200,8 +202,9 @@ would drop someone genuinely tied with the last person shown.
 - Display-order tiebreaks within a shared place: days played, then games, then
   name. These decide layout only, never the place itself.
 
-Only five places on purpose: with a roster this small, a full table mostly tells
-the other thirty-odd members how far down they are.
+It used to stop at the top 5, then the top 10; members asked to see the whole
+club, so since 2026-10-19 it lists everyone. Players with 0 EXP are still left
+off — they have no place to show yet.
 
 ## Identity — there is no player login
 

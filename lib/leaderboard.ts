@@ -60,7 +60,8 @@ export function rankPlayers<T extends RankableRow>(rows: T[]): (T & { rank: numb
 }
 
 /**
- * Everyone holding a place of `maxRank` or better.
+ * Everyone holding a place of `maxRank` or better — the whole ranked roster
+ * when no limit is given.
  *
  * Counts places, not people: cutting at a fixed number of players would drop
  * someone who is genuinely tied with the last person shown, which is exactly
@@ -71,7 +72,7 @@ export function rankPlayers<T extends RankableRow>(rows: T[]): (T & { rank: numb
  * loadPlayerProgress per athlete, which would be two queries each — roughly
  * 160 round trips for the current roster.
  */
-export async function loadLeaderboard(maxRank = 5): Promise<LeaderboardEntry[]> {
+export async function loadLeaderboard(maxRank = Infinity): Promise<LeaderboardEntry[]> {
   const [signUps, clubDays, athletes, questExpByAthlete] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
