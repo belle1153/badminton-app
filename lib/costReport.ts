@@ -33,6 +33,7 @@ export function costAttendees(signUps: CostSignUpLike[]): CostAttendee[] {
     checkedOutAt: s.checkedOutAt,
     gamesPlayed: s.matchSlots.filter((ms) => ms.match.finishedAt != null).length,
     noShow: s.checkedInAt == null && s.checkedOutAt == null,
+    onCourt: s.matchSlots.some((ms) => ms.match.finishedAt == null),
     paid: s.paidAt != null,
   }));
 }

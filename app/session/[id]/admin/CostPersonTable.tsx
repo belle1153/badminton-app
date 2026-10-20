@@ -16,6 +16,9 @@ export interface CostTableRow {
   live: boolean;
   noShow: boolean;
   paid: boolean;
+  /** Popup text when this bill can't be ticked yet (still playing / not
+   *  checked out), else null — see paidBlockMessage. */
+  payBlock: string | null;
 }
 
 /**
@@ -37,10 +40,17 @@ export default function CostPersonTable({
 
   const isPaid = (r: CostTableRow) => paidOverlay.get(r.id) ?? r.paid;
 
-  async function togglePaid(id: string, paid: boolean) {
+  async function togglePaid(row: CostTableRow, paid: boolean) {
+    const id = row.id;
+    // Collect only once they're done for the night — finished on court and
+    // checked out — so the bill can't grow after it's marked paid. Popup says
+    // which step is missing. (Controlled checkbox, so returning leaves it as is.)
+    if (paid && row.payBlock) {
+      alert(row.payBlock);
+      return;
+    }
     // Un-ticking reverses a collected bill back to ยอดค้าง — the box is easy to
-    // brush by accident, so confirm before undoing it. (Controlled checkbox, so
-    // returning here leaves it ticked.)
+    // brush by accident, so confirm before undoing it.
     if (!paid && !confirm('เปลี่ยนสถานะเป็น "ค้างจ่าย" ใช่ไหมครับ?')) return;
     setPaidOverlay((m) => new Map(m).set(id, paid));
     setPending(id);
@@ -56,6 +66,10 @@ export default function CostPersonTable({
           n.delete(id);
           return n;
         });
+        // The server re-checks the same rule — e.g. this page was stale and
+        // they're back on court — so show why it refused.
+        const data = await res.json().catch(() => ({}));
+        if (data.error) alert(data.error);
       }
       router.refresh();
     } catch {
@@ -117,7 +131,7 @@ export default function CostPersonTable({
                       type="checkbox"
                       checked={paid}
                       disabled={pending === r.id}
-                      onChange={(e) => togglePaid(r.id, e.target.checked)}
+                      onChange={(e) => togglePaid(r, e.target.checked)}
                       className="h-4 w-4 cursor-pointer accent-green-600 disabled:opacity-50"
                       aria-label={`เก็บเงิน ${r.name} แล้ว`}
                     />

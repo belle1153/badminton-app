@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { buildCostRows, sessionFees, sessionPrices, NO_SHOW_FEE, type CostAttendee } from "./costing";
+import {
+  buildCostRows,
+  paidBlockMessage,
+  sessionFees,
+  sessionPrices,
+  NO_SHOW_FEE,
+  type CostAttendee,
+} from "./costing";
 
 const A = (
   id: string,
@@ -69,6 +76,37 @@ describe("buildCostRows", () => {
     const by = Object.fromEntries(rows.map((r) => [r.name, r]));
     expect(by.a.slot).toBe("19.00");
     expect(by.b.slot).toBe("20.00");
+  });
+
+  it("passes the on-court flag through", () => {
+    const { rows } = buildCostRows([A("a", 1, { onCourt: true }), A("b", 1)], ENTRY, GAME);
+    const by = Object.fromEntries(rows.map((r) => [r.name, r]));
+    expect(by.a.onCourt).toBe(true);
+    expect(by.b.onCourt).toBe(false);
+  });
+});
+
+describe("paidBlockMessage", () => {
+  const OUT = new Date("2026-07-15T15:00:00.000Z");
+
+  it("allows ticking once the game is over and they checked out", () => {
+    expect(paidBlockMessage({ name: "a", onCourt: false, checkedOutAt: OUT })).toBeNull();
+  });
+
+  it("blocks someone who hasn't checked out", () => {
+    const msg = paidBlockMessage({ name: "a", onCourt: false, checkedOutAt: null });
+    expect(msg).toContain("ยังไม่เช็คเอาท์");
+    expect(msg).not.toContain("กำลังเล่นอยู่");
+  });
+
+  it("blocks someone still on court, giving both reasons", () => {
+    const msg = paidBlockMessage({ name: "a", onCourt: true, checkedOutAt: null });
+    expect(msg).toContain("ยังไม่จบเกมในสนาม / กำลังเล่นอยู่");
+    expect(msg).toContain("ยังไม่เช็คเอาท์");
+  });
+
+  it("never blocks a no-show — their fine can be collected any time", () => {
+    expect(paidBlockMessage({ name: "a", noShow: true, checkedOutAt: null })).toBeNull();
   });
 });
 

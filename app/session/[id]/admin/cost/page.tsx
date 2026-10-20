@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { buildCostRows, sessionFees } from "@/lib/costing";
+import { buildCostRows, paidBlockMessage, sessionFees } from "@/lib/costing";
 import {
   COST_SIGNUP_INCLUDE,
   costAttendees,
@@ -59,6 +59,7 @@ export default async function SessionCostPage({
     live: r.live,
     noShow: r.noShow,
     paid: r.paid,
+    payBlock: paidBlockMessage({ ...r, checkedOutAt: r.out }),
   }));
 
   return (
@@ -69,7 +70,8 @@ export default async function SessionCostPage({
         <h2 className="font-semibold">สรุปรายคน (วันนี้)</h2>
         <p className="text-xs text-gray-400">
           แต่ละคน = ค่าสนาม {entryFee}฿ + ค่าลูก (เกมละ {gameFee}฿ × จำนวนเกมที่เล่นจบ) · คนไม่มา
-          ปรับ 100฿ · ติ๊ก &quot;จ่ายแล้ว&quot; เมื่อเก็บเงินหน้างาน คนที่ยังไม่ติ๊กจะขึ้นยอดค้างในไลน์
+          ปรับ 100฿ · ติ๊ก &quot;จ่ายแล้ว&quot; เมื่อเก็บเงินหน้างาน (ต้องจบเกมในสนามและเช็คเอาท์ก่อน)
+          คนที่ยังไม่ติ๊กจะขึ้นยอดค้างในไลน์
         </p>
 
         {rows.length === 0 ? (

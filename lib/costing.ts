@@ -21,6 +21,8 @@ export interface CostAttendee {
   gamesPlayed: number;
   /** Signed up for a seat but never checked in — billed the flat no-show fine. */
   noShow?: boolean;
+  /** In a game that hasn't finished yet (playing now, or queued on a court). */
+  onCourt?: boolean;
   /** Admin has marked their bill collected. */
   paid?: boolean;
 }
@@ -42,8 +44,36 @@ export interface CostRow {
   live: boolean;
   /** Confirmed sign-up who never came — billed the flat no-show fine only. */
   noShow: boolean;
+  /** In a game that hasn't finished yet — see CostAttendee.onCourt. */
+  onCourt: boolean;
   /** Bill already collected. */
   paid: boolean;
+}
+
+/**
+ * Why a bill can't be ticked "จ่ายแล้ว" yet, as the popup text — or null when
+ * it can. The admin collects only once the player is done for the night: their
+ * last game finished AND checked out, so the bill can't still grow after it has
+ * been marked paid. A no-show never came, so neither applies — their fine can
+ * be collected any time. Shared by the cost table (popup) and the paid API (so a
+ * stale page can't slip past it).
+ */
+export function paidBlockMessage(p: {
+  name: string;
+  noShow?: boolean;
+  onCourt?: boolean;
+  checkedOutAt: Date | null;
+}): string | null {
+  if (p.noShow) return null;
+  const reasons: string[] = [];
+  if (p.onCourt) reasons.push("ยังไม่จบเกมในสนาม / กำลังเล่นอยู่");
+  if (p.checkedOutAt == null) reasons.push("ยังไม่เช็คเอาท์");
+  if (reasons.length === 0) return null;
+  return [
+    `ติ๊ก "จ่ายแล้ว" ให้ ${p.name} ยังไม่ได้`,
+    ...reasons.map((r) => `• ${r}`),
+    "ให้จบเกมในสนามและเช็คเอาท์ก่อน แล้วค่อยติ๊กจ่ายเงินครับ",
+  ].join("\n");
 }
 
 /**
@@ -64,6 +94,7 @@ export function buildCostRows(
         slot: a.timeSlot === "EARLY" ? "19.00" : "20.00",
         timeSlot: a.timeSlot,
         games: a.gamesPlayed,
+        onCourt: a.onCourt ?? false,
         paid: a.paid ?? false,
       };
       // Didn't come: flat no-show fine, no entry/game, no clock.

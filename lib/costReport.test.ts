@@ -41,6 +41,11 @@ describe("costAttendees", () => {
     expect(a.noShow).toBe(false);
   });
 
+  it("marks someone in an unfinished game as on court", () => {
+    expect(costAttendees([signUp({ matchSlots: [slot("m1", true), slot("m2", false)] })])[0].onCourt).toBe(true);
+    expect(costAttendees([signUp({ matchSlots: [slot("m1", true)] })])[0].onCourt).toBe(false);
+  });
+
   it("reads the paid flag from paidAt", () => {
     expect(costAttendees([signUp({ paidAt: new Date() })])[0].paid).toBe(true);
     expect(costAttendees([signUp({ paidAt: null })])[0].paid).toBe(false);
@@ -70,6 +75,7 @@ const row = (over: Partial<CostRow>): CostRow => ({
   totalBaht: 170,
   live: false,
   noShow: false,
+  onCourt: false,
   paid: false,
   ...over,
 });
