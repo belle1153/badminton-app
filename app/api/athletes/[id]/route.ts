@@ -118,6 +118,18 @@ export async function DELETE(
         where: { athleteId: id },
         data: { athleteId: survivor.id },
       });
+      // TUA TUENG GAMES keeps plain athlete ids (no FK), so carry those over
+      // too or the duplicate's lineups and team spot would lose their name.
+      for (const field of ["a1Id", "a2Id", "b1Id", "b2Id"] as const) {
+        await prisma.gamesRubber.updateMany({ where: { [field]: id }, data: { [field]: survivor.id } });
+      }
+      for (const m of await prisma.gamesTeamMember.findMany({ where: { athleteId: id } })) {
+        const already = await prisma.gamesTeamMember.findFirst({
+          where: { teamId: m.teamId, athleteId: survivor.id },
+        });
+        if (already) await prisma.gamesTeamMember.delete({ where: { id: m.id } });
+        else await prisma.gamesTeamMember.update({ where: { id: m.id }, data: { athleteId: survivor.id } });
+      }
     }
     await prisma.athlete.delete({ where: { id } });
   } catch {

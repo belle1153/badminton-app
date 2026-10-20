@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/athletes", label: "ผู้เล่น", icon: "🏸" },
   { href: "/admin/announcements", label: "ประกาศ & กฎ", icon: "📣" },
   { href: "/admin/quests", label: "เควส", icon: "🎯" },
+  { href: "/admin/games", label: "เกมส์", icon: "🏅" },
   { href: "/admin/master", label: "Master", icon: "💰" },
   { href: "/admin/withdrawals", label: "ประวัติถอนชื่อ", icon: "🚫" },
   { href: "/admin/history", label: "ย้อนหลัง", icon: "🗂️" },

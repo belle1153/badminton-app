@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { BUILD_LABEL } from "@/lib/version";
+import { latestEventForHome } from "@/lib/games/load";
 import AnnouncementCarousel from "./AnnouncementCarousel";
 import MyStatsCard from "./MyStatsCard";
 
@@ -31,6 +32,7 @@ export default async function Home() {
       ? `/api/announcements/${a.id}/image?v=${a.updatedAt.getTime()}`
       : null,
   }));
+  const games = await latestEventForHome();
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -86,6 +88,28 @@ export default async function Home() {
             <span className="text-xs text-slate-400">อันดับทุกคนในก๊วน</span>
           </Link>
         </div>
+
+        {/* TUA TUENG GAMES: a link once the admin publishes the event; until then
+            a teaser players can see but not open. */}
+        {games?.published ? (
+          <Link
+            href={`/games/${games.id}`}
+            className="rounded-2xl border-2 border-amber-300 bg-[#0b1c30] p-6 flex flex-col items-center gap-1.5 text-center shadow-[0_0_16px_rgba(255,207,77,0.3)] hover:border-amber-200 transition"
+          >
+            <span className="text-4xl">🏅</span>
+            <span className="font-bold text-lg text-amber-300">{games.name}</span>
+            <span className="text-xs text-slate-400">ตารางแข่ง ผล และตารางคะแนนทีม</span>
+          </Link>
+        ) : (
+          <div
+            aria-disabled="true"
+            className="rounded-2xl border-2 border-dashed border-slate-500 bg-[#0b1c30] p-6 flex flex-col items-center gap-1.5 text-center"
+          >
+            <span className="text-4xl opacity-70">🏅</span>
+            <span className="font-bold text-lg text-slate-200">{games?.name ?? "TUA TUENG GAMES"}</span>
+            <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
+          </div>
+        )}
       </div>
 
       <AnnouncementCarousel items={announcements} />

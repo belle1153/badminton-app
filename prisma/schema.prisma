@@ -246,3 +246,108 @@ model Quest {
   // quietly cost every quest read its index.
   @@index([active, startDate])
 }
+
+// ---------------------------------------------------------------------------
+// TUA TUENG GAMES — a one-day team event (6 teams, round robin + knockout).
+// Kept entirely apart from the regular play-day tables above: nothing here feeds
+// EXP, quests, the leaderboard or billing. Only raw data is stored (teams,
+// lineups, set scores); standings, tie scores and knockout pairings are derived
+// on read in lib/games/ so an edited result can never leave a stale total.
+// See docs/superpowers/specs/2026-10-20-tua-tueng-games-design.md.
+// ---------------------------------------------------------------------------
+
+enum GamesStage {
+  QUALIFIER
+  SEMI // slot 1 = rank 1 vs 4, slot 2 = rank 2 vs 3
+  FIFTH
+  THIRD
+  FINAL
+}
+
+model GamesEvent {
+  id                     String      @id @default(cuid())
+  name                   String
+  // UTC midnight of the local (ICT) event date, same rule as Session.date.
+  date                   DateTime
+  qualifierRubberMinutes Int         @default(20)
+  knockoutRubberMinutes  Int         @default(30)
+  // Players see the event (home button, /games pages) only once published;
+  // until then they get a "coming soon" screen and admins can preview.
+  published              Boolean     @default(false)
+  // Comma-separated team ids, used only when every tiebreak is still level.
+  rankOverride           String?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  teams                  GamesTeam[]
+  ties                   GamesTie[]
+}
+
+model GamesTeam {
+  id        String            @id @default(cuid())
+  eventId   String
+  event     GamesEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  seed      Int // 1–6, decides the round-robin pairings
+  name      String
+  color     String // hex, e.g. #dc2626
+  logoUrl   String? // resized image stored as a data URL, like Athlete.photoUrl
+  // Cache version for /api/games/teams/[id]/logo.
+  updatedAt DateTime          @default(now()) @updatedAt
+  members   GamesTeamMember[]
+
+  @@unique([eventId, seed])
+}
+
+model GamesTeamMember {
+  id        String    @id @default(cuid())
+  teamId    String
+  team      GamesTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  athleteId String
+
+  @@unique([teamId, athleteId])
+  @@index([athleteId])
+}
+
+model GamesTie {
+  id       String        @id @default(cuid())
+  eventId  String
+  event    GamesEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  stage    GamesStage
+  round    Int? // 1–5, qualifier only
+  slot     Int // which tie of the round (1–3) / which semi (1–2)
+  startsAt String // "14:00", ICT, from the event's printed schedule
+  courtA   Int
+  courtB   Int
+  // Qualifier: set at creation. Knockout: left null — derived on read from
+  // the standings and the semi results.
+  teamAId  String?
+  teamBId  String?
+  rubbers  GamesRubber[]
+
+  @@index([eventId])
+}
+
+model GamesRubber {
+  id            String    @id @default(cuid())
+  tieId         String
+  tie           GamesTie  @relation(fields: [tieId], references: [id], onDelete: Cascade)
+  order         Int // 1–5 = คู่ที่
+  court         Int
+  // Athlete ids from the paper lineup; plain ids (no FK) like the rest of the
+  // event data, remapped by the athlete-merge path.
+  a1Id          String?
+  a2Id          String?
+  b1Id          String?
+  b2Id          String?
+  set1A         Int?
+  set1B         Int?
+  set2A         Int?
+  set2B         Int?
+  set3A         Int? // knockout only
+  set3B         Int?
+  finishedAt    DateTime? // set = this rubber has a result
+  liveSet       Int? // set number being live-counted (1–3); null = not live
+  liveStartedAt DateTime? // the live-count clock; informational only
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tieId])
+}
