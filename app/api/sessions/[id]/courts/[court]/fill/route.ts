@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/db";
-import { dropReadyPending, syncPendingQueue } from "@/lib/queue";
+import { dropReadyPending } from "@/lib/queue";
 
 /**
  * "ดึงคิวลงสนาม" — put the next คู่เตรียม on this court. The คู่เตรียม queue IS
@@ -42,9 +42,7 @@ export async function POST(
     );
   }
 
-  // The court that just filled freed up คู่เตรียม slots — restock so the next
-  // line-up is already on screen for review.
-  await syncPendingQueue(id);
-
+  // No restock here: new คู่เตรียม only come from the admin pressing
+  // "จัดคู่เตรียมจากคิว", never from the system on its own.
   return NextResponse.json({ ok: true, matchId: dropped.matchId, round: dropped.round, court });
 }

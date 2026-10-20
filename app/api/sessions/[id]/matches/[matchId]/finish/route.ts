@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { dropReadyPending, syncPendingQueue } from "@/lib/queue";
+import { dropReadyPending } from "@/lib/queue";
 import { openCourtNumbers } from "@/lib/billing";
 
 export async function POST(
@@ -57,23 +57,19 @@ export async function POST(
   }
 
   // Nobody reaches a court without having been visible in คู่เตรียม first, so the
-  // admin always gets to eyeball the line-up (and ✎ it) before it runs. So:
-  //   1. Drop the front-most READY คู่เตรียม onto this court — it has been on
-  //      screen since it was queued, so it counts as reviewed. "Ready" = every
-  //      member free and checked in (never drop one with a ยังไม่มา player).
-  //   2. Top the คู่เตรียม queue back up from whoever is free now (including the
-  //      four who just finished) — they show up as the NEXT คู่เตรียม to review,
-  //      they don't go straight onto a court.
+  // admin always gets to eyeball the line-up (and ✎ it) before it runs. Drop the
+  // front-most READY คู่เตรียม onto this court — it has been on screen since it
+  // was queued, so it counts as reviewed. "Ready" = every member free and
+  // checked in (never drop one with a ยังไม่มา player).
   // There is deliberately no auto-fill fallback here: if no คู่เตรียม is ready the
   // court just stays empty until the admin sends one down.
   // A stale คู่เตรียม that won't book (e.g. someone withdrew) is left alone for
   // the admin to fix — the court stays empty rather than filling itself.
+  // Nor is คู่เตรียม re-stocked from the four who just finished: new คู่เตรียม
+  // only ever come from the admin pressing "จัดคู่เตรียมจากคิว" (or picking four
+  // by hand), never from the system on its own.
   const dropped = await dropReadyPending(id, match.court);
   const fromPending = dropped.ok;
 
-  // Re-stock คู่เตรียม AFTER the drop, so the four who just finished line up for
-  // the next round instead of being sent straight back onto this court.
-  const queued = await syncPendingQueue(id);
-
-  return NextResponse.json({ ok: true, court: match.court, filled: fromPending, fromPending, queued });
+  return NextResponse.json({ ok: true, court: match.court, filled: fromPending, fromPending });
 }

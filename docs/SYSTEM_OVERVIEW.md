@@ -123,6 +123,10 @@ then re-seats everyone.
   next batch unless the queue is empty or the admin forces it.
 - `PENDING_QUEUE_CAP = 3` — how many คู่เตรียม are queued ahead. Small on
   purpose: a bigger waiting pool gives the matcher more to work with.
+- คู่เตรียม are only ever formed when the admin asks (the "จัดคู่เตรียมจากคิว"
+  button → `syncPendingQueue`, or a hand-picked four). Finishing a game or
+  filling a court drops the front ready คู่เตรียม onto the court but never
+  pairs anyone up by itself.
 
 **Billing** (`lib/billing.ts`, `lib/costing.ts`):
 - The clock starts at the block the player booked (19:00 or 20:00 ICT), not

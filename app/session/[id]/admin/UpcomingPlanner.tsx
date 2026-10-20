@@ -44,7 +44,9 @@ export interface PersistedPending {
  *   - ยกเลิก: remove a คู่เตรียม.
  *   - จัดคู่เตรียมเอง: hand-pick four (incl. players mid-game) and append them.
  * A game finishing also offers to drop the front คู่เตรียม (handled on the live
- * court board), so คู่ 1 → court, คู่ 2 becomes คู่ 1, and so on.
+ * court board), so คู่ 1 → court, คู่ 2 becomes คู่ 1, and so on. It does NOT
+ * pair up the four who just finished — the queue only grows when the admin
+ * presses the button again.
  */
 export default function UpcomingPlanner({
   sessionId,
@@ -81,7 +83,7 @@ export default function UpcomingPlanner({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // force: an explicit press must queue people even if the grouping would
-        // be a rerun — the auto-sync hold is for the background path only.
+        // be a rerun of a finished game.
         body: JSON.stringify({ force: true }),
       });
       const data = await res.json().catch(() => ({}));
@@ -217,9 +219,9 @@ export default function UpcomingPlanner({
         <span className="text-xs text-orange-600">แก้ตัวผู้เล่นก่อนลงได้</span>
       </div>
       <p className="text-xs text-orange-700/70">
-        คิวถาวร เรียงตามลำดับ (มือใกล้กันก่อน แล้วคิว) — ตอนเริ่ม กด &quot;จัดคู่เตรียมจากคิว&quot; เมื่อพร้อม
-        (รอคนมาครบ/มือดีก่อนได้) · พอเกมจบ คู่หน้าสุดลงสนามให้เอง แล้ว
-        <span className="font-medium">ระบบเติมคู่เตรียมชุดใหม่จากคนที่เพิ่งว่างให้ดูล่วงหน้า</span> ·
+        คิวถาวร เรียงตามลำดับ (มือใกล้กันก่อน แล้วคิว) —{" "}
+        <span className="font-medium">ระบบไม่จัดคู่เอง ต้องกด &quot;จัดคู่เตรียมจากคิว&quot; ทุกครั้ง</span>{" "}
+        ชื่อถึงจะขึ้นมาที่นี่ (รอคนมาครบ/มือดีก่อนได้) · พอเกมจบ คู่หน้าสุดลงสนามให้เอง ·
         กด ✎ สลับคนได้ตลอด แก้แล้วบันทึกทันที — ไม่มีใครลงสนามโดยไม่โผล่ตรงนี้ก่อน
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -238,8 +240,8 @@ export default function UpcomingPlanner({
       )}
       {waitingCount > 0 && pendingPairs.length >= PENDING_QUEUE_CAP && (
         <p className="text-xs text-gray-400">
-          คู่เตรียมครบ {PENDING_QUEUE_CAP} คู่แล้ว — พอคู่หน้าลงสนาม ระบบจะจัดคู่ใหม่จากคนที่รอ ({waitingCount} คน)
-          ให้เอง มือจะได้ใกล้กัน
+          คู่เตรียมครบ {PENDING_QUEUE_CAP} คู่แล้ว — พอคู่หน้าลงสนาม ปุ่มจัดคู่จะกลับมา
+          ให้กดจัดคนที่รอ ({waitingCount} คน) ต่อได้
         </p>
       )}
 
