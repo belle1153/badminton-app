@@ -17,7 +17,7 @@ export default function GamesEventNav({ eventId, name }: { eventId: string; name
     { href: `${base}/setup`, label: "ตั้งค่า / ทีม", icon: "⚙️", on: pathname.startsWith(`${base}/setup`) },
     { href: `${base}/slips`, label: "พิมพ์ใบผล", icon: "🖨️", on: pathname.startsWith(`${base}/slips`) },
     { href: `/games/${eventId}`, label: "หน้าผู้เล่น", icon: "👀", on: false },
-    { href: `/games/${eventId}/tv/standings`, label: "จอใหญ่ ↗", icon: "📺", on: false, newTab: true },
+    { href: `/games/${eventId}/tv`, label: "จอใหญ่ ↗", icon: "📺", on: false, newTab: true },
   ];
   // Back steps through history like the phone's own button; opened directly, a keyed
   // lineup falls back to the lineups list and every other page to the list of events.

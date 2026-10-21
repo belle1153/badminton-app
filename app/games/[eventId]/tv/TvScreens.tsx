@@ -3,25 +3,39 @@
 /* eslint-disable @next/next/no-img-element -- versioned API image URLs */
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { GamesState, TeamView, TieView } from "@/lib/games/state";
+import { useCallback, useEffect, useState } from "react";
+import type { GamesState, PlayerRef, RubberView, TeamView, TieView } from "@/lib/games/state";
+import { CARD_LABELS } from "@/lib/games/cards";
 import { ictDateKey, ictNowMinute, slotClock } from "@/lib/games/clock";
-import { knockoutPlaceholder } from "@/lib/games/format";
+import { fmtMinute, knockoutPlaceholder, setsLine } from "@/lib/games/format";
+import { setsWon } from "@/lib/games/rules";
+import { tvTies } from "@/lib/games/tv";
 import { useGamesState } from "../../useGamesState";
 import { DARK } from "../../ui";
+import { liveScore } from "../RunningTab";
 
 /* Sized in vw so a 1920×1080 TV matches the mockups and smaller screens scale. */
 
-function TvFrame({ children, other }: { children: React.ReactNode; other: { href: string; label: string } }) {
+function TvFrame({
+  children,
+  other,
+  hideCursor = false,
+}: {
+  children: React.ReactNode;
+  other?: { href: string; label: string };
+  hideCursor?: boolean;
+}) {
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col gap-[1.2vw] overflow-hidden px-[2.9vw] py-[1.9vw] font-[family-name:var(--font-pixel-body)]"
+      className={`fixed inset-0 z-50 flex flex-col gap-[1.2vw] overflow-hidden px-[2.9vw] py-[1.9vw] font-[family-name:var(--font-pixel-body)] ${hideCursor ? "cursor-none" : ""}`}
       style={{ background: DARK.ground, color: DARK.text }}
     >
       {children}
-      <Link href={other.href} className="absolute bottom-[0.6vw] right-[1vw] text-[0.8vw] text-[#4f6b88] hover:text-white">
-        {other.label} ›
-      </Link>
+      {other && (
+        <Link href={other.href} className="absolute bottom-[0.6vw] right-[1vw] text-[0.8vw] text-[#4f6b88] hover:text-white">
+          {other.label} ›
+        </Link>
+      )}
     </div>
   );
 }
@@ -94,6 +108,15 @@ function Header({ state, title, note }: { state: GamesState; title: string; note
 
 export function TvStandings({ initial }: { initial: GamesState }) {
   const { state } = useGamesState(initial.event.id, initial);
+  return (
+    <TvFrame other={{ href: `/games/${state.event.id}/tv/schedule`, label: "ตารางแข่ง" }}>
+      <StandingsView state={state} />
+    </TvFrame>
+  );
+}
+
+/** Header + the six-row table, shared by the standings screen and the rotating one. */
+function StandingsView({ state }: { state: GamesState }) {
   const teams = new Map(state.teams.map((t) => [t.id, t]));
   const qualifier = state.ties.filter((t) => t.stage === "QUALIFIER");
   const finishedTies = qualifier.filter((t) => t.status === "done").length;
@@ -102,7 +125,7 @@ export function TvStandings({ initial }: { initial: GamesState }) {
   const split = state.qualifierDone;
 
   return (
-    <TvFrame other={{ href: `/games/${state.event.id}/tv/schedule`, label: "ตารางแข่ง" }}>
+    <>
       <Header
         state={state}
         title="ตารางคะแนน"
@@ -153,7 +176,237 @@ export function TvStandings({ initial }: { initial: GamesState }) {
       <span className="text-[1.15vw] text-[#a9bdd3]">
         คะแนนเท่ากัน ดู ผลต่างแต้ม → คู่ที่ชนะตอนเจอกัน → ผลต่างแต้มตอนเจอกัน{split && " · เส้นประ = ตัดเข้ารอบรองชนะเลิศ"}
       </span>
+    </>
+  );
+}
+
+export type TvMode = "rotate" | "matches" | "standings";
+
+const TV_MODES: { key: TvMode; label: string }[] = [
+  { key: "rotate", label: "สลับอัตโนมัติ 10 วิ" },
+  { key: "matches", label: "แมตซ์ที่กำลังแข่ง" },
+  { key: "standings", label: "ตารางคะแนนรวม" },
+];
+const ROTATE_MS = 10_000;
+
+/**
+ * The main big screen: the matches in play and the table, switching every 10 s,
+ * or held on one of them. Moving the mouse or tapping brings up the buttons
+ * (keys 1–3 work too); the mode is kept in the URL so a reload keeps it.
+ */
+export function TvShow({ initial, initialMode }: { initial: GamesState; initialMode: TvMode }) {
+  const { state } = useGamesState(initial.event.id, initial);
+  const [mode, setMode] = useState<TvMode>(initialMode);
+  const [view, setView] = useState<"matches" | "standings">("matches");
+  const [controls, setControls] = useState(true);
+
+  useEffect(() => {
+    if (mode !== "rotate") return;
+    const t = setInterval(() => setView((v) => (v === "matches" ? "standings" : "matches")), ROTATE_MS);
+    return () => clearInterval(t);
+  }, [mode]);
+
+  const choose = useCallback((m: TvMode) => {
+    setMode(m);
+    window.history.replaceState(null, "", `?mode=${m}`);
+  }, []);
+
+  // The buttons show for a few seconds after any mouse move, tap or key, then hide.
+  useEffect(() => {
+    let hide = setTimeout(() => setControls(false), 4000);
+    const wake = () => {
+      setControls(true);
+      clearTimeout(hide);
+      hide = setTimeout(() => setControls(false), 3000);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const m = TV_MODES[Number(e.key) - 1];
+      if (m) choose(m.key);
+      wake();
+    };
+    window.addEventListener("mousemove", wake);
+    window.addEventListener("touchstart", wake);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(hide);
+      window.removeEventListener("mousemove", wake);
+      window.removeEventListener("touchstart", wake);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [choose]);
+
+  const shown = mode === "rotate" ? view : mode;
+
+  return (
+    <TvFrame hideCursor={!controls}>
+      <style>{"@keyframes tvprog { from { width: 0 } to { width: 100% } }"}</style>
+      {mode === "rotate" && (
+        <span
+          key={view}
+          className="absolute left-0 top-0 h-[0.3vw]"
+          style={{ background: DARK.gold, animation: `tvprog ${ROTATE_MS}ms linear forwards` }}
+        />
+      )}
+      {shown === "matches" ? <MatchesView state={state} /> : <StandingsView state={state} />}
+      <div
+        className="absolute bottom-[1.2vw] left-1/2 flex -translate-x-1/2 gap-[0.5vw] rounded-full border-2 p-[0.4vw] transition-opacity duration-300"
+        style={{ background: DARK.panel, borderColor: DARK.line, opacity: controls ? 1 : 0, pointerEvents: controls ? "auto" : "none" }}
+      >
+        {TV_MODES.map((m, i) => (
+          <button
+            key={m.key}
+            type="button"
+            onClick={() => choose(m.key)}
+            className="rounded-full px-[1.2vw] py-[0.5vw] text-[1vw] font-bold"
+            style={m.key === mode ? { background: DARK.gold, color: DARK.ground } : { color: DARK.muted }}
+          >
+            {i + 1} · {m.label}
+          </button>
+        ))}
+      </div>
     </TvFrame>
+  );
+}
+
+/** The ties in play (or next), side by side, each with its five pairs. */
+function MatchesView({ state }: { state: GamesState }) {
+  const teams = new Map(state.teams.map((t) => [t.id, t]));
+  const ties = tvTies(state.ties);
+  const first = ties[0];
+  const note = !first ? "" : first.stage === "QUALIFIER" ? `รอบคัดเลือก · รอบที่ ${first.round} · ${first.startsAt}` : "รอบน็อกเอาต์";
+  return (
+    <>
+      <Header state={state} title="แมตซ์ที่กำลังแข่ง" note={note} />
+      {ties.length === 0 ? (
+        <p className="text-[1.6vw] text-[#a9bdd3]">ยังไม่มีแมตซ์</p>
+      ) : (
+        <div className="grid min-h-0 flex-1 gap-[1.2vw]" style={{ gridTemplateColumns: `repeat(${ties.length}, minmax(0, 1fr))` }}>
+          {ties.map((t) => (
+            <TvTiePanel key={t.id} tie={t} teams={teams} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView> }) {
+  const a = teams.get(tie.teamAId ?? "");
+  const b = teams.get(tie.teamBId ?? "");
+  const live = tie.status === "live";
+  return (
+    <div
+      className="flex min-h-0 flex-col gap-[0.5vw] rounded-[1vw] border-[3px] p-[1vw]"
+      style={{ background: DARK.panel, borderColor: live ? DARK.live : DARK.line }}
+    >
+      <div className="flex items-center justify-between text-[1.05vw] text-[#a9bdd3]">
+        <span>
+          {tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.slot}` : tie.label} · สนาม {tie.courtA}–{tie.courtB}
+        </span>
+        <span
+          className="rounded-full px-[0.7vw] font-bold"
+          style={live ? { background: DARK.live, color: DARK.ground } : { color: DARK.muted }}
+        >
+          {live ? "กำลังแข่ง" : tie.status === "done" ? "จบแล้ว" : `เริ่ม ${tie.startsAt}`}
+        </span>
+      </div>
+      {a && b ? (
+        // Sized so two 7-letter team names and a two-digit score fit a third of a 16:9 screen.
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-[0.8vw]">
+          <span className="justify-self-start">
+            <TvChip team={a} font="1.2vw" />
+          </span>
+          <span className="text-[2.9vw] font-bold leading-none tabular-nums">
+            {tie.pointsA}–{tie.pointsB}
+          </span>
+          <span className="justify-self-end">
+            <TvChip team={b} font="1.2vw" />
+          </span>
+        </div>
+      ) : (
+        <span className="text-[1.3vw] text-[#c3cedd]">{knockoutPlaceholder(tie.stage, tie.slot)}</span>
+      )}
+      {(tie.bonusA !== 0 || tie.bonusB !== 0) && (
+        <span className="text-center text-[0.9vw] font-semibold" style={{ color: DARK.gold }}>
+          🃏 รวมโบนัสการ์ดแล้ว
+        </span>
+      )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {tie.rubbers.map((r) => (
+          <TvRubberRow key={r.id} tie={tie} rubber={r} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TvRubberRow({ tie, rubber }: { tie: TieView; rubber: RubberView }) {
+  const counting = rubber.liveSet != null && !rubber.finished;
+  const done = rubber.status === "done";
+  const [wa, wb] = setsWon(rubber.sets);
+  const card = tie.cards.find((c) => c.order === rubber.order);
+  const center = done ? (
+    <span className="flex flex-col items-center">
+      <b className="text-[1.9vw] leading-none tabular-nums">
+        <span style={{ color: rubber.outcome === "A" ? DARK.gold : DARK.text }}>{wa}</span>–
+        <span style={{ color: rubber.outcome === "B" ? DARK.gold : DARK.text }}>{wb}</span>
+      </b>
+      <span className="text-[0.85vw] tabular-nums text-[#a9bdd3]">{setsLine(rubber.sets)}</span>
+    </span>
+  ) : counting ? (
+    <b className="text-[1.9vw] tabular-nums" style={{ color: DARK.gold }}>
+      {liveScore(rubber)}
+    </b>
+  ) : rubber.status === "cancelled" ? (
+    <span className="text-[0.9vw] text-[#8a9db3]">ไม่ต้องแข่ง</span>
+  ) : rubber.status === "live" ? (
+    <span className="rounded-full px-[0.6vw] text-[0.9vw] font-bold" style={{ background: DARK.live, color: DARK.ground }}>
+      กำลังแข่ง
+    </span>
+  ) : (
+    <span className="text-[1vw] text-[#a9bdd3]">{fmtMinute(rubber.startMinute)}</span>
+  );
+  return (
+    <div
+      className="grid flex-1 grid-cols-[3.4vw_minmax(0,1fr)_7.5vw_minmax(0,1fr)] items-center gap-[0.5vw] border-t py-[0.3vw]"
+      style={{ borderColor: DARK.lineSoft, opacity: rubber.status === "cancelled" ? 0.5 : 1 }}
+    >
+      <span className="flex flex-col text-[0.95vw] font-bold leading-tight">
+        คู่ {rubber.order}
+        <span className="font-normal text-[#a9bdd3]">ส.{rubber.court}</span>
+      </span>
+      <TvNames players={rubber.a} dim={done && rubber.outcome === "B"} />
+      <span className="flex flex-col items-center gap-[0.2vw]">
+        {center}
+        {card && (
+          <span className="text-[0.75vw] font-bold" style={{ color: DARK.gold }}>
+            🃏 {CARD_LABELS[card.kind].name}
+          </span>
+        )}
+      </span>
+      <TvNames players={rubber.b} dim={done && rubber.outcome === "A"} right />
+    </div>
+  );
+}
+
+/** A pair's names, one per line, big enough to read from the back of the hall. */
+function TvNames({ players, dim, right = false }: { players: (PlayerRef | null)[]; dim: boolean; right?: boolean }) {
+  const names = players.filter((p): p is PlayerRef => p != null).map((p) => p.name);
+  return (
+    <span
+      className={`flex min-w-0 flex-col text-[1.1vw] font-semibold leading-tight ${right ? "items-end text-right" : ""}`}
+      style={{ color: dim ? DARK.dim : DARK.text }}
+    >
+      {names.length ? (
+        names.map((n, i) => (
+          <span key={i} className="max-w-full truncate">
+            {n}
+          </span>
+        ))
+      ) : (
+        <span className="text-[0.9vw] font-normal text-[#8a9db3]">ยังไม่ส่งชื่อ</span>
+      )}
+    </span>
   );
 }
 
