@@ -89,17 +89,19 @@ export default function GamesHome({ initial }: { initial: GamesState }) {
           </div>
           {state.standings.map((row, i) => {
             const team = teams.get(row.teamId);
-            const top = row.rank <= 4;
+            // No semi-final split before the first result: the order is only the seeding.
+            const split = state.qualifierStarted;
+            const top = split && row.rank <= 4;
             return (
               <div
                 key={row.teamId}
                 className="grid grid-cols-[24px_minmax(0,1fr)_44px_64px_44px] items-center gap-1.5 px-2.5 py-2 tabular-nums"
-                style={{ borderTop: i === 0 ? "none" : row.rank === 5 ? `2px dashed ${DARK.live}` : `1px solid ${DARK.lineSoft}` }}
+                style={{ borderTop: i === 0 ? "none" : split && row.rank === 5 ? `2px dashed ${DARK.live}` : `1px solid ${DARK.lineSoft}` }}
               >
                 <span className="text-sm font-bold" style={{ color: top ? DARK.gold : DARK.dim }}>{row.rank}</span>
                 <span className="flex min-w-0 items-center gap-1.5">
                   <TeamChip team={team} />
-                  <span className="text-[10px]" style={{ color: top ? DARK.gold : DARK.dim }}>{top ? "รองฯ" : "ชิงที่ 5"}</span>
+                  {split && <span className="text-[10px]" style={{ color: top ? DARK.gold : DARK.dim }}>{top ? "รองฯ" : "ชิงที่ 5"}</span>}
                 </span>
                 <span className="text-right text-base font-bold">{row.points}</span>
                 <span className="text-center text-xs text-[#c3cedd]">{row.won}-{row.drawn}-{row.lost}</span>

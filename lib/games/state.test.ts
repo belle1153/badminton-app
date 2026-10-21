@@ -82,9 +82,25 @@ describe("buildGamesState", () => {
     expect(semi.rubbers.map((r) => r.status)).toEqual(["done", "done", "done", "cancelled", "cancelled"]);
   });
 
+  it("leaves the knockout and the qualifying split open until a qualifier result is in", () => {
+    const state = buildGamesState(fixture(), NOW);
+    expect(state.qualifierStarted).toBe(false);
+    const semi = state.ties.find((t) => t.id === "tie16")!;
+    expect(semi).toMatchObject({ teamAId: null, teamBId: null, projected: false });
+  });
+
+  it("projects the knockout from the table once the first result is in", () => {
+    const rows = fixture();
+    finish(rows, "tie1-r1", [[21, 10], [21, 12]]); // seed 1 beats seed 6
+    const state = buildGamesState(rows, NOW);
+    expect(state.qualifierStarted).toBe(true);
+    expect(state.ties.find((t) => t.id === "tie16")).toMatchObject({ teamAId: "team1", teamBId: "team4", projected: true });
+  });
+
   it("flags a knockout lineup that no longer matches the resolved team", () => {
     const rows = fixture();
-    // nothing played: ranks follow seed, so semi 1 is seed 1 vs seed 4
+    // seed 1 beats seed 6, so the ranks still follow seed: semi 1 is seed 1 vs seed 4
+    finish(rows, "tie1-r1", [[21, 10], [21, 12]]);
     rubberOf(rows, "tie16-r1").a1Id = "p20"; // a seed-2 player on the seed-1 side
     const semi = buildGamesState(rows, NOW).ties.find((t) => t.id === "tie16")!;
     expect(semi).toMatchObject({ teamAId: "team1", teamBId: "team4", projected: true, lineupMismatch: true });

@@ -198,6 +198,13 @@ function RubberRow({
     void patch({ sets, finish: true }, `บันทึกผลคู่ ${rubber.order} แล้ว`);
   }
 
+  // Back to "no result": scores, finished mark and any live count all cleared.
+  const hasResult = rubber.finished || rubber.sets.length > 0 || rubber.liveSet != null;
+  function clearResult() {
+    setVals(Array.from({ length: setCount }, () => ["", ""]));
+    void patch({ sets: [], finish: false, liveSet: null, liveStartedAt: null }, `ลบผลคู่ ${rubber.order} แล้ว`);
+  }
+
   const setVal = (i: number, j: number, v: string) =>
     setVals((cur) => cur.map((row, ri) => (ri === i ? row.map((c, ci) => (ci === j ? v.replace(/[^0-9]/g, "") : c)) : row)));
 
@@ -257,26 +264,65 @@ function RubberRow({
                 นับสด
               </Link>
             )}
+            {hasResult && <ClearResult order={rubber.order} busy={busy} onClear={clearResult} />}
           </div>
         </>
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15px] font-bold tabular-nums">{setsLine(rubber.sets)}</span>
           <span className="text-xs font-semibold text-green-700">{resultText(tie.stage, rubber.outcome, a?.name ?? "ทีม A", b?.name ?? "ทีม B")}</span>
-          <button
-            type="button"
-            onClick={() => {
-              setVals(blank());
-              setEditing(true);
-            }}
-            className="ml-auto min-h-9 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-brand-700"
-          >
-            แก้
-          </button>
+          <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setVals(blank());
+                setEditing(true);
+              }}
+              className="min-h-9 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-brand-700"
+            >
+              แก้
+            </button>
+            <ClearResult order={rubber.order} busy={busy} onClear={clearResult} />
+          </span>
         </div>
       )}
       {msg && <span className={`text-xs ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</span>}
     </div>
+  );
+}
+
+/** "ลบผล" asks once inline, so a slip of the finger can't wipe a result. */
+function ClearResult({ order, busy, onClear }: { order: number; busy: boolean; onClear: () => void }) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setAsking(true)}
+        className="min-h-9 rounded-lg border border-red-300 px-3 text-sm font-semibold text-red-700 disabled:opacity-50"
+      >
+        ลบผล
+      </button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-sm">
+      <span className="font-semibold text-red-700">ลบผลคู่ {order}?</span>
+      <button
+        type="button"
+        onClick={() => {
+          setAsking(false);
+          onClear();
+        }}
+        className="min-h-9 rounded-lg bg-red-600 px-3 font-semibold text-white"
+      >
+        ลบเลย
+      </button>
+      <button type="button" onClick={() => setAsking(false)} className="min-h-9 rounded-lg border px-3">
+        ยกเลิก
+      </button>
+    </span>
   );
 }
 

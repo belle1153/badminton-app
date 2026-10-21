@@ -98,6 +98,7 @@ export function TvStandings({ initial }: { initial: GamesState }) {
   const qualifier = state.ties.filter((t) => t.stage === "QUALIFIER");
   const finishedTies = qualifier.filter((t) => t.status === "done").length;
   const cols = "6vw minmax(0,1fr) 10vw 7vw 7vw 7vw 11vw";
+  const split = state.qualifierStarted;
 
   return (
     <TvFrame other={{ href: `/games/${state.event.id}/tv/schedule`, label: "ตารางแข่ง" }}>
@@ -123,21 +124,22 @@ export function TvStandings({ initial }: { initial: GamesState }) {
           <span className="text-right">ผลต่างแต้ม</span>
         </div>
         {state.standings.map((row, i) => {
-          const top = row.rank <= 4;
+          // No semi-final split before the first result: the order is only the seeding.
+          const top = split && row.rank <= 4;
           return (
             <div
               key={row.teamId}
               className="grid flex-1 items-center px-[2vw] tabular-nums"
               style={{
                 gridTemplateColumns: cols,
-                borderTop: i === 0 ? "none" : row.rank === 5 ? `4px dashed ${DARK.live}` : `2px solid ${DARK.lineSoft}`,
+                borderTop: i === 0 ? "none" : split && row.rank === 5 ? `4px dashed ${DARK.live}` : `2px solid ${DARK.lineSoft}`,
               }}
             >
               {/* leading-none: at the default line height these numerals made six rows taller than a 1080p screen */}
               <span className="text-[4vw] font-bold leading-none" style={{ color: top ? DARK.gold : DARK.dim }}>{row.rank}</span>
               <span className="flex items-center gap-[1.1vw]">
                 <TvChip team={teams.get(row.teamId)} font="2.8vw" />
-                <span className="text-[1.25vw]" style={{ color: top ? DARK.gold : DARK.dim }}>{top ? "เข้ารอบรองฯ" : "ชิงอันดับ 5"}</span>
+                {split && <span className="text-[1.25vw]" style={{ color: top ? DARK.gold : DARK.dim }}>{top ? "เข้ารอบรองฯ" : "ชิงอันดับ 5"}</span>}
               </span>
               <span className="text-right text-[4.8vw] font-bold leading-none">{row.points}</span>
               <span className="text-right text-[2.3vw] text-[#c3cedd]">{row.won}</span>
@@ -148,7 +150,9 @@ export function TvStandings({ initial }: { initial: GamesState }) {
           );
         })}
       </div>
-      <span className="text-[1.15vw] text-[#a9bdd3]">คะแนนเท่ากัน ดู คู่ที่ชนะ → ผลตอนเจอกัน → ผลต่างแต้ม · เส้นประ = ตัดเข้ารอบรองชนะเลิศ</span>
+      <span className="text-[1.15vw] text-[#a9bdd3]">
+        คะแนนเท่ากัน ดู คู่ที่ชนะ → ผลตอนเจอกัน → ผลต่างแต้ม{split && " · เส้นประ = ตัดเข้ารอบรองชนะเลิศ"}
+      </span>
     </TvFrame>
   );
 }
