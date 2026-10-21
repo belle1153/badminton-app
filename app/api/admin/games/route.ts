@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
       await insertSchedule(tx, event.id, event.teams);
       return event.id;
     },
-    { timeout: 20_000 }
+    // maxWait: Neon may still be waking up; the 2 s default failed with P2028.
+    { maxWait: 10_000, timeout: 20_000 }
   );
 
   return NextResponse.json({ id });

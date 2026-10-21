@@ -4,7 +4,7 @@ import { ictDateKey, ictNowMinute } from "./clock";
 import { courtsNowNext, type CourtRubber } from "./courts";
 import { resolveKnockout } from "./knockout";
 import { isKnockout, rubberOutcome, setsFromColumns, tieScore, type SetColumns } from "./rules";
-import { parseHHMM, rubberOffsetMinutes, tieLabel } from "./schedule";
+import { matchNo, parseHHMM, rubberOffsetMinutes, tieLabel } from "./schedule";
 import { computeStandings, type StandingRow } from "./standings";
 import type { RubberOutcome, SetScore, Side, Stage } from "./types";
 
@@ -89,6 +89,8 @@ export interface TieView {
   stage: Stage;
   round: number | null;
   slot: number;
+  /** Qualifier: 1–15 straight through the rounds; knockout ties go by their name instead. */
+  matchNo: number | null;
   label: string;
   startsAt: string;
   courtA: number;
@@ -287,6 +289,7 @@ export function buildGamesState(rows: GamesRows, now: Date, opts: { revealCards?
       stage: tie.stage,
       round: tie.round,
       slot: tie.slot,
+      matchNo: tie.stage === "QUALIFIER" && tie.round != null ? matchNo(tie.round, tie.slot) : null,
       label: tieLabel(tie.stage, tie.round, tie.slot),
       startsAt: tie.startsAt,
       courtA: tie.courtA,

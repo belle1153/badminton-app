@@ -5,6 +5,7 @@ import {
   rubberOffsetMinutes,
   parseHHMM,
   tieLabel,
+  matchNo,
   DEFAULT_TEAMS,
   TEAM_SWATCHES,
 } from "./schedule";
@@ -69,8 +70,14 @@ describe("timing helpers", () => {
 });
 
 describe("labels and defaults", () => {
+  it("numbers qualifier ties 1–15 straight through the rounds", () => {
+    expect(matchNo(1, 1)).toBe(1);
+    expect(matchNo(2, 1)).toBe(4);
+    expect(matchNo(5, 3)).toBe(15);
+  });
+
   it("names ties the way the poster does", () => {
-    expect(tieLabel("QUALIFIER", 2, 1)).toBe("รอบ 2 · แมตซ์ 1");
+    expect(tieLabel("QUALIFIER", 2, 1)).toBe("รอบ 2 · แมตซ์ 4");
     expect(tieLabel("SEMI", null, 2)).toBe("รองชนะเลิศ 2");
     expect(tieLabel("FIFTH", null, 1)).toBe("ชิงอันดับ 5");
     expect(tieLabel("THIRD", null, 1)).toBe("ชิงอันดับ 3");

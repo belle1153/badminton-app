@@ -118,7 +118,7 @@ function TieCard({ eventId, tie, teams, onSaved }: { eventId: string; tie: TieVi
           แก้ใบส่งตัว
         </Link>
       </div>
-      <div className="flex flex-col border-t border-gray-100">
+      <div className="flex flex-col gap-3">
         {tie.rubbers.map((r) => (
           <RubberRow key={r.id} eventId={eventId} tie={tie} rubber={r} a={a} b={b} onSaved={onSaved} />
         ))}
@@ -191,9 +191,13 @@ function RubberRow({
     setVals((cur) => cur.map((row, ri) => (ri === i ? row.map((c, ci) => (ci === j ? v.replace(/[^0-9]/g, "") : c)) : row)));
 
   return (
-    <div className="flex flex-col gap-1.5 border-b border-gray-100 py-2">
-      <div className="flex items-center gap-1.5 text-xs">
-        <b className="text-[13px]">คู่ {rubber.order}</b>
+    // One framed box per pair, so a result is never read against the wrong pair.
+    <div
+      className="flex flex-col gap-2 rounded-xl border-2 bg-slate-50/60 p-3"
+      style={{ borderColor: rubber.status === "live" ? "#fdba74" : "#d6dee8" }}
+    >
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <b className="rounded-md bg-brand-700 px-2.5 py-0.5 text-sm text-white">คู่ {rubber.order}</b>
         <select
           aria-label={`สนามของคู่ ${rubber.order}`}
           value={rubber.court}

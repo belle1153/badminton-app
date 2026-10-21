@@ -70,7 +70,7 @@ function TieLineups({ eventId, tie, teams }: { eventId: string; tie: TieView; te
   return (
     <section className="flex flex-col gap-2.5 rounded-xl border border-gray-200 p-3">
       <h2 className="text-sm font-bold">
-        {tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.slot}` : tie.label}
+        {tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.matchNo}` : tie.label}
         <span className="font-normal text-gray-500"> · สนาม {tie.courtA}–{tie.courtB} · {tie.startsAt}</span>
       </h2>
       {!tie.teamAId || !tie.teamBId ? (

@@ -301,7 +301,7 @@ function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView>
     >
       <div className="flex items-center justify-between text-[1.05vw] text-[#a9bdd3]">
         <span>
-          {tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.slot}` : tie.label} · สนาม {tie.courtA}–{tie.courtB}
+          {tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.matchNo}` : tie.label} · สนาม {tie.courtA}–{tie.courtB}
         </span>
         <span
           className="rounded-full px-[0.7vw] font-bold"

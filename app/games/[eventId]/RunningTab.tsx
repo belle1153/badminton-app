@@ -115,7 +115,7 @@ export default function RunningTab({ state, teams }: { state: GamesState; teams:
 function TieHeader({ eventId, tie, teams }: { eventId: string; tie: TieView; teams: Map<string, TeamView> }) {
   return (
     <Link href={`/games/${eventId}/tie/${tie.id}`} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-      <span className="truncate text-xs text-[#a9bdd3]">{tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.slot}` : tie.label}</span>
+      <span className="truncate text-xs text-[#a9bdd3]">{tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.matchNo}` : tie.label}</span>
       <span className="flex items-center gap-2.5">
         <TeamChip team={teams.get(tie.teamAId ?? "")} />
         <b className="text-lg tabular-nums">{tie.pointsA}–{tie.pointsB}</b>

@@ -111,7 +111,7 @@ export default function LiveScorer({ initial, rubberId }: { initial: GamesState;
   const courtNow = state.courts.find((c) => c.court === rubber.court);
   const nextId = courtNow?.nowRubberId && courtNow.nowRubberId !== rubberId ? courtNow.nowRubberId : null;
   const others = state.ties.flatMap((t) =>
-    t.rubbers.filter((r) => !r.finished && r.status !== "cancelled").map((r) => ({ id: r.id, label: `${t.stage === "QUALIFIER" ? `รอบ ${t.round} แมตซ์ ${t.slot}` : t.label} · คู่ ${r.order} · ส.${r.court}` }))
+    t.rubbers.filter((r) => !r.finished && r.status !== "cancelled").map((r) => ({ id: r.id, label: `${t.label} · คู่ ${r.order} · ส.${r.court}` }))
   );
 
   return (

@@ -196,6 +196,7 @@ export function ScheduleTab({ state, teams }: { state: GamesState; teams: Map<st
                   className="flex flex-col gap-1 rounded-lg border px-2 py-1.5 text-xs"
                   style={{ background: DARK.panel, borderColor: t.status === "live" ? DARK.live : DARK.line }}
                 >
+                  <span className="text-[10px] font-semibold text-[#a9bdd3]">แมตซ์ {t.matchNo}</span>
                   <ScheduleLine team={teams.get(t.teamAId ?? "")} points={t.status === "upcoming" ? null : t.pointsA} bold={t.status === "done" && t.pointsA > t.pointsB} />
                   <ScheduleLine team={teams.get(t.teamBId ?? "")} points={t.status === "upcoming" ? null : t.pointsB} bold={t.status === "done" && t.pointsB > t.pointsA} />
                 </Link>

@@ -27,7 +27,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ev
       await tx.gamesTie.deleteMany({ where: { eventId } });
       await insertSchedule(tx, eventId, teams);
     },
-    { timeout: 20_000 }
+    // maxWait: Neon may still be waking up; the 2 s default failed with P2028.
+    { maxWait: 10_000, timeout: 20_000 }
   );
   return NextResponse.json({ ok: true });
 }

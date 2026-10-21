@@ -112,10 +112,15 @@ export function buildSchedule(teams: { id: string; seed: number }[]): TieSpec[] 
   return [...qualifier, ...knockout];
 }
 
+/** Qualifier ties are numbered 1–15 straight through the rounds (round 2 starts at 4), as the organisers call them. */
+export function matchNo(round: number, slot: number): number {
+  return (round - 1) * QUALIFIER_ROUNDS[0].length + slot;
+}
+
 export function tieLabel(stage: Stage, round: number | null, slot: number): string {
   switch (stage) {
     case "QUALIFIER":
-      return `รอบ ${round} · แมตซ์ ${slot}`;
+      return `รอบ ${round} · แมตซ์ ${matchNo(round ?? 1, slot)}`;
     case "SEMI":
       return `รองชนะเลิศ ${slot}`;
     case "FIFTH":
