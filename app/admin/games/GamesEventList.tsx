@@ -86,19 +86,19 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
               {ev.published ? "เปิดให้ผู้เล่นดูแล้ว" : "ผู้เล่นเห็น \"Coming soon\" (ยังไม่เปิด)"}
             </label>
             <div className="flex flex-wrap gap-2 text-sm">
-              <Link href={`/admin/games/${ev.id}`} className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
+              <Link href={`/admin/games/${ev.id}`} className="flex min-h-11 items-center rounded-lg bg-brand-600 px-4 font-semibold text-white hover:bg-brand-700">
                 คุมรอบ · กรอกผล
               </Link>
-              <Link href={`/admin/games/${ev.id}/lineups`} className="rounded-md border border-brand-300 px-3 py-1.5 font-medium text-brand-700">
+              <Link href={`/admin/games/${ev.id}/lineups`} className="flex min-h-11 items-center rounded-lg border border-brand-300 px-4 font-semibold text-brand-700">
                 ใบส่งตัว
               </Link>
-              <Link href={`/admin/games/${ev.id}/setup`} className="rounded-md border border-brand-300 px-3 py-1.5 font-medium text-brand-700">
+              <Link href={`/admin/games/${ev.id}/setup`} className="flex min-h-11 items-center rounded-lg border border-brand-300 px-4 font-semibold text-brand-700">
                 ตั้งค่างาน / ทีม
               </Link>
-              <Link href={`/games/${ev.id}`} className="rounded-md border border-gray-300 px-3 py-1.5 text-gray-700">
+              <Link href={`/games/${ev.id}`} className="flex min-h-11 items-center rounded-lg border border-gray-300 px-4 text-gray-700">
                 หน้าผู้เล่น
               </Link>
-              <Link href={`/admin/games/${ev.id}/slips`} className="rounded-md border border-gray-300 px-3 py-1.5 text-gray-700">
+              <Link href={`/admin/games/${ev.id}/slips`} className="flex min-h-11 items-center rounded-lg border border-gray-300 px-4 text-gray-700">
                 พิมพ์ใบผล
               </Link>
             </div>

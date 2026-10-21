@@ -2,7 +2,7 @@
    Presentational only, so both server and client components can use them. */
 /* eslint-disable @next/next/no-img-element -- versioned API image URLs, like the leaderboard */
 
-import Link from "next/link";
+import BackLink from "@/app/BackLink";
 import type { PlayerRef, TeamView } from "@/lib/games/state";
 
 export const DARK = {
@@ -132,9 +132,7 @@ export function DarkPage({ children }: { children: React.ReactNode }) {
 export function ComingSoon({ name }: { name: string }) {
   return (
     <DarkPage>
-      <Link href="/" className="self-start py-1 text-sm font-semibold text-[#a9bdd3] hover:text-white">
-        ‹ หน้าแรก
-      </Link>
+      <BackLink href="/" tone="dark" />
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <span className="text-5xl">🏅</span>
         <h1 className="text-2xl font-bold">{name}</h1>

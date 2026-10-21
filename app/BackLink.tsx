@@ -14,15 +14,23 @@
  * Either way `href` is the real anchor target, so middle-click / open-in-new-tab
  * and no-JS still work.
  */
+const TONES = {
+  light: "border-gray-200 bg-white text-gray-600 shadow-sm hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900",
+  // For the dark TUA TUENG GAMES player pages.
+  dark: "border-[#2f6690] bg-[#102843] text-[#dbe6f0] hover:border-[#4f83ac] hover:text-white",
+};
+
 export default function BackLink({
   href = "/",
   label = "กลับ",
   exact = false,
+  tone = "light",
   className = "",
 }: {
   href?: string;
   label?: string;
   exact?: boolean;
+  tone?: keyof typeof TONES;
   className?: string;
 }) {
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -38,7 +46,7 @@ export default function BackLink({
     <a
       href={href}
       onClick={handleClick}
-      className={`inline-flex items-center gap-1.5 self-start rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:scale-95 ${className}`}
+      className={`inline-flex items-center gap-1.5 self-start rounded-full border px-4 py-2.5 text-sm font-medium transition active:scale-95 ${TONES[tone]} ${className}`}
     >
       <svg
         aria-hidden="true"

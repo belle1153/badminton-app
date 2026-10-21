@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useState } from "react";
 import type { GamesState } from "@/lib/games/state";
 import { useGamesState } from "@/app/games/useGamesState";
@@ -30,12 +29,7 @@ export default function SetupBoard({ initial, athletes }: { initial: GamesState;
 
   return (
     <>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-bold">ตั้งค่างานแข่ง</h1>
-        <Link href={`/admin/games/${state.event.id}`} className="text-sm font-semibold text-brand-700">
-          ไปหน้าคุมรอบ ›
-        </Link>
-      </div>
+      <h1 className="text-2xl font-bold">ตั้งค่างานแข่ง</h1>
       <EventSettings state={state} onSaved={refresh} />
       <section className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between">

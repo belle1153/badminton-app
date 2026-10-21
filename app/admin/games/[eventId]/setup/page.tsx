@@ -15,7 +15,7 @@ export default async function GamesSetupPage({ params }: { params: Promise<{ eve
   ]);
   if (!state) notFound();
   return (
-    <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
+    <main className="max-w-2xl mx-auto w-full p-4 sm:p-6 flex flex-col gap-6">
       <SetupBoard initial={state} athletes={athletes} />
     </main>
   );

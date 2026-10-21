@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import BackLink from "@/app/BackLink";
 import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
@@ -20,9 +20,7 @@ export default function GamesTie({ initial, tieId }: { initial: GamesState; tieI
 
   return (
     <DarkPage>
-      <Link href={`/games/${state.event.id}`} className="self-start py-1 text-sm font-semibold text-[#a9bdd3] hover:text-white">
-        ‹ กลับ
-      </Link>
+      <BackLink href={`/games/${state.event.id}`} tone="dark" />
       <span className="text-[13px] text-[#a9bdd3]">
         {tie.label} · สนาม {tie.courtA}–{tie.courtB} · {tie.startsAt}
       </span>

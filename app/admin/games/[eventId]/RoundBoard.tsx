@@ -10,11 +10,6 @@ import { Chip, LineupStatus } from "./LineupBits";
 
 type Tab = number | "KO";
 
-/** Header menu links: thumb-sized buttons rather than small text. */
-const MENU_BASE = "flex min-h-10 items-center rounded-lg px-3.5";
-const MENU = `${MENU_BASE} border border-brand-300 text-brand-700 hover:bg-brand-50`;
-const MENU_MAIN = `${MENU_BASE} bg-brand-600 text-white hover:bg-brand-700`;
-
 /** Round-by-round control: lineup status per team and result entry per rubber. */
 export default function RoundBoard({ initial }: { initial: GamesState }) {
   const { state, refresh } = useGamesState(initial.event.id, initial, { admin: true, intervalMs: 3000 });
@@ -30,18 +25,7 @@ export default function RoundBoard({ initial }: { initial: GamesState }) {
 
   return (
     <>
-      <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-bold">คุมรอบ · กรอกผล</h1>
-        <nav className="flex flex-wrap gap-2 text-sm font-semibold">
-          <Link href={`/admin/games/${id}/lineups?round=${tab}`} className={MENU_MAIN}>
-            ใบส่งตัว
-          </Link>
-          <Link href={`/admin/games/${id}/setup`} className={MENU}>ตั้งค่างาน / ทีม</Link>
-          <Link href={`/admin/games/${id}/slips`} className={MENU}>พิมพ์ใบผล</Link>
-          <Link href={`/games/${id}`} className={MENU}>หน้าผู้เล่น</Link>
-          <Link href={`/games/${id}/tv/standings`} className={MENU}>จอใหญ่</Link>
-        </nav>
-      </div>
+      <h1 className="text-2xl font-bold">คุมรอบ · กรอกผล</h1>
       {!state.event.published && (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">ผู้เล่นยังเห็น &quot;Coming soon&quot; · เปิดได้ที่หน้าตั้งค่างาน</p>
       )}

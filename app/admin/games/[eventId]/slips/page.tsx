@@ -33,7 +33,7 @@ export default async function GamesSlipsPage({ params }: { params: Promise<{ eve
   );
 
   return (
-    <main className="max-w-3xl mx-auto w-full p-6 flex flex-col gap-4">
+    <main className="max-w-2xl mx-auto w-full p-4 sm:p-6 flex flex-col gap-4">
       <style>{`
         @page { size: A4; margin: 10mm; }
         @media print {

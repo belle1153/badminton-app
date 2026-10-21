@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BackLink from "@/app/BackLink";
 import { useMemo } from "react";
 import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute, knockoutPlaceholder, setsLine } from "@/lib/games/format";
@@ -34,9 +35,7 @@ export default function GamesHome({ initial }: { initial: GamesState }) {
   return (
     <DarkPage>
       <div className="flex flex-col gap-1.5">
-        <Link href="/" className="self-start py-1 text-sm font-semibold text-[#a9bdd3] hover:text-white">
-          ‹ หน้าแรก
-        </Link>
+        <BackLink href="/" tone="dark" />
         <h1 className="text-2xl font-bold tracking-wide">{state.event.name}</h1>
         <span className="flex items-center gap-2 text-[13px] text-[#a9bdd3]">
           <span className="h-2 w-2 rounded-full" style={{ background: DARK.live }} />

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
+import BackLink from "@/app/BackLink";
 import GamesEventList from "./GamesEventList";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,8 @@ export default async function AdminGamesPage() {
     select: { id: true, name: true, date: true, published: true },
   });
   return (
-    <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
+    <main className="max-w-2xl mx-auto w-full p-4 sm:p-6 flex flex-col gap-6">
+      <BackLink href="/admin" />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">เกมส์ (งานแข่งแบบทีม)</h1>
         <p className="text-sm text-gray-600">

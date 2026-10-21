@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import BackLink from "@/app/BackLink";
 import type { GamesState, TieView } from "@/lib/games/state";
 import { useGamesState } from "@/app/games/useGamesState";
 import { adminApi } from "../../../api";
@@ -55,8 +54,6 @@ export default function LineupEditor({ initial, tieId, initialSide }: { initial:
 
   return (
     <>
-      {/* Back to wherever it was opened from: the lineups menu or the control page. */}
-      <BackLink href={`/admin/games/${state.event.id}/lineups?round=${tie.round ?? "KO"}`} />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">คีย์ใบส่งตัว</h1>
         <p className="text-sm text-gray-600">

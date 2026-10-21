@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import BackLink from "@/app/BackLink";
 import type { GamesState, TeamView, TieView } from "@/lib/games/state";
 import { knockoutPlaceholder, pairName } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
@@ -27,7 +26,6 @@ export default function LineupsBoard({ initial, initialTab }: { initial: GamesSt
 
   return (
     <>
-      <BackLink href={`/admin/games/${id}`} />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">ใบส่งตัว</h1>
         <p className="text-sm text-gray-600">กดที่ทีมเพื่อคีย์คู่ 1–5 ตามกระดาษที่กัปตันส่งมา · แก้ได้ตลอด</p>
