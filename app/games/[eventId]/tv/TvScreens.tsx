@@ -327,7 +327,7 @@ function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView>
         <span className="text-[1.3vw] text-[#c3cedd]">{knockoutPlaceholder(tie.stage, tie.slot)}</span>
       )}
       {(tie.bonusA !== 0 || tie.bonusB !== 0) && (
-        <span className="text-center text-[0.9vw] font-semibold" style={{ color: DARK.gold }}>
+        <span className="text-center text-[1.05vw] font-semibold" style={{ color: DARK.gold }}>
           🃏 รวมโบนัสการ์ดแล้ว
         </span>
       )}
@@ -368,7 +368,7 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
   );
   return (
     <div
-      className="grid flex-1 grid-cols-[3.4vw_minmax(0,1fr)_7.5vw_minmax(0,1fr)] items-center gap-[0.5vw] border-t py-[0.3vw]"
+      className="grid flex-1 grid-cols-[3.4vw_minmax(0,1fr)_7.5vw_minmax(0,1fr)] content-center items-center gap-x-[0.5vw] gap-y-[0.3vw] border-t py-[0.3vw]"
       style={{ borderColor: DARK.lineSoft, opacity: rubber.status === "cancelled" ? 0.5 : 1 }}
     >
       <span className="flex flex-col text-[0.95vw] font-bold leading-tight">
@@ -376,17 +376,30 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
         <span className="font-normal text-[#a9bdd3]">ส.{rubber.court}</span>
       </span>
       <TvNames players={rubber.a} dim={done && rubber.outcome === "B"} />
-      <span className="flex flex-col items-center gap-[0.2vw]">
-        {center}
-        {/* Which team played it, and what it did: "🃏 DOUBLE DOWN" / "MARS +2". */}
-        {cards.map((c) => (
-          <span key={c.side} className="flex flex-col items-center text-center text-[0.75vw] font-bold leading-tight" style={{ color: DARK.gold }}>
-            <span>🃏 {CARD_LABELS[c.kind].name}</span>
-            <span>{cardEffectText(c, rubber.outcome, a?.name ?? "ทีม A", b?.name ?? "ทีม B")}</span>
-          </span>
-        ))}
-      </span>
+      <span className="flex flex-col items-center">{center}</span>
       <TvNames players={rubber.b} dim={done && rubber.outcome === "A"} right />
+      {cards.length > 0 && (
+        // One full-width line per card under the team that played it, as big as the names so it
+        // reads from the back of the hall: "🃏 STEAL  MARS +1 · JUPITER −1". A card that did
+        // nothing is greyed so the one that scored stands out.
+        <span className="col-span-3 col-start-2 flex flex-col gap-[0.3vw]">
+          {cards.map((c) => {
+            const idle = c.kind !== "SUBSTITUTION" && rubber.outcome !== c.side;
+            return (
+              <span
+                key={c.side}
+                className={`${c.side === "A" ? "self-start" : "self-end"} flex max-w-full flex-wrap items-baseline gap-x-[0.6vw] rounded-[0.6vw] border-2 px-[0.7vw] py-[0.15vw] text-[1.1vw] font-bold leading-snug`}
+                style={{ borderColor: idle ? DARK.line : DARK.gold, color: idle ? DARK.muted : DARK.gold }}
+              >
+                <span>🃏 {CARD_LABELS[c.kind].name}</span>
+                <span style={{ color: idle ? DARK.muted : DARK.text }}>
+                  {cardEffectText(c, rubber.outcome, a?.name ?? "ทีม A", b?.name ?? "ทีม B")}
+                </span>
+              </span>
+            );
+          })}
+        </span>
+      )}
     </div>
   );
 }
