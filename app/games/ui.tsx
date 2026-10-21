@@ -170,7 +170,8 @@ export function Pill({ children, bg, fg }: { children: React.ReactNode; bg: stri
 /** Dark page frame shared by the player screens. */
 export function DarkPage({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-full font-[family-name:var(--font-pixel-body)]" style={{ background: DARK.ground, color: DARK.text }}>
+    // flex-1: fill the rest of the body's flex column, so a short tab never leaves white below.
+    <div className="flex-1 font-[family-name:var(--font-pixel-body)]" style={{ background: DARK.ground, color: DARK.text }}>
       <main className="mx-auto flex w-full max-w-[480px] flex-col gap-6 px-4 pb-10 pt-4">{children}</main>
     </div>
   );
