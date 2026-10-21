@@ -9,22 +9,32 @@ import { textOn } from "@/lib/games/color";
 import type { TeamView } from "@/lib/games/state";
 import { adminApi } from "../../api";
 
+/** A team a player is with: saved, or only picked in that team's editor so far. */
+export type Claim = { teamId: string; name: string; saved: boolean };
+
 /** One team: logo, name, colour and the 10 players picked from the athlete roster. */
 export default function TeamEditor({
   team,
   athletes,
-  taken,
+  claims,
+  onDraft,
   onSaved,
 }: {
   team: TeamView;
   athletes: { id: string; name: string }[];
-  taken: Map<string, string>;
+  claims: Map<string, Claim[]>;
+  onDraft: (teamId: string, ids: string[]) => void;
   onSaved: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(team.name);
   const [color, setColor] = useState(team.color);
-  const [members, setMembers] = useState<string[]>(team.members.map((m) => m.id));
+  const [members, setMembersState] = useState<string[]>(team.members.map((m) => m.id));
+  // Every change is reported up, so the other team editors grey this pick out straight away.
+  const setMembers = (ids: string[]) => {
+    setMembersState(ids);
+    onDraft(team.id, ids);
+  };
   const [query, setQuery] = useState("");
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -150,13 +160,12 @@ export default function TeamEditor({
             {matches.length > 0 && (
               <ul className="flex flex-col rounded-md border border-gray-200">
                 {matches.map((a) => {
-                  const other = taken.get(a.id);
-                  const inOther = other && other !== team.name;
+                  const other = claims.get(a.id)?.find((c) => c.teamId !== team.id);
                   return (
                     <li key={a.id}>
                       <button
                         type="button"
-                        disabled={!!inOther}
+                        disabled={!!other}
                         onClick={() => {
                           setMembers([...members, a.id]);
                           setQuery("");
@@ -164,7 +173,11 @@ export default function TeamEditor({
                         className="flex w-full justify-between px-3 py-2 text-left text-sm hover:bg-brand-50 disabled:text-gray-400"
                       >
                         {a.name}
-                        {inOther && <span className="text-xs">อยู่ทีม{other}</span>}
+                        {other && (
+                          <span className="text-xs">
+                            {other.saved ? `อยู่ทีม${other.name}` : `เลือกไว้ในทีม${other.name} (ยังไม่บันทึก)`}
+                          </span>
+                        )}
                       </button>
                     </li>
                   );

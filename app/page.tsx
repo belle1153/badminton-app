@@ -3,6 +3,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { BUILD_LABEL } from "@/lib/version";
 import { latestEventForHome } from "@/lib/games/load";
+import { isAdmin } from "@/lib/adminAuth";
 import AnnouncementCarousel from "./AnnouncementCarousel";
 import MyStatsCard from "./MyStatsCard";
 
@@ -33,6 +34,8 @@ export default async function Home() {
       : null,
   }));
   const games = await latestEventForHome();
+  // While the event is still "Coming soon", admins can open it to test the player pages.
+  const adminPreview = games != null && !games.published && (await isAdmin());
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -90,7 +93,7 @@ export default async function Home() {
         </div>
 
         {/* TUA TUENG GAMES: a link once the admin publishes the event; until then
-            a teaser players can see but not open. */}
+            a teaser players can see but not open (admins can, to test). */}
         {games?.published ? (
           <Link
             href={`/games/${games.id}`}
@@ -99,6 +102,16 @@ export default async function Home() {
             <span className="text-4xl">🏅</span>
             <span className="font-bold text-lg text-amber-300">{games.name}</span>
             <span className="text-xs text-slate-400">ตารางแข่ง ผล และตารางคะแนนทีม</span>
+          </Link>
+        ) : games && adminPreview ? (
+          <Link
+            href={`/games/${games.id}`}
+            className="rounded-2xl border-2 border-dashed border-amber-300 bg-[#0b1c30] p-6 flex flex-col items-center gap-1.5 text-center hover:border-amber-200 transition"
+          >
+            <span className="text-4xl opacity-70">🏅</span>
+            <span className="font-bold text-lg text-slate-200">{games.name}</span>
+            <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
+            <span className="text-xs text-amber-300">แอดมินกดเข้าดูได้ · ผู้เล่นยังกดไม่ได้</span>
           </Link>
         ) : (
           <div
