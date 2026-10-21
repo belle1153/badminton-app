@@ -89,8 +89,8 @@ export default function GamesHome({ initial }: { initial: GamesState }) {
           </div>
           {state.standings.map((row, i) => {
             const team = teams.get(row.teamId);
-            // No semi-final split before the first result: the order is only the seeding.
-            const split = state.qualifierStarted;
+            // No semi-final split until all 15 qualifier ties are done: the order can still change.
+            const split = state.qualifierDone;
             const top = split && row.rank <= 4;
             return (
               <div

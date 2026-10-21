@@ -98,7 +98,8 @@ export function TvStandings({ initial }: { initial: GamesState }) {
   const qualifier = state.ties.filter((t) => t.stage === "QUALIFIER");
   const finishedTies = qualifier.filter((t) => t.status === "done").length;
   const cols = "6vw minmax(0,1fr) 10vw 7vw 7vw 7vw 11vw";
-  const split = state.qualifierStarted;
+  // No semi-final split until all 15 qualifier ties are done: the order can still change.
+  const split = state.qualifierDone;
 
   return (
     <TvFrame other={{ href: `/games/${state.event.id}/tv/schedule`, label: "ตารางแข่ง" }}>
@@ -124,7 +125,6 @@ export function TvStandings({ initial }: { initial: GamesState }) {
           <span className="text-right">ผลต่างแต้ม</span>
         </div>
         {state.standings.map((row, i) => {
-          // No semi-final split before the first result: the order is only the seeding.
           const top = split && row.rank <= 4;
           return (
             <div

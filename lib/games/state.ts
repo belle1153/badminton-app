@@ -126,9 +126,8 @@ export interface GamesState {
   teams: TeamView[];
   ties: TieView[];
   standings: StandingRow[];
-  /** Some qualifier rubber has a result. Before that the table is only seed order, so
-   *  screens show no semi-final split and the knockout has no teams yet. */
-  qualifierStarted: boolean;
+  /** Every qualifier rubber has a result. Only then do screens show the semi-final
+   *  split and the knockout get its teams — before that the table can still change. */
   qualifierDone: boolean;
   courts: { court: number; nowRubberId: string | null; nowStarted: boolean; nextRubberId: string | null }[];
 }
@@ -191,11 +190,10 @@ export function buildGamesState(rows: GamesRows, now: Date): GamesState {
       })),
     rankOverride
   );
-  const qualifierStarted = qualifier.some((s) => s.rubbers.some((r) => r.outcome != null));
   const qualifierDone = qualifier.length > 0 && qualifier.every((s) => s.rubbers.every((r) => r.outcome != null));
 
-  // 3. Knockout pairings — none until a qualifier result gives the table some meaning.
-  const knockout = qualifierStarted
+  // 3. Knockout pairings — none until all 15 qualifier ties are done and the table is final.
+  const knockout = qualifierDone
     ? resolveKnockout(
         scored
           .filter((s) => isKnockout(s.tie.stage))
@@ -307,7 +305,6 @@ export function buildGamesState(rows: GamesRows, now: Date): GamesState {
       (a, b) => parseHHMM(a.startsAt) - parseHHMM(b.startsAt) || a.slot - b.slot
     ),
     standings,
-    qualifierStarted,
     qualifierDone,
     courts: courts.map((c) => ({
       court: c.court,

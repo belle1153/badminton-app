@@ -64,6 +64,10 @@ function finish(rows: GamesRows, id: string, sets: [number, number][]) {
   r.finishedAt = new Date();
 }
 
+function finishQualifier(rows: GamesRows, sets: [number, number][]) {
+  for (const t of rows.event.ties) if (t.stage === "QUALIFIER") for (const r of t.rubbers) finish(rows, r.id, sets);
+}
+
 describe("buildGamesState", () => {
   it("counts a result keyed before the lineup, showing the pair as unnamed", () => {
     const rows = fixture();
@@ -82,28 +86,30 @@ describe("buildGamesState", () => {
     expect(semi.rubbers.map((r) => r.status)).toEqual(["done", "done", "done", "cancelled", "cancelled"]);
   });
 
-  it("leaves the knockout and the qualifying split open until a qualifier result is in", () => {
-    const state = buildGamesState(fixture(), NOW);
-    expect(state.qualifierStarted).toBe(false);
-    const semi = state.ties.find((t) => t.id === "tie16")!;
-    expect(semi).toMatchObject({ teamAId: null, teamBId: null, projected: false });
+  it("names no knockout teams while any qualifier rubber is still open", () => {
+    const rows = fixture();
+    finishQualifier(rows, [[21, 15], [15, 21]]);
+    const last = rows.event.ties.find((t) => t.id === "tie15")!.rubbers[4];
+    [last.set1A, last.set1B, last.set2A, last.set2B, last.finishedAt] = [null, null, null, null, null];
+    const state = buildGamesState(rows, NOW);
+    expect(state.qualifierDone).toBe(false);
+    expect(state.ties.find((t) => t.id === "tie16")).toMatchObject({ teamAId: null, teamBId: null });
   });
 
-  it("projects the knockout from the table once the first result is in", () => {
+  it("fills the knockout from the final table once all 15 qualifier ties are done", () => {
     const rows = fixture();
-    finish(rows, "tie1-r1", [[21, 10], [21, 12]]); // seed 1 beats seed 6
+    finishQualifier(rows, [[21, 15], [15, 21]]); // all draws: level on everything, so seed order
     const state = buildGamesState(rows, NOW);
-    expect(state.qualifierStarted).toBe(true);
-    expect(state.ties.find((t) => t.id === "tie16")).toMatchObject({ teamAId: "team1", teamBId: "team4", projected: true });
+    expect(state.qualifierDone).toBe(true);
+    expect(state.ties.find((t) => t.id === "tie16")).toMatchObject({ teamAId: "team1", teamBId: "team4", projected: false });
   });
 
   it("flags a knockout lineup that no longer matches the resolved team", () => {
     const rows = fixture();
-    // seed 1 beats seed 6, so the ranks still follow seed: semi 1 is seed 1 vs seed 4
-    finish(rows, "tie1-r1", [[21, 10], [21, 12]]);
+    finishQualifier(rows, [[21, 15], [15, 21]]); // seed order: semi 1 is seed 1 vs seed 4
     rubberOf(rows, "tie16-r1").a1Id = "p20"; // a seed-2 player on the seed-1 side
     const semi = buildGamesState(rows, NOW).ties.find((t) => t.id === "tie16")!;
-    expect(semi).toMatchObject({ teamAId: "team1", teamBId: "team4", projected: true, lineupMismatch: true });
+    expect(semi).toMatchObject({ teamAId: "team1", teamBId: "team4", lineupMismatch: true });
   });
 
   it("serves photos and logos as versioned URLs, never inline", () => {
