@@ -89,6 +89,9 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
               <Link href={`/admin/games/${ev.id}`} className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
                 คุมรอบ · กรอกผล
               </Link>
+              <Link href={`/admin/games/${ev.id}/lineups`} className="rounded-md border border-brand-300 px-3 py-1.5 font-medium text-brand-700">
+                ใบส่งตัว
+              </Link>
               <Link href={`/admin/games/${ev.id}/setup`} className="rounded-md border border-brand-300 px-3 py-1.5 font-medium text-brand-700">
                 ตั้งค่างาน / ทีม
               </Link>

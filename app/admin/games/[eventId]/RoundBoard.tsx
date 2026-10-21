@@ -6,8 +6,14 @@ import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/stat
 import { fmtMinute, knockoutPlaceholder, pairName, resultText, setsLine } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
 import { adminApi } from "../api";
+import { Chip, LineupStatus } from "./LineupBits";
 
 type Tab = number | "KO";
+
+/** Header menu links: thumb-sized buttons rather than small text. */
+const MENU_BASE = "flex min-h-10 items-center rounded-lg px-3.5";
+const MENU = `${MENU_BASE} border border-brand-300 text-brand-700 hover:bg-brand-50`;
+const MENU_MAIN = `${MENU_BASE} bg-brand-600 text-white hover:bg-brand-700`;
 
 /** Round-by-round control: lineup status per team and result entry per rubber. */
 export default function RoundBoard({ initial }: { initial: GamesState }) {
@@ -24,14 +30,17 @@ export default function RoundBoard({ initial }: { initial: GamesState }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-col gap-3">
         <h1 className="text-2xl font-bold">คุมรอบ · กรอกผล</h1>
-        <div className="flex flex-wrap gap-3 text-sm font-semibold text-brand-700">
-          <Link href={`/admin/games/${id}/setup`}>ตั้งค่างาน / ทีม ›</Link>
-          <Link href={`/admin/games/${id}/slips`}>พิมพ์ใบผล ›</Link>
-          <Link href={`/games/${id}`}>หน้าผู้เล่น ›</Link>
-          <Link href={`/games/${id}/tv/standings`}>จอใหญ่ ›</Link>
-        </div>
+        <nav className="flex flex-wrap gap-2 text-sm font-semibold">
+          <Link href={`/admin/games/${id}/lineups?round=${tab}`} className={MENU_MAIN}>
+            ใบส่งตัว
+          </Link>
+          <Link href={`/admin/games/${id}/setup`} className={MENU}>ตั้งค่างาน / ทีม</Link>
+          <Link href={`/admin/games/${id}/slips`} className={MENU}>พิมพ์ใบผล</Link>
+          <Link href={`/games/${id}`} className={MENU}>หน้าผู้เล่น</Link>
+          <Link href={`/games/${id}/tv/standings`} className={MENU}>จอใหญ่</Link>
+        </nav>
       </div>
       {!state.event.published && (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">ผู้เล่นยังเห็น &quot;Coming soon&quot; · เปิดได้ที่หน้าตั้งค่างาน</p>
@@ -80,34 +89,17 @@ export default function RoundBoard({ initial }: { initial: GamesState }) {
               <span className="text-gray-500">vs</span>
               <Chip team={teams.get(t.teamBId ?? "")} />
               <LineupStatus tie={t} side="b" />
-              <Link href={`/admin/games/${id}/lineup/${t.id}`} className="ml-auto font-semibold text-brand-700">
-                คีย์ ›
+              <Link
+                href={`/admin/games/${id}/lineup/${t.id}`}
+                className="ml-auto flex min-h-10 items-center rounded-lg border border-brand-300 px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+              >
+                คีย์ใบส่งตัว
               </Link>
             </div>
           ))}
         </section>
       )}
     </>
-  );
-}
-
-function Chip({ team }: { team: TeamView | undefined }) {
-  if (!team) return <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[13px] font-bold text-gray-500">—</span>;
-  return (
-    <span className="rounded-md px-2 py-0.5 text-[13px] font-bold" style={{ background: team.color, color: team.textColor }}>
-      {team.name}
-    </span>
-  );
-}
-
-function LineupStatus({ tie, side }: { tie: TieView; side: "a" | "b" }) {
-  const filled = tie.rubbers.filter((r) => r[side][0] && r[side][1]).length;
-  const [bg, fg, text] =
-    filled === 5 ? ["#e2f3e7", "#15803d", "ส่งแล้ว"] : filled === 0 ? ["#fde7e4", "#b42318", "ยังไม่ส่ง"] : ["#fbf0d5", "#8a5a00", `${filled}/5 คู่`];
-  return (
-    <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: bg, color: fg }}>
-      {text}
-    </span>
   );
 }
 
@@ -133,8 +125,11 @@ function TieCard({ eventId, tie, teams, onSaved }: { eventId: string; tie: TieVi
         ใบส่งตัว
         <span className="flex items-center gap-1">{a?.name ?? "ทีม A"} <LineupStatus tie={tie} side="a" /></span>
         <span className="flex items-center gap-1">{b?.name ?? "ทีม B"} <LineupStatus tie={tie} side="b" /></span>
-        <Link href={`/admin/games/${eventId}/lineup/${tie.id}`} className="ml-auto font-semibold text-brand-700">
-          แก้ ›
+        <Link
+          href={`/admin/games/${eventId}/lineup/${tie.id}`}
+          className="ml-auto flex min-h-10 items-center rounded-lg border border-brand-300 px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+        >
+          แก้ใบส่งตัว
         </Link>
       </div>
       <div className="flex flex-col border-t border-gray-100">
@@ -278,7 +273,7 @@ function RubberRow({
                 setVals(blank());
                 setEditing(true);
               }}
-              className="min-h-9 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-brand-700"
+              className="min-h-10 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-brand-700"
             >
               แก้
             </button>
@@ -300,7 +295,7 @@ function ClearResult({ order, busy, onClear }: { order: number; busy: boolean; o
         type="button"
         disabled={busy}
         onClick={() => setAsking(true)}
-        className="min-h-9 rounded-lg border border-red-300 px-3 text-sm font-semibold text-red-700 disabled:opacity-50"
+        className="min-h-10 rounded-lg border border-red-300 px-4 text-sm font-semibold text-red-700 disabled:opacity-50"
       >
         ลบผล
       </button>
@@ -315,11 +310,11 @@ function ClearResult({ order, busy, onClear }: { order: number; busy: boolean; o
           setAsking(false);
           onClear();
         }}
-        className="min-h-9 rounded-lg bg-red-600 px-3 font-semibold text-white"
+        className="min-h-10 rounded-lg bg-red-600 px-4 font-semibold text-white"
       >
         ลบเลย
       </button>
-      <button type="button" onClick={() => setAsking(false)} className="min-h-9 rounded-lg border px-3">
+      <button type="button" onClick={() => setAsking(false)} className="min-h-10 rounded-lg border px-4">
         ยกเลิก
       </button>
     </span>

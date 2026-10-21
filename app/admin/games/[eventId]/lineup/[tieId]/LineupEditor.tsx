@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import BackLink from "@/app/BackLink";
 import type { GamesState, TieView } from "@/lib/games/state";
 import { useGamesState } from "@/app/games/useGamesState";
 import { adminApi } from "../../../api";
@@ -16,10 +16,10 @@ const pairsOf = (tie: TieView, side: Side): Pair[] =>
   });
 
 /** Pairs 1–5 laid out like the captain's paper slip; names come from the team's roster. */
-export default function LineupEditor({ initial, tieId }: { initial: GamesState; tieId: string }) {
+export default function LineupEditor({ initial, tieId, initialSide }: { initial: GamesState; tieId: string; initialSide: Side }) {
   const { state, refresh } = useGamesState(initial.event.id, initial, { admin: true, intervalMs: 10000 });
   const tie = state.ties.find((t) => t.id === tieId)!;
-  const [side, setSide] = useState<Side>("A");
+  const [side, setSide] = useState<Side>(initialSide);
   const [drafts, setDrafts] = useState<Record<Side, Pair[]>>(() => {
     const t = initial.ties.find((x) => x.id === tieId)!;
     return { A: pairsOf(t, "A"), B: pairsOf(t, "B") };
@@ -55,9 +55,8 @@ export default function LineupEditor({ initial, tieId }: { initial: GamesState; 
 
   return (
     <>
-      <Link href={`/admin/games/${state.event.id}`} className="self-start py-1 text-sm font-semibold text-brand-700">
-        ‹ คุมรอบ
-      </Link>
+      {/* Back to wherever it was opened from: the lineups menu or the control page. */}
+      <BackLink href={`/admin/games/${state.event.id}/lineups?round=${tie.round ?? "KO"}`} />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">คีย์ใบส่งตัว</h1>
         <p className="text-sm text-gray-600">
