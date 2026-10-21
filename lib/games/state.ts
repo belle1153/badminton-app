@@ -1,3 +1,4 @@
+import { cardBonus, type CardKind, type PlayedCard } from "./cards";
 import { textOn } from "./color";
 import { ictDateKey, ictNowMinute } from "./clock";
 import { courtsNowNext, type CourtRubber } from "./courts";
@@ -52,6 +53,7 @@ export interface GamesRows {
       teamAId: string | null;
       teamBId: string | null;
       rubbers: RubberRow[];
+      cards: { teamId: string; kind: CardKind; order: number; swapWith: number | null }[];
     }[];
   };
   athletes: { id: string; name: string; updatedAt: Date; hasPhoto: boolean }[];
@@ -94,8 +96,13 @@ export interface TieView {
   teamAId: string | null;
   teamBId: string | null;
   projected: boolean;
+  /** Rubber points plus SECRET CARD bonus. */
   pointsA: number;
   pointsB: number;
+  bonusA: number;
+  bonusB: number;
+  /** Cards played in this tie — only those whose pair is finished, unless revealed for admins. */
+  cards: PlayedCard[];
   winner: Side | null;
   status: "upcoming" | "live" | "done";
   lineupMismatch: boolean;
@@ -139,7 +146,7 @@ export interface GamesState {
  * clock always give the same snapshot, and nothing derived is ever stored, so
  * an edited result re-scores the tie, the table and the knockout at once.
  */
-export function buildGamesState(rows: GamesRows, now: Date): GamesState {
+export function buildGamesState(rows: GamesRows, now: Date, opts: { revealCards?: boolean } = {}): GamesState {
   const ev = rows.event;
   const athletes = new Map(rows.athletes.map((a) => [a.id, a]));
   const player = (id: string | null): PlayerRef | null => {
@@ -173,7 +180,12 @@ export function buildGamesState(rows: GamesRows, now: Date): GamesState {
         const finished = r.finishedAt != null;
         return { row: r, sets, finished, outcome: rubberOutcome(t.stage, sets, finished) };
       });
-    return { tie: t, rubbers, score: tieScore(t.stage, rubbers.map((r) => r.outcome)) };
+    const cards: PlayedCard[] = t.cards
+      .filter((c) => c.teamId === t.teamAId || c.teamId === t.teamBId)
+      .map((c) => ({ side: c.teamId === t.teamAId ? "A" : "B", kind: c.kind, order: c.order, swapWith: c.swapWith }));
+    const outcomeOf = (order: number) => rubbers.find((r) => r.row.order === order)?.outcome ?? null;
+    const [bonusA, bonusB] = cardBonus(t.stage, cards, outcomeOf);
+    return { tie: t, rubbers, score: tieScore(t.stage, rubbers.map((r) => r.outcome)), cards, bonusA, bonusB };
   });
 
   // 2. Qualifier table.
@@ -187,6 +199,8 @@ export function buildGamesState(rows: GamesRows, now: Date): GamesState {
         teamAId: s.tie.teamAId!,
         teamBId: s.tie.teamBId!,
         rubbers: s.rubbers.map((r) => ({ outcome: r.outcome, sets: r.sets })),
+        bonusA: s.bonusA,
+        bonusB: s.bonusB,
       })),
     rankOverride
   );
@@ -227,7 +241,7 @@ export function buildGamesState(rows: GamesRows, now: Date): GamesState {
   const startMinute = new Map(courtInput.map((c) => [c.id, c.startMinute]));
 
   // 5. Views.
-  const ties: TieView[] = scored.map(({ tie, rubbers, score }) => {
+  const ties: TieView[] = scored.map(({ tie, rubbers, score, cards, bonusA, bonusB }) => {
     const sides = knockout[tie.id];
     const teamAId = sides ? sides.teamAId : tie.teamAId;
     const teamBId = sides ? sides.teamBId : tie.teamBId;
@@ -280,8 +294,12 @@ export function buildGamesState(rows: GamesRows, now: Date): GamesState {
       teamAId,
       teamBId,
       projected: sides?.projected ?? false,
-      pointsA: score.pointsA,
-      pointsB: score.pointsB,
+      pointsA: score.pointsA + bonusA,
+      pointsB: score.pointsB + bonusB,
+      bonusA,
+      bonusB,
+      // SECRET CARD: players only see a card once its pair has a result.
+      cards: opts.revealCards ? cards : cards.filter((c) => rubbers.some((r) => r.row.order === c.order && r.finished)),
       winner: score.winner,
       status: allDone ? "done" : anyActive ? "live" : "upcoming",
       lineupMismatch,

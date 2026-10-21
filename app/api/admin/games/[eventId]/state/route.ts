@@ -7,7 +7,7 @@ import { loadGamesState } from "@/lib/games/load";
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   if (!(await isAdmin())) return NextResponse.json({ error: "ต้องเป็นแอดมิน" }, { status: 403 });
   const { eventId } = await params;
-  const state = await loadGamesState(eventId);
+  const state = await loadGamesState(eventId, { revealCards: true });
   if (!state) return NextResponse.json({ error: "ไม่พบงานนี้" }, { status: 404 });
   return NextResponse.json(state, { headers: { "cache-control": "private, no-store" } });
 }

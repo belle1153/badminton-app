@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function GamesSlipsPage({ params }: { params: Promise<{ eventId: string }> }) {
   if (!(await isAdmin())) redirect("/admin/login");
   const { eventId } = await params;
-  const state = await loadGamesState(eventId);
+  const state = await loadGamesState(eventId, { revealCards: true });
   if (!state) notFound();
   const teams = new Map(state.teams.map((t) => [t.id, t.name]));
 

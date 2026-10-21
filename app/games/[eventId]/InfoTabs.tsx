@@ -43,20 +43,48 @@ export function RulesTab({ state }: { state: GamesState }) {
   const lastRound = qualifier.at(-1)?.startsAt;
   const qEnd = lastRound ? fmtMinute(parseHHMM(lastRound) + 3 * state.event.qualifierMinutes) : null;
 
+  // Wording from the organisers (2026-10-21).
   return (
     <div className="flex flex-col gap-3">
+      <RuleCard title="⚠️ กติกาสำคัญ" highlight>
+        <li>ห้ามเสิร์ฟยิง (backhand สูง) ทุกกรณี</li>
+        <li>ไม่มีกรรมการในการตัดสิน นับคะแนน เช็คเส้น ช่วยกัน</li>
+        <li>เล่นจบในแต่ละแมตซ์ นำใบลงคะแนนมาส่งที่โต๊ะลงคะแนน</li>
+      </RuleCard>
+
       <RuleCard title="รูปแบบการแข่งขัน">
-        <li>6 ทีม ทีมละ 10 คน แต่ละแมตซ์ส่งลงแข่ง 5 คู่ ตามใบส่งตัวที่กัปตันส่งให้แอดมินก่อนแข่ง</li>
         <li>
-          ใช้ 6 สนาม คู่หนึ่งใช้เวลาประมาณ {state.event.qualifierMinutes} นาทีในรอบคัดเลือก และ {state.event.knockoutMinutes} นาทีในรอบน็อกเอาต์ (เวลาไว้ดูเฉยๆ ไม่มีผลกับผลแข่ง)
+          แบ่งออกเป็น 6 ทีม ทีมละ 10 คน โดยในแต่ละแมตซ์ ทุกทีมจะต้องส่งนักกีฬาลงแข่ง 5 คู่ โดยสามารถจับคู่ใครก็ได้ในทีม และวางลำดับ 1–5
+          มาให้แอดมิน โดยจะมีใบส่งตัวให้แต่ละทีมส่งรายชื่อในแต่ละรอบ
         </li>
+        <li>แข่งแบบพบกันหมดทั้ง 6 ทีม เพื่อสะสมแต้ม ทีมที่มีคะแนนอันดับ 1–4 เข้ารอบรองชนะเลิศ, ทีมอันดับ 5–6 เข้ารอบชิงที่ 5</li>
       </RuleCard>
 
       <RuleCard title={`รอบคัดเลือก${qStart && qEnd ? ` · ${qStart}–${qEnd}` : ""}`}>
-        <li>พบกันหมด 15 แมตซ์ (5 รอบ รอบละ 3 แมตซ์)</li>
-        <li>แต่ละคู่เล่น 2 เซต</li>
-        <li>ชนะ 2–0 เซต ได้ 2 คะแนน · เสมอ 1–1 ได้ฝั่งละ 1 คะแนน · แพ้ 0–2 ได้ 0</li>
-        <li>คะแนนแมตซ์ = รวม 5 คู่ (สูงสุด 10)</li>
+        <li>แข่งแบบพบกันหมดทั้ง 6 ทีม (ได้เจอกันครบทุกทีม)</li>
+        <li>เล่น 21 แต้ม ไม่มีดิวส์ จำนวน 2 เซต</li>
+        <li>ชนะได้ 2 คะแนน · เสมอ 1–1 ได้ทีมละ 1 คะแนน · แพ้ได้ 0</li>
+      </RuleCard>
+
+      <RuleCard
+        title="🃏 SECRET CARD"
+        extra={
+          <div className="flex flex-col gap-2">
+            <SecretCard name="DOUBLE DOWN" subtitle="เดิมพันสองเท่า">
+              คู่ที่เลือก ถ้าชนะ = ได้เพิ่มคะแนนทีม 2 คะแนน แต่ถ้าแพ้หรือเสมอ ไม่มีผล
+            </SecretCard>
+            <SecretCard name="STEAL" subtitle="ขโมยคะแนน">
+              เลือกคู่ที่จะใช้การ์ดไว้ก่อนแข่ง · หากชนะ ได้ 2 คะแนนตามปกติ และขโมยคะแนนทีมจากทีมคู่แข่งเพิ่ม 1 คะแนน · หากแพ้
+              ไม่ได้โบนัสและไม่มีการขโมยคะแนน
+            </SecretCard>
+            <SecretCard name="SUBSTITUTION" subtitle="สลับตำแหน่งคู่">
+              เฉพาะการ์ดใบนี้ หลังจากส่งชื่อแล้ว เห็นรายชื่อทั้ง 2 ทีมแล้ว สามารถใช้การ์ดนี้เลือกสลับคู่ได้ 1 คู่ (เช่น ย้ายจากคู่ 1 สลับกับคู่ 3)
+            </SecretCard>
+          </div>
+        }
+      >
+        <li>แต่ละทีมจะมีการ์ด 3 ใบ ใช้ได้เฉพาะรอบคัดเลือก</li>
+        <li>ก่อนส่ง Line-up หัวหน้าทีมสามารถเลือกการ์ด 1 ใบ/รอบ (ใช้ซ้ำไม่ได้)</li>
       </RuleCard>
 
       <RuleCard title="จัดอันดับเมื่อคะแนนเท่ากัน" ordered note="ข้อ 2–3 นับเฉพาะแมตซ์ระหว่างทีมที่ยังเท่ากัน">
@@ -65,25 +93,29 @@ export function RulesTab({ state }: { state: GamesState }) {
         <li>ผลต่างแต้มตอนเจอกัน</li>
       </RuleCard>
 
-      <RuleCard title="รอบน็อกเอาต์">
-        <li>อันดับ 1 vs 4 และ 2 vs 3 แข่งรอบรองชนะเลิศ · อันดับ 5 vs 6 ชิงอันดับ 5</li>
+      <RuleCard
+        title="รอบน็อกเอาต์"
+        extra={
+          knockout.length > 0 && (
+            <div className="flex flex-col gap-0.5 rounded-lg px-3 py-2 text-sm tabular-nums text-[#dbe6f0]" style={{ background: DARK.ground }}>
+              {knockout.map((t) => (
+                <span key={t.id}>
+                  <b>{t.startsAt}</b> {t.label} · สนาม {t.courtA}–{t.courtB}
+                </span>
+              ))}
+            </div>
+          )
+        }
+      >
+        <li>ทีมอันดับ 1 vs 4 และ 2 vs 3 แข่งรอบรองชนะเลิศ · อันดับ 5 vs 6 ชิงอันดับ 5</li>
         <li>ผู้แพ้รอบรองฯ ชิงอันดับ 3 · ผู้ชนะรอบรองฯ ชิงชนะเลิศ</li>
         <li>แต่ละคู่เล่น 2 ใน 3 เซต เซตละ 21 แต้ม ถ้า 20–20 ต้องนำ 2 แต้ม แต่ไม่เกิน 30</li>
-        <li>ชนะคู่ได้ 1 คะแนน ทีมแรกที่ได้ 3 คะแนนชนะแมตซ์ คู่ที่เหลือไม่ต้องแข่ง</li>
-        {knockout.length > 0 && (
-          <li>
-            {knockout.map((t) => (
-              <span key={t.id} className="block">
-                {t.startsAt} {t.label} · สนาม {t.courtA}–{t.courtB}
-              </span>
-            ))}
-          </li>
-        )}
+        <li>ชนะ 1 คู่ ได้ 1 คะแนน / ทีมไหนชนะครบ 3 คู่ก่อนเป็นผู้ชนะ (คู่ที่เหลือไม่ต้องแข่ง)</li>
       </RuleCard>
 
-      <RuleCard title="ผลการแข่งขัน">
-        <li>ผู้เล่นนับแต้มเองแล้วเขียนใบผลส่งโต๊ะ แอดมินกรอกผลเข้าระบบ</li>
-        <li>หน้านี้อัปเดตเองทุก 2 วินาที ไม่ต้องรีเฟรช</li>
+      <RuleCard title="พักเบรค">
+        <li>พัก 60 วินาที ในแต้มที่ 11</li>
+        <li>พัก 120 วินาที ระหว่างเซต</li>
       </RuleCard>
     </div>
   );
@@ -92,25 +124,50 @@ export function RulesTab({ state }: { state: GamesState }) {
 function RuleCard({
   title,
   ordered = false,
+  highlight = false,
   note,
+  extra,
   children,
 }: {
   title: string;
   ordered?: boolean;
+  /** The must-know rules: gold frame, bold text. */
+  highlight?: boolean;
   note?: string;
+  /** Anything below the list (card boxes, timetable). */
+  extra?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const List = ordered ? "ol" : "ul";
   return (
-    <section className="flex flex-col gap-2 rounded-xl border p-3.5" style={{ background: DARK.panel, borderColor: DARK.line }}>
+    <section
+      className={`flex flex-col gap-2 rounded-xl p-3.5 ${highlight ? "border-2" : "border"}`}
+      style={{ background: DARK.panel, borderColor: highlight ? DARK.gold : DARK.line }}
+    >
       <h2 className="text-base font-bold" style={{ color: DARK.gold }}>
         {title}
       </h2>
-      <List className={`flex flex-col gap-1.5 pl-5 text-sm leading-relaxed text-[#dbe6f0] ${ordered ? "list-decimal" : "list-disc"}`}>
+      <List
+        className={`flex flex-col gap-1.5 pl-5 text-sm leading-relaxed ${ordered ? "list-decimal" : "list-disc"} ${
+          highlight ? "font-bold text-white" : "text-[#dbe6f0]"
+        }`}
+      >
         {children}
       </List>
+      {extra}
       {note && <p className="text-xs text-[#a9bdd3]">{note}</p>}
     </section>
+  );
+}
+
+function SecretCard({ name, subtitle, children }: { name: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border px-3 py-2.5" style={{ background: DARK.ground, borderColor: DARK.lineSoft }}>
+      <span className="text-sm font-bold">
+        🃏 {name} <span className="font-medium" style={{ color: DARK.gold }}>{subtitle}</span>
+      </span>
+      <span className="text-[13px] leading-relaxed text-[#c3cedd]">{children}</span>
+    </div>
   );
 }
 

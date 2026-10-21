@@ -10,7 +10,7 @@ export default async function GamesSetupPage({ params }: { params: Promise<{ eve
   if (!(await isAdmin())) redirect("/admin/login");
   const { eventId } = await params;
   const [state, athletes] = await Promise.all([
-    loadGamesState(eventId),
+    loadGamesState(eventId, { revealCards: true }),
     prisma.athlete.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   if (!state) notFound();

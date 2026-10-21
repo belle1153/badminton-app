@@ -71,6 +71,16 @@ export function knockoutSetOver(a: number, b: number): boolean {
   return (a >= 21 || b >= 21) && Math.abs(a - b) >= 2;
 }
 
+/** Both pairs of a rubber are keyed from the paper lineups — scores can only be entered then. */
+export function lineupKeyed(r: { a1Id: string | null; a2Id: string | null; b1Id: string | null; b2Id: string | null }): boolean {
+  return !!(r.a1Id && r.a2Id && r.b1Id && r.b2Id);
+}
+
+/** A finished qualifier set: 21 points, no deuce — so exactly 21 against 0–20. */
+export function isValidQualifierSet(a: number, b: number): boolean {
+  return Math.max(a, b) === 21 && Math.min(a, b) <= 20;
+}
+
 /** Is this a score a finished knockout set can actually end on? */
 export function isValidKnockoutSet(a: number, b: number): boolean {
   const hi = Math.max(a, b);
@@ -91,7 +101,13 @@ export function validateResult(
   if (!isKnockout(stage)) {
     if (sets.length < 2) return { ok: false, error: "รอบคัดเลือกต้องใส่แต้มครบ 2 เซต" };
     if (sets.length > 2) return { ok: false, error: "รอบคัดเลือกมีแค่ 2 เซต" };
-    const warnings = sets.flatMap(([x, y], i) => (x === y ? [`เซต ${i + 1} (${x}–${y}) แต้มเท่ากัน ไม่นับให้ฝั่งไหน`] : []));
+    const warnings = sets.flatMap(([x, y], i) =>
+      x === y
+        ? [`เซต ${i + 1} (${x}–${y}) แต้มเท่ากัน ไม่นับให้ฝั่งไหน`]
+        : isValidQualifierSet(x, y)
+          ? []
+          : [`เซต ${i + 1} (${x}–${y}) ไม่ตรงกติกา 21 แต้มไม่มีดิวส์`]
+    );
     return { ok: true, warnings };
   }
 

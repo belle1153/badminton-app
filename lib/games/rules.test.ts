@@ -7,6 +7,7 @@ import {
   isValidKnockoutSet,
   validateResult,
   tieScore,
+  lineupKeyed,
 } from "./rules";
 import { textOn } from "./color";
 
@@ -83,6 +84,14 @@ describe("knockout set rule: 21, deuce at 20–20, cap 30", () => {
   });
 });
 
+describe("lineupKeyed", () => {
+  it("is true only when both players of both pairs are keyed", () => {
+    expect(lineupKeyed({ a1Id: "p1", a2Id: "p2", b1Id: "p3", b2Id: "p4" })).toBe(true);
+    expect(lineupKeyed({ a1Id: "p1", a2Id: "p2", b1Id: "p3", b2Id: null })).toBe(false);
+    expect(lineupKeyed({ a1Id: null, a2Id: null, b1Id: null, b2Id: null })).toBe(false);
+  });
+});
+
 describe("validateResult", () => {
   it("refuses a qualifier result with one set", () => {
     expect(validateResult("QUALIFIER", [[21, 15]])).toEqual({
@@ -90,8 +99,15 @@ describe("validateResult", () => {
       error: "รอบคัดเลือกต้องใส่แต้มครบ 2 เซต",
     });
   });
-  it("accepts any non-negative qualifier scores", () => {
-    expect(validateResult("QUALIFIER", [[12, 9], [17, 21]])).toEqual({ ok: true, warnings: [] });
+  it("accepts a qualifier result played to 21 without deuce, 21–20 included", () => {
+    expect(validateResult("QUALIFIER", [[21, 9], [17, 21]])).toEqual({ ok: true, warnings: [] });
+    expect(validateResult("QUALIFIER", [[21, 20], [20, 21]])).toEqual({ ok: true, warnings: [] });
+  });
+  it("saves a qualifier set that does not end at exactly 21 but warns", () => {
+    expect(validateResult("QUALIFIER", [[22, 20], [18, 15]])).toEqual({
+      ok: true,
+      warnings: ["เซต 1 (22–20) ไม่ตรงกติกา 21 แต้มไม่มีดิวส์", "เซต 2 (18–15) ไม่ตรงกติกา 21 แต้มไม่มีดิวส์"],
+    });
   });
   it("saves a level qualifier set but warns, since it counts for neither side", () => {
     expect(validateResult("QUALIFIER", [[21, 21], [21, 15]])).toEqual({

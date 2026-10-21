@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function GamesRoundPage({ params }: { params: Promise<{ eventId: string }> }) {
   if (!(await isAdmin())) redirect("/admin/login");
   const { eventId } = await params;
-  const state = await loadGamesState(eventId);
+  const state = await loadGamesState(eventId, { revealCards: true });
   if (!state) notFound();
   return (
     <main className="max-w-2xl mx-auto w-full p-4 sm:p-6 flex flex-col gap-5">

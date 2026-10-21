@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { GamesState, TeamView, TieView } from "@/lib/games/state";
 import { knockoutPlaceholder, pairName } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
-import { Chip, LineupStatus, lineupFilled } from "../LineupBits";
+import { CardChip, Chip, LineupStatus, lineupFilled } from "../LineupBits";
 
 export type Tab = number | "KO";
 
@@ -88,9 +88,14 @@ function TieLineups({ eventId, tie, teams }: { eventId: string; tie: TieView; te
                   className="flex min-h-14 flex-col gap-2 rounded-xl border-2 p-3 transition hover:bg-gray-50 active:scale-[0.99]"
                   style={{ borderColor: team?.color ?? "#dbe6f0" }}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
                     <Chip team={team} />
                     <LineupStatus tie={tie} side={key} />
+                    {tie.cards
+                      .filter((c) => c.side === side)
+                      .map((c) => (
+                        <CardChip key={c.kind} card={c} />
+                      ))}
                     <span className="ml-auto rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white">
                       {filled ? "แก้" : "คีย์"}
                     </span>

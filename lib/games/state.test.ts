@@ -34,6 +34,7 @@ function fixture(): GamesRows {
         finishedAt: null, liveSet: null, liveStartedAt: null,
       })
     ),
+    cards: [] as GamesRows["event"]["ties"][number]["cards"],
   }));
   return {
     event: {
@@ -84,6 +85,26 @@ describe("buildGamesState", () => {
     expect(semi.stage).toBe("SEMI");
     expect(semi).toMatchObject({ pointsA: 3, pointsB: 0, winner: "A" });
     expect(semi.rubbers.map((r) => r.status)).toEqual(["done", "done", "done", "cancelled", "cancelled"]);
+  });
+
+  it("counts a card bonus in the tie score and the table", () => {
+    const rows = fixture();
+    rows.event.ties[0].cards.push({ teamId: "team1", kind: "DOUBLE_DOWN", order: 1, swapWith: null });
+    finish(rows, "tie1-r1", [[21, 10], [21, 12]]); // seed 1 wins pair 1
+    const state = buildGamesState(rows, NOW);
+    expect(state.ties[0]).toMatchObject({ pointsA: 4, pointsB: 0, bonusA: 2, bonusB: 0 });
+    expect(state.standings.find((s) => s.teamId === "team1")).toMatchObject({ points: 4 });
+  });
+
+  it("keeps a card secret until its pair is finished, unless revealing for admins", () => {
+    const rows = fixture();
+    rows.event.ties[0].cards.push({ teamId: "team6", kind: "STEAL", order: 2, swapWith: null });
+    expect(buildGamesState(rows, NOW).ties[0].cards).toEqual([]);
+    expect(buildGamesState(rows, NOW, { revealCards: true }).ties[0].cards).toEqual([{ side: "B", kind: "STEAL", order: 2, swapWith: null }]);
+    finish(rows, "tie1-r2", [[10, 21], [12, 21]]);
+    const state = buildGamesState(rows, NOW);
+    expect(state.ties[0].cards).toEqual([{ side: "B", kind: "STEAL", order: 2, swapWith: null }]);
+    expect(state.ties[0]).toMatchObject({ pointsA: -1, pointsB: 3 });
   });
 
   it("names no knockout teams while any qualifier rubber is still open", () => {

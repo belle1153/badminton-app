@@ -280,6 +280,7 @@ model GamesEvent {
   updatedAt              DateTime    @updatedAt
   teams                  GamesTeam[]
   ties                   GamesTie[]
+  cards                  GamesCard[]
 }
 
 model GamesTeam {
@@ -293,6 +294,7 @@ model GamesTeam {
   // Cache version for /api/games/teams/[id]/logo.
   updatedAt DateTime          @default(now()) @updatedAt
   members   GamesTeamMember[]
+  cards     GamesCard[]
 
   @@unique([eventId, seed])
 }
@@ -322,6 +324,7 @@ model GamesTie {
   teamAId  String?
   teamBId  String?
   rubbers  GamesRubber[]
+  cards    GamesCard[]
 
   @@index([eventId])
 }
@@ -350,4 +353,30 @@ model GamesRubber {
   updatedAt     DateTime  @updatedAt
 
   @@index([tieId])
+}
+
+enum GamesCardKind {
+  DOUBLE_DOWN
+  STEAL
+  SUBSTITUTION
+}
+
+// SECRET CARD a team played in one qualifier tie. Each team has one of each
+// kind and may play at most one per tie; the bonus is derived on read.
+model GamesCard {
+  id        String        @id @default(cuid())
+  eventId   String
+  event     GamesEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tieId     String
+  tie       GamesTie      @relation(fields: [tieId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      GamesTeam     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  kind      GamesCardKind
+  order     Int // the pair (คู่ที่) it is played on; SUBSTITUTION: the first of the two swapped
+  swapWith  Int? // SUBSTITUTION only: the pair it was swapped with
+  createdAt DateTime      @default(now())
+
+  @@unique([tieId, teamId])
+  @@unique([eventId, teamId, kind])
+  @@index([eventId])
 }

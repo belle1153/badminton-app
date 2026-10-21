@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import { parseSets } from "@/lib/games/input";
-import { setsFromColumns, validateResult } from "@/lib/games/rules";
+import { lineupKeyed, setsFromColumns, validateResult } from "@/lib/games/rules";
 import type { SetScore } from "@/lib/games/types";
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -19,6 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ru
     where: { id: rubberId },
     select: {
       set1A: true, set1B: true, set2A: true, set2B: true, set3A: true, set3B: true,
+      a1Id: true, a2Id: true, b1Id: true, b2Id: true,
       tie: { select: { stage: true } },
     },
   });
@@ -38,6 +39,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ru
   if (body.sets !== undefined) {
     sets = parseSets(body.sets);
     if (!sets) return bad("แต้มต้องเป็นตัวเลข 0–99 ไม่เกิน 3 เซต");
+    // No scores without the lineup; clearing a result (no sets) is always allowed.
+    if (sets.length > 0 && !lineupKeyed(rubber)) {
+      return bad("ยังไม่ได้คีย์ใบส่งตัวคู่นี้ครบทั้ง 2 ทีม · คีย์ใบส่งตัวก่อนกรอกคะแนน", 409);
+    }
     const at = (i: number, j: number) => sets![i]?.[j] ?? null;
     Object.assign(data, {
       set1A: at(0, 0), set1B: at(0, 1),
@@ -47,6 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ru
   }
 
   if (body.finish === true) {
+    if (!lineupKeyed(rubber)) return bad("ยังไม่ได้คีย์ใบส่งตัวคู่นี้ครบทั้ง 2 ทีม · คีย์ใบส่งตัวก่อนกรอกคะแนน", 409);
     const check = validateResult(rubber.tie.stage, sets ?? setsFromColumns(rubber));
     if (!check.ok) return bad(check.error);
     warnings = check.warnings;

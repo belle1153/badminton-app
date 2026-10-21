@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { GamesState, TieView } from "@/lib/games/state";
+import { CARD_KINDS, CARD_LABELS, type CardKind } from "@/lib/games/cards";
 import { useGamesState } from "@/app/games/useGamesState";
 import { adminApi } from "../../../api";
 
@@ -130,9 +131,169 @@ export default function LineupEditor({ initial, tieId, initialSide }: { initial:
           <p className="text-xs text-gray-500">
             ใส่แล้ว {filledPairs} / 5 คู่ · บันทึกได้แม้ยังไม่ครบ · แก้ได้ตลอด ชื่อขึ้นหน้าผู้เล่นทันที
           </p>
+          {tie.stage === "QUALIFIER" && (
+            <CardPicker
+              key={side}
+              state={state}
+              tie={tie}
+              side={side}
+              teamName={team.name}
+              onSwapped={(x, y) =>
+                // The server swapped the saved pairs; mirror it here so a later save keeps the swap.
+                setDrafts((d) => ({
+                  ...d,
+                  [side]: d[side].map((p, i) => (i === x - 1 ? d[side][y - 1] : i === y - 1 ? d[side][x - 1] : p)),
+                }))
+              }
+              refresh={refresh}
+            />
+          )}
         </>
       )}
       {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
     </>
+  );
+}
+
+/**
+ * The side's SECRET CARD for this tie: the one in play (with "ลบการ์ด"), or a pick
+ * of the cards the team still has plus the pair(s) it goes on.
+ */
+function CardPicker({
+  state,
+  tie,
+  side,
+  teamName,
+  onSwapped,
+  refresh,
+}: {
+  state: GamesState;
+  tie: TieView;
+  side: Side;
+  teamName: string;
+  onSwapped: (x: number, y: number) => void;
+  refresh: () => Promise<void>;
+}) {
+  const teamId = side === "A" ? tie.teamAId : tie.teamBId;
+  const current = tie.cards.find((c) => c.side === side);
+  // Cards this team already played in other rounds (admins see every card).
+  const usedIn = new Map<CardKind, string>();
+  for (const t of state.ties) {
+    if (t.id === tie.id) continue;
+    for (const c of t.cards) if ((c.side === "A" ? t.teamAId : t.teamBId) === teamId) usedIn.set(c.kind, `รอบ ${t.round}`);
+  }
+  const [kind, setKind] = useState<CardKind | null>(null);
+  const [order, setOrder] = useState(1);
+  const [swapWith, setSwapWith] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const url = `/api/admin/games/ties/${tie.id}/card`;
+
+  async function play() {
+    if (!kind) return;
+    setBusy(true);
+    const res = await adminApi(url, "PUT", { side, kind, order, swapWith: kind === "SUBSTITUTION" ? swapWith : null });
+    setBusy(false);
+    if (!res.ok) return setMsg({ ok: false, text: res.error });
+    if (kind === "SUBSTITUTION") onSwapped(order, swapWith);
+    setMsg({ ok: true, text: kind === "SUBSTITUTION" ? `ใช้การ์ดแล้ว · สลับคู่ ${order} กับคู่ ${swapWith} แล้ว` : "ใช้การ์ดแล้ว" });
+    setKind(null);
+    await refresh();
+  }
+
+  async function remove() {
+    if (!current) return;
+    setBusy(true);
+    const res = await adminApi(url, "DELETE", { side });
+    setBusy(false);
+    if (!res.ok) return setMsg({ ok: false, text: res.error });
+    if (current.kind === "SUBSTITUTION" && current.swapWith != null) onSwapped(current.order, current.swapWith);
+    setMsg({ ok: true, text: current.kind === "SUBSTITUTION" ? "ลบการ์ดแล้ว · สลับคู่กลับที่เดิมแล้ว" : "ลบการ์ดแล้ว" });
+    await refresh();
+  }
+
+  const pairSelect = (value: number, onChange: (n: number) => void, label: string) => (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="min-h-10 rounded-lg border border-gray-300 bg-white px-2"
+    >
+      {[1, 2, 3, 4, 5].map((n) => (
+        <option key={n} value={n}>
+          คู่ {n}
+        </option>
+      ))}
+    </select>
+  );
+
+  return (
+    <section className="flex flex-col gap-2.5 rounded-xl border-2 border-amber-200 bg-amber-50/40 p-3">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-sm font-bold">🃏 SECRET CARD · {teamName}</h2>
+        <p className="text-xs text-gray-500">1 ใบต่อรอบ แต่ละใบใช้ได้ครั้งเดียว · ผู้เล่นเห็นการ์ดหลังคู่นั้นแข่งจบ</p>
+      </div>
+
+      {current ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-900">
+            🃏 {CARD_LABELS[current.kind].name} ·{" "}
+            {current.kind === "SUBSTITUTION" ? `สลับคู่ ${current.order} ↔ คู่ ${current.swapWith}` : `คู่ ${current.order}`}
+          </span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={remove}
+            className="ml-auto min-h-10 rounded-lg border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 disabled:opacity-50"
+          >
+            ลบการ์ด
+          </button>
+          {current.kind === "SUBSTITUTION" && <p className="w-full text-xs text-gray-500">ลบการ์ดนี้ = สลับคู่กลับที่เดิม</p>}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {CARD_KINDS.map((k) => {
+              const used = usedIn.get(k);
+              const on = kind === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  disabled={!!used}
+                  onClick={() => setKind(on ? null : k)}
+                  className="flex min-h-14 flex-col items-center justify-center rounded-lg border-2 px-1 text-xs font-bold disabled:opacity-40"
+                  style={{ borderColor: on ? "#1d4d73" : "#dbe6f0", background: on ? "#eef3f8" : "#ffffff" }}
+                >
+                  {CARD_LABELS[k].name}
+                  <span className="font-normal text-gray-500">{used ? `ใช้แล้ว ${used}` : CARD_LABELS[k].th}</span>
+                </button>
+              );
+            })}
+          </div>
+          {kind && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {kind === "SUBSTITUTION" ? "สลับ" : "ใช้กับ"}
+              {pairSelect(order, setOrder, "คู่ที่ใช้การ์ด")}
+              {kind === "SUBSTITUTION" && (
+                <>
+                  กับ
+                  {pairSelect(swapWith, setSwapWith, "คู่ที่สลับด้วย")}
+                </>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={play}
+                className="ml-auto min-h-10 rounded-lg bg-brand-600 px-4 font-semibold text-white disabled:opacity-50"
+              >
+                ใช้การ์ด
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
+    </section>
   );
 }

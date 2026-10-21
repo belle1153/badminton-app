@@ -16,7 +16,7 @@ export default async function GamesLineupPage({
   if (!(await isAdmin())) redirect("/admin/login");
   const { eventId, tieId } = await params;
   const { side } = await searchParams;
-  const state = await loadGamesState(eventId);
+  const state = await loadGamesState(eventId, { revealCards: true });
   if (!state || !state.ties.some((t) => t.id === tieId)) notFound();
   return (
     <main className="max-w-md mx-auto w-full p-4 sm:p-6 flex flex-col gap-4">

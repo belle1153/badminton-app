@@ -4,6 +4,7 @@ import BackLink from "@/app/BackLink";
 import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
+import { CARD_LABELS, cardEffectText } from "@/lib/games/cards";
 import { useGamesState } from "../../../useGamesState";
 import { DARK, DarkPage, PairAvatars, PairNames, Pill, TeamChip } from "../../../ui";
 import { liveScore } from "../../RunningTab";
@@ -35,6 +36,11 @@ export default function GamesTie({ initial, tieId }: { initial: GamesState; tieI
             {tie.pointsA} – {tie.pointsB}
           </span>
           <span className="text-[11px] text-[#a9bdd3]">คะแนนแมตซ์ · จบ {done} / 5 คู่</span>
+          {(tie.bonusA !== 0 || tie.bonusB !== 0) && (
+            <span className="text-[11px] font-semibold" style={{ color: DARK.gold }}>
+              🃏 รวมโบนัสการ์ดแล้ว
+            </span>
+          )}
         </div>
         <TeamSide team={b} wins={wins("B")} />
       </div>
@@ -149,6 +155,14 @@ function RubberCard({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a
           <span className="h-[30px] w-1 shrink-0 rounded-sm" style={{ background: b?.color ?? DARK.dim }} />
         </span>
       </div>
+      {tie.cards
+        .filter((c) => c.order === rubber.order)
+        .map((c) => (
+          <span key={c.side} className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#c3cedd]">
+            <Pill bg={DARK.gold} fg={DARK.ground}>🃏 {CARD_LABELS[c.kind].name}</Pill>
+            {cardEffectText(c, rubber.outcome, a?.name ?? "ทีม A", b?.name ?? "ทีม B")}
+          </span>
+        ))}
       {note && <span className="text-[11px] text-[#a9bdd3]">{note}</span>}
     </div>
   );

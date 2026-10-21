@@ -38,6 +38,16 @@ describe("computeStandings", () => {
     expect(rows[0]).toMatchObject({ pointsFor: 42, pointsAgainst: 22, diff: 20 });
   });
 
+  it("adds a tie's card bonus to the team totals", () => {
+    const rows = computeStandings(
+      [{ id: "a", seed: 1 }, { id: "b", seed: 2 }],
+      [{ ...tie("a", "b", ["A", "B"]), bonusA: 1, bonusB: -1 }],
+      null
+    );
+    expect(rows.find((r) => r.teamId === "a")).toMatchObject({ points: 3, won: 1, lost: 1 });
+    expect(rows.find((r) => r.teamId === "b")).toMatchObject({ points: 1, won: 1, lost: 1 });
+  });
+
   it("ignores rubbers that are keyed but not finished", () => {
     const rows = computeStandings(
       [{ id: "a", seed: 1 }, { id: "b", seed: 2 }],

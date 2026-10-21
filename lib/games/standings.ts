@@ -22,6 +22,9 @@ interface StandingTie {
   teamAId: string;
   teamBId: string;
   rubbers: { outcome: RubberOutcome; sets: SetScore[] }[];
+  /** SECRET CARD points on top of the rubbers (may be negative after a STEAL). */
+  bonusA?: number;
+  bonusB?: number;
 }
 
 /**
@@ -51,6 +54,8 @@ export function computeStandings(
     const a = rows.get(tie.teamAId);
     const b = rows.get(tie.teamBId);
     if (!a || !b) continue;
+    a.points += tie.bonusA ?? 0;
+    b.points += tie.bonusB ?? 0;
     for (const r of tie.rubbers) {
       if (r.outcome == null) continue;
       const [pa, pb] = rubberPoints("QUALIFIER", r.outcome);

@@ -6,7 +6,7 @@ import type { GamesState, PlayerRef, RubberView, TeamView, TieView } from "@/lib
 import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
 import { adminApi } from "../api";
-import { Chip, LineupStatus } from "./LineupBits";
+import { CardChip, Chip, LineupStatus } from "./LineupBits";
 
 type Tab = number | "KO";
 
@@ -98,6 +98,7 @@ function TieCard({ eventId, tie, teams, onSaved }: { eventId: string; tie: TieVi
         <Chip team={b} />
         <span className="ml-auto text-xs text-gray-600">
           {tie.label} · สนาม {tie.courtA}–{tie.courtB} · {tie.startsAt} · <b className="text-[15px] text-gray-900">{tie.pointsA}–{tie.pointsB}</b>
+          {(tie.bonusA !== 0 || tie.bonusB !== 0) && <span className="text-amber-800"> (รวมการ์ด)</span>}
         </span>
       </div>
       {(!a || !b) && <p className="text-sm text-gray-500">{knockoutPlaceholder(tie.stage, tie.slot)} · รู้ทีมเมื่อรอบก่อนหน้าจบ</p>}
@@ -179,6 +180,7 @@ function RubberRow({
 
   // Back to "no result": scores, finished mark and any live count all cleared.
   const hasResult = rubber.finished || rubber.sets.length > 0 || rubber.liveSet != null;
+  const keyed = rubber.a.every(Boolean) && rubber.b.every(Boolean);
   function clearResult() {
     setVals(Array.from({ length: setCount }, () => ["", ""]));
     void patch({ sets: [], finish: false, liveSet: null, liveStartedAt: null }, `ลบผลคู่ ${rubber.order} แล้ว`);
@@ -207,6 +209,11 @@ function RubberRow({
           {counting ? "นับสด" : label}
         </span>
         <span className="text-gray-400">{fmtMinute(rubber.startMinute)}</span>
+        {tie.cards
+          .filter((c) => c.order === rubber.order)
+          .map((c) => (
+            <CardChip key={c.side} card={c} teamName={(c.side === "A" ? a : b)?.name} />
+          ))}
       </div>
 
       {/* Who plays — each side's names over its own score boxes. */}
@@ -219,6 +226,18 @@ function RubberRow({
 
       {rubber.status === "cancelled" && !editing ? (
         <span className="text-xs text-gray-400">แมตซ์ตัดสินแล้ว คู่นี้ไม่ต้องแข่ง</span>
+      ) : open && !keyed ? (
+        // No scores until both teams' lineups name this pair (the server refuses too).
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          <span className="flex-1">ยังไม่ได้คีย์ใบส่งตัวคู่นี้ครบ · กรอกคะแนนไม่ได้</span>
+          <Link
+            href={`/admin/games/${eventId}/lineup/${tie.id}?side=${rubber.a.every(Boolean) ? "B" : "A"}`}
+            className="flex min-h-10 items-center rounded-lg bg-brand-600 px-4 font-semibold text-white"
+          >
+            คีย์ใบส่งตัว
+          </Link>
+          {hasResult && <ClearResult order={rubber.order} busy={busy} onClear={clearResult} />}
+        </div>
       ) : open ? (
         <>
           <div className="grid grid-cols-[44px_minmax(0,1fr)_14px_minmax(0,1fr)] items-center gap-1.5">

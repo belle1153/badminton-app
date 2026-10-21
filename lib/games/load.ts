@@ -5,8 +5,13 @@ import { buildGamesState, type GamesState } from "./state";
  * Read one event and build its snapshot. Logos and photos are only checked for
  * presence — the data-URL blobs stay in the database and are served by their
  * own cached routes, because this snapshot is polled every couple of seconds.
+ * SECRET CARDs stay hidden until their pair is finished; admin pages pass
+ * `revealCards` to see them all.
  */
-export async function loadGamesState(eventId: string, now: Date = new Date()): Promise<GamesState | null> {
+export async function loadGamesState(
+  eventId: string,
+  { revealCards = false, now = new Date() }: { revealCards?: boolean; now?: Date } = {}
+): Promise<GamesState | null> {
   const event = await prisma.gamesEvent.findUnique({
     where: { id: eventId },
     select: {
@@ -51,6 +56,7 @@ export async function loadGamesState(eventId: string, now: Date = new Date()): P
               liveStartedAt: true,
             },
           },
+          cards: { select: { teamId: true, kind: true, order: true, swapWith: true } },
         },
       },
     },
@@ -77,7 +83,8 @@ export async function loadGamesState(eventId: string, now: Date = new Date()): P
       event: { ...event, teams: event.teams.map((t) => ({ ...t, hasLogo: logoIds.has(t.id) })) },
       athletes: athletes.map((a) => ({ ...a, hasPhoto: photoIds.has(a.id) })),
     },
-    now
+    now,
+    { revealCards }
   );
 }
 

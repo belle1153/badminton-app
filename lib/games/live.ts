@@ -12,8 +12,9 @@ export interface LiveCount {
 /**
  * One tap on the live-count screen. +1/−1 only ever touch the set being
  * counted. In the knockout a set closes by itself on the 21/deuce/30 rule and
- * the next one opens, until a side has two sets. Qualifier sets are timed, so
- * they only close when the counter presses "จบเซต" (closeSet).
+ * the next one opens, until a side has two sets. A qualifier set closes when a
+ * side reaches 21 (no deuce), and the rubber after set 2; "จบเซต" (closeSet)
+ * can still end one by hand.
  */
 export function applyTap(stage: Stage, sets: SetScore[], liveSet: number, side: Side, delta: 1 | -1): LiveCount {
   const next: SetScore[] = sets.map(([a, b]) => [a, b]);
@@ -28,6 +29,11 @@ export function applyTap(stage: Stage, sets: SetScore[], liveSet: number, side: 
     if (a >= 2 || b >= 2) return { sets: next, liveSet, rubberOver: true };
     next.push([0, 0]);
     return { sets: next, liveSet: liveSet + 1, rubberOver: false };
+  }
+  if (delta === 1 && !isKnockout(stage) && Math.max(cur[0], cur[1]) >= 21) {
+    if (liveSet >= 2) return { sets: next, liveSet, rubberOver: true };
+    if (next.length < 2) next.push([0, 0]);
+    return { sets: next, liveSet: 2, rubberOver: false };
   }
   return { sets: next, liveSet, rubberOver: false };
 }

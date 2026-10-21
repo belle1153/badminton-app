@@ -16,7 +16,7 @@ export default async function GamesLineupsPage({
   if (!(await isAdmin())) redirect("/admin/login");
   const { eventId } = await params;
   const { round } = await searchParams;
-  const state = await loadGamesState(eventId);
+  const state = await loadGamesState(eventId, { revealCards: true });
   if (!state) notFound();
   const n = Number(round);
   const tab: Tab | null = round === "KO" ? "KO" : Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;

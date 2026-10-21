@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function GamesLivePage({ params }: { params: Promise<{ eventId: string; rubberId: string }> }) {
   if (!(await isAdmin())) redirect("/admin/login");
   const { eventId, rubberId } = await params;
-  const state = await loadGamesState(eventId);
+  const state = await loadGamesState(eventId, { revealCards: true });
   if (!state || !state.ties.some((t) => t.rubbers.some((r) => r.id === rubberId))) notFound();
   return <LiveScorer key={rubberId} initial={state} rubberId={rubberId} />;
 }

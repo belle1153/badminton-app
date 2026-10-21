@@ -33,12 +33,20 @@ describe("applyTap — minus one", () => {
   });
 });
 
-describe("qualifier live count (2 sets, ended by hand)", () => {
-  it("does not close a set on points", () => {
-    expect(applyTap("QUALIFIER", [[20, 15]], 1, "A", 1)).toEqual({ sets: [[21, 15]], liveSet: 1, rubberOver: false });
+describe("qualifier live count (2 sets to 21, no deuce)", () => {
+  it("keeps counting below 21", () => {
+    expect(applyTap("QUALIFIER", [[19, 15]], 1, "A", 1)).toEqual({ sets: [[20, 15]], liveSet: 1, rubberOver: false });
   });
 
-  it("closes set 1 into set 2, then ends the rubber after set 2", () => {
+  it("closes set 1 at 21 with no deuce, even at 21–20", () => {
+    expect(applyTap("QUALIFIER", [[20, 20]], 1, "A", 1)).toEqual({ sets: [[21, 20], [0, 0]], liveSet: 2, rubberOver: false });
+  });
+
+  it("ends the rubber when set 2 reaches 21", () => {
+    expect(applyTap("QUALIFIER", [[21, 15], [18, 20]], 2, "B", 1)).toEqual({ sets: [[21, 15], [18, 21]], liveSet: 2, rubberOver: true });
+  });
+
+  it("can still close a set by hand: set 1 into set 2, then the rubber after set 2", () => {
     const first = closeSet([[18, 12]], 1);
     expect(first).toEqual({ sets: [[18, 12], [0, 0]], liveSet: 2, rubberOver: false });
     expect(closeSet([[18, 12], [9, 14]], 2)).toEqual({ sets: [[18, 12], [9, 14]], liveSet: 2, rubberOver: true });

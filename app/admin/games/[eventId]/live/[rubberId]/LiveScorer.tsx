@@ -103,6 +103,8 @@ export default function LiveScorer({ initial, rubberId }: { initial: GamesState;
 
   const cur = sets[liveSet - 1] ?? [0, 0];
   const [wa, wb] = setsWon(sets.slice(0, over ? sets.length : liveSet - 1));
+  // No counting or result until both teams' lineups name this pair (the server refuses too).
+  const blocked = !(rubber.a.every(Boolean) && rubber.b.every(Boolean)) && mode !== "saved";
   const resultLine = setsResultText(sets, rubberOutcome(tie.stage, sets, true), a?.name ?? "", b?.name ?? "");
 
   // After saving, the court's next rubber (derived from the fresh snapshot).
@@ -160,7 +162,20 @@ export default function LiveScorer({ initial, rubberId }: { initial: GamesState;
 
       {error && <p className="bg-red-900/60 px-3 py-1 text-center text-sm">{error}</p>}
 
-      {mode === "count" && !over && (
+      {blocked && (
+        <Center>
+          <span className="text-2xl font-bold">ยังไม่ได้คีย์ใบส่งตัวคู่นี้ครบ</span>
+          <span className="text-[#a9bdd3]">นับสดและกรอกคะแนนได้หลังคีย์ชื่อทั้ง 2 ทีม</span>
+          <Link
+            href={`/admin/games/${eventId}/lineup/${tie.id}?side=${rubber.a.every(Boolean) ? "B" : "A"}`}
+            className="flex min-h-12 items-center rounded-xl bg-[#ffcf4d] px-5 font-bold text-[#0b1c30]"
+          >
+            คีย์ใบส่งตัว
+          </Link>
+        </Center>
+      )}
+
+      {!blocked && mode === "count" && !over && (
         <>
           <div className="flex h-[46px] shrink-0 items-center gap-3 bg-[#102843] px-3.5">
             <span className="font-bold">เซต {liveSet}</span>
@@ -184,7 +199,7 @@ export default function LiveScorer({ initial, rubberId }: { initial: GamesState;
         </>
       )}
 
-      {mode === "count" && over && (
+      {!blocked && mode === "count" && over && (
         <Center>
           <span className="text-[17px] text-[#a9bdd3]">จบคู่แล้ว · {setsLine(sets)}</span>
           <span className="text-4xl font-bold text-[#ffcf4d]">{resultLine}</span>
@@ -200,7 +215,7 @@ export default function LiveScorer({ initial, rubberId }: { initial: GamesState;
         </Center>
       )}
 
-      {mode === "summary" && (
+      {!blocked && mode === "summary" && (
         <Summary
           ko={ko}
           initial={sets}

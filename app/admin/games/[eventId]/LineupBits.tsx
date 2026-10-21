@@ -1,5 +1,6 @@
 /* Small pieces shared by the control page and the lineups page. */
 
+import { CARD_LABELS, type PlayedCard } from "@/lib/games/cards";
 import type { TeamView, TieView } from "@/lib/games/state";
 
 /** Team name on its colour, or a dash while the team isn't known yet. */
@@ -8,6 +9,18 @@ export function Chip({ team }: { team: TeamView | undefined }) {
   return (
     <span className="rounded-md px-2 py-0.5 text-[13px] font-bold" style={{ background: team.color, color: team.textColor }}>
       {team.name}
+    </span>
+  );
+}
+
+/** "🃏 DOUBLE DOWN · คู่ 2" (or "SUBSTITUTION 1↔3"), with the team when it isn't obvious. */
+export function CardChip({ card, teamName }: { card: PlayedCard; teamName?: string }) {
+  const where = card.kind === "SUBSTITUTION" ? ` ${card.order}↔${card.swapWith}` : ` · คู่ ${card.order}`;
+  return (
+    <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-[1px] text-xs font-semibold text-amber-900">
+      🃏 {CARD_LABELS[card.kind].name}
+      {where}
+      {teamName ? ` · ${teamName}` : ""}
     </span>
   );
 }
