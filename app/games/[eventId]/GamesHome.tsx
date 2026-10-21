@@ -109,7 +109,7 @@ export default function GamesHome({ initial }: { initial: GamesState }) {
             );
           })}
         </div>
-        <p className="text-[11px] leading-relaxed text-[#a9bdd3]">คะแนนเท่ากัน ดู คู่ที่ชนะ → ผลตอนเจอกัน → ผลต่างแต้ม</p>
+        <p className="text-[11px] leading-relaxed text-[#a9bdd3]">คะแนนเท่ากัน ดู ผลต่างแต้ม → คู่ที่ชนะตอนเจอกัน → ผลต่างแต้มตอนเจอกัน</p>
       </section>
 
       <section className="flex flex-col gap-2.5">

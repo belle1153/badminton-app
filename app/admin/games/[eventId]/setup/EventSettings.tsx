@@ -33,7 +33,7 @@ export default function EventSettings({ state, onSaved }: { state: GamesState; o
   // Teams level on every tiebreak — only then does a manual order matter.
   const rows = state.standings;
   const level = rows.filter((r, i) =>
-    rows.some((o, j) => j !== i && o.points === r.points && o.won === r.won && o.h2h === r.h2h && o.diff === r.diff)
+    rows.some((o, j) => j !== i && o.points === r.points && o.diff === r.diff && o.h2h === r.h2h && o.h2hDiff === r.h2hDiff)
   );
   const teamName = (id: string) => state.teams.find((t) => t.id === id)?.name ?? "?";
   const move = (i: number, d: -1 | 1) => {
@@ -93,7 +93,7 @@ export default function EventSettings({ state, onSaved }: { state: GamesState; o
 
       {level.length > 0 && (
         <div className="flex flex-col gap-2 rounded-md bg-amber-50 p-3">
-          <p className="text-sm font-medium text-amber-900">มีทีมที่เท่ากันทุกข้อ (คะแนน คู่ชนะ ผลเจอกัน ผลต่างแต้ม) · สลับอันดับเองได้</p>
+          <p className="text-sm font-medium text-amber-900">มีทีมที่เท่ากันทุกข้อ (คะแนน ผลต่างแต้ม คู่ที่ชนะตอนเจอกัน ผลต่างแต้มตอนเจอกัน) · สลับอันดับเองได้</p>
           <ol className="flex flex-col gap-1">
             {rows.map((r, i) => (
               <li key={r.teamId} className="flex items-center gap-2 text-sm">

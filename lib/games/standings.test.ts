@@ -47,40 +47,72 @@ describe("computeStandings", () => {
     expect(rows[0]).toMatchObject({ points: 0, won: 0, pointsFor: 0 });
   });
 
-  it("breaks a points-and-wins tie on head to head (blue beat pink 3–2)", () => {
+  it("breaks a points tie on point difference first, even against head to head", () => {
     const teams = [{ id: "pink", seed: 2 }, { id: "blue", seed: 5 }, { id: "green", seed: 4 }];
     const rows = computeStandings(
       teams,
       [
-        tie("pink", "blue", ["B", "B", "B", "A", "A"]),
-        // pink's wins are big ones, so set difference alone would put pink first
-        tie("pink", "green", ["A", "A", "A", "A", "B"], [20, 20, 20, 20, 1]),
+        tie("pink", "blue", ["B", "B", "B", "A", "A"]), // blue wins head to head 3–2
+        tie("pink", "green", ["A", "A", "A", "A", "B"], [20, 20, 20, 20, 1]), // but pink wins big
         tie("blue", "green", ["A", "A", "A", "B", "B"]),
       ],
       null
     );
-    expect(rows.find((r) => r.teamId === "pink")).toMatchObject({ points: 12, won: 6 });
-    expect(rows.find((r) => r.teamId === "blue")).toMatchObject({ points: 12, won: 6 });
-    expect(order(rows)).toEqual(["blue", "pink", "green"]);
+    expect(rows.find((r) => r.teamId === "pink")).toMatchObject({ points: 12, diff: 146 });
+    expect(rows.find((r) => r.teamId === "blue")).toMatchObject({ points: 12, diff: 24 });
+    expect(order(rows)).toEqual(["pink", "blue", "green"]);
   });
 
-  it("uses head to head only among the tied group in a three-way tie", () => {
-    const teams = ["a", "b", "c", "d"].map((id, i) => ({ id, seed: i + 1 }));
+  it("then puts the team that won more rubbers head to head first", () => {
+    const teams = [{ id: "y", seed: 1 }, { id: "x", seed: 2 }, { id: "q", seed: 3 }];
+    const rows = computeStandings(
+      teams,
+      [
+        tie("x", "y", ["A", "A", "A", "B", "B"]), // x beats y 3–2
+        tie("x", "q", ["A", "A", "A", "A", "B"]),
+        tie("y", "q", ["A", "A", "A", "A", "A"]),
+      ],
+      null
+    );
+    expect(rows.find((r) => r.teamId === "x")).toMatchObject({ points: 14, diff: 48, h2h: 3 });
+    expect(rows.find((r) => r.teamId === "y")).toMatchObject({ points: 14, diff: 48, h2h: 2 });
+    expect(order(rows)).toEqual(["x", "y", "q"]);
+  });
+
+  it("then on the point difference of the head-to-head tie", () => {
+    const teams = [{ id: "y", seed: 1 }, { id: "x", seed: 2 }, { id: "q", seed: 3 }];
+    const rows = computeStandings(
+      teams,
+      [
+        // 2 rubbers each and a draw, but x's wins were by far more
+        tie("x", "y", ["A", "A", "B", "B", "DRAW"], [10, 10, 2, 2, 6]),
+        tie("x", "q", ["A", "A", "A", "A", "A"], [1, 1, 1, 1, 1]),
+        tie("y", "q", ["A", "A", "A", "A", "A"], [8, 8, 7, 7, 7]),
+      ],
+      null
+    );
+    expect(rows.find((r) => r.teamId === "x")).toMatchObject({ points: 15, diff: 42, h2h: 2, h2hDiff: 32 });
+    expect(rows.find((r) => r.teamId === "y")).toMatchObject({ points: 15, diff: 42, h2h: 2, h2hDiff: -32 });
+    expect(order(rows)).toEqual(["x", "y", "q"]);
+  });
+
+  it("counts head to head only among the teams still level in a three-way tie", () => {
+    const teams = [{ id: "c", seed: 1 }, { id: "b", seed: 2 }, { id: "a", seed: 3 }, { id: "d", seed: 4 }];
     const rows = computeStandings(
       teams,
       [
         tie("a", "b", ["A", "A", "A", "B", "B"]),
         tie("a", "c", ["A", "A", "A", "B", "B"]),
         tie("b", "c", ["A", "A", "A", "B", "B"]),
-        // results against d level a, b and c on points and wins; c's margins are
-        // huge so a set-difference or all-games head to head would reorder them
+        // results against d level a, b and c on points and difference (7 rubbers won
+        // each, so counting every game would not separate them)
         tie("a", "d", ["A", "B", "B", "B", "B"]),
         tie("b", "d", ["A", "A", "B", "B", "B"]),
-        tie("c", "d", ["A", "A", "A", "B", "B"], [20, 20, 20, 1, 1]),
+        tie("c", "d", ["A", "A", "A", "B", "B"]),
       ],
       null
     );
-    expect(rows.filter((r) => r.teamId !== "d").every((r) => r.points === 14 && r.won === 7)).toBe(true);
+    expect(rows.filter((r) => r.teamId !== "d").every((r) => r.points === 14 && r.diff === -12 && r.won === 7)).toBe(true);
     expect(order(rows)).toEqual(["d", "a", "b", "c"]);
   });
 

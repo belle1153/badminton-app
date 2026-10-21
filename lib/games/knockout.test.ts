@@ -6,7 +6,7 @@ import type { Side, Stage } from "./types";
 const standings = ["r1", "r2", "r3", "r4", "r5", "r6"].map(
   (teamId, i): StandingRow => ({
     teamId, rank: i + 1, points: 0, won: 0, drawn: 0, lost: 0,
-    pointsFor: 0, pointsAgainst: 0, diff: 0, h2h: 0,
+    pointsFor: 0, pointsAgainst: 0, diff: 0, h2h: 0, h2hDiff: 0,
   })
 );
 
