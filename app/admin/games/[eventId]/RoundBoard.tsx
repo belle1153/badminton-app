@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
-import { fmtMinute, knockoutPlaceholder, pairName, resultText, setsLine } from "@/lib/games/format";
+import type { GamesState, PlayerRef, RubberView, TeamView, TieView } from "@/lib/games/state";
+import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
 import { adminApi } from "../api";
 import { Chip, LineupStatus } from "./LineupBits";
@@ -207,9 +207,14 @@ function RubberRow({
           {counting ? "นับสด" : label}
         </span>
         <span className="text-gray-400">{fmtMinute(rubber.startMinute)}</span>
-        <span className="ml-auto max-w-[190px] truncate text-gray-600">
-          {pairName(rubber.a) ?? "—"} vs {pairName(rubber.b) ?? "—"}
-        </span>
+      </div>
+
+      {/* Who plays — each side's names over its own score boxes. */}
+      <div className="grid grid-cols-[44px_minmax(0,1fr)_14px_minmax(0,1fr)] items-start gap-1.5">
+        <span className="pt-1.5 text-xs text-gray-500">ผู้เล่น</span>
+        <PairNamesCell players={rubber.a} team={a} />
+        <span className="pt-1.5 text-center text-xs text-gray-400">vs</span>
+        <PairNamesCell players={rubber.b} team={b} />
       </div>
 
       {rubber.status === "cancelled" && !editing ? (
@@ -267,6 +272,27 @@ function RubberRow({
       )}
       {msg && <span className={`text-xs ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</span>}
     </div>
+  );
+}
+
+/** A pair's names one per line under a bar in the team colour; a hint until the lineup is keyed. */
+function PairNamesCell({ players, team }: { players: (PlayerRef | null)[]; team?: TeamView }) {
+  const names = players.filter((p): p is PlayerRef => p != null).map((p) => p.name);
+  return (
+    <span
+      className="flex min-w-0 flex-col items-center border-t-4 pt-1 text-center text-sm font-semibold leading-snug text-gray-900"
+      style={{ borderColor: team?.color ?? "#dbe6f0" }}
+    >
+      {names.length ? (
+        names.map((n, i) => (
+          <span key={i} className="max-w-full truncate">
+            {n}
+          </span>
+        ))
+      ) : (
+        <span className="text-xs font-normal text-gray-400">ยังไม่ส่งชื่อ</span>
+      )}
+    </span>
   );
 }
 
