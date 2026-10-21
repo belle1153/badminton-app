@@ -6,7 +6,7 @@ import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/game
 import { setsWon } from "@/lib/games/rules";
 import { useGamesState } from "../../../useGamesState";
 import { DARK, DarkPage, PairAvatars, PairNames, Pill, TeamChip } from "../../../ui";
-import { liveScore } from "../../GamesHome";
+import { liveScore } from "../../RunningTab";
 
 /** One team-vs-team match: the tie score, then the five pairs. */
 export default function GamesTie({ initial, tieId }: { initial: GamesState; tieId: string }) {

@@ -2,8 +2,10 @@
    Presentational only, so both server and client components can use them. */
 /* eslint-disable @next/next/no-img-element -- versioned API image URLs, like the leaderboard */
 
+import Link from "next/link";
 import BackLink from "@/app/BackLink";
-import type { PlayerRef, TeamView } from "@/lib/games/state";
+import { knockoutPlaceholder } from "@/lib/games/format";
+import type { PlayerRef, TeamView, TieView } from "@/lib/games/state";
 
 export const DARK = {
   ground: "#0b1c30",
@@ -67,20 +69,66 @@ const PERSON = (
   </svg>
 );
 
+/** One player's round photo, or a person icon. */
+export function Avatar({
+  player,
+  size = 20,
+  ring = DARK.panel,
+  style,
+}: {
+  player: PlayerRef | null;
+  size?: number;
+  ring?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2f6690]"
+      style={{ width: size, height: size, border: `2px solid ${ring}`, ...style }}
+    >
+      {player?.photoUrl ? <img src={player.photoUrl} alt="" className="h-full w-full object-cover" /> : PERSON}
+    </span>
+  );
+}
+
 /** Two overlapping avatars for a pair (photo, or a person icon). */
 export function PairAvatars({ players, size = 20, ring = DARK.panel }: { players: (PlayerRef | null)[]; size?: number; ring?: string }) {
   return (
     <span className="flex shrink-0">
       {players.map((p, i) => (
-        <span
-          key={i}
-          className="flex items-center justify-center overflow-hidden rounded-full bg-[#2f6690]"
-          style={{ width: size, height: size, border: `2px solid ${ring}`, marginLeft: i ? -size * 0.3 : 0 }}
-        >
-          {p?.photoUrl ? <img src={p.photoUrl} alt="" className="h-full w-full object-cover" /> : PERSON}
-        </span>
+        <Avatar key={i} player={p} size={size} ring={ring} style={{ marginLeft: i ? -size * 0.3 : 0 }} />
       ))}
     </span>
+  );
+}
+
+/** One tie as a row: time, name and courts, then both teams with the score — or who it will be. */
+export function TieRow({ eventId, tie, teams }: { eventId: string; tie: TieView; teams: Map<string, TeamView> }) {
+  const a = teams.get(tie.teamAId ?? "");
+  const b = teams.get(tie.teamBId ?? "");
+  const final = tie.stage === "FINAL";
+  return (
+    <Link
+      href={`/games/${eventId}/tie/${tie.id}`}
+      className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-2.5 rounded-xl border px-2.5 py-2"
+      style={{ background: DARK.panel, borderColor: final ? DARK.gold : tie.status === "live" ? DARK.live : DARK.line }}
+    >
+      <span className="text-[13px] font-bold tabular-nums text-[#a9bdd3]">{tie.startsAt}</span>
+      <span className="flex min-w-0 flex-col gap-1">
+        <span className="text-[13px] font-bold" style={{ color: final ? DARK.gold : DARK.text }}>
+          {tie.label} <span className="font-medium text-[#a9bdd3]">· สนาม {tie.courtA}–{tie.courtB}</span>
+        </span>
+        {a && b ? (
+          <span className="flex flex-wrap items-center gap-1.5 text-xs text-[#c3cedd]">
+            <TeamChip team={a} />
+            {tie.status === "upcoming" ? "vs" : <b className="tabular-nums text-white">{tie.pointsA}–{tie.pointsB}</b>}
+            <TeamChip team={b} />
+          </span>
+        ) : (
+          <span className="text-xs text-[#c3cedd]">{knockoutPlaceholder(tie.stage, tie.slot)}</span>
+        )}
+      </span>
+    </Link>
   );
 }
 
