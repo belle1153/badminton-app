@@ -33,7 +33,8 @@ describe("cardEffectText", () => {
   it("says what the card did once its pair has a result", () => {
     expect(cardEffectText(card("A", "DOUBLE_DOWN", 1), "A", "แดง", "เหลือง")).toBe("แดง +2");
     expect(cardEffectText(card("B", "STEAL", 1), "B", "แดง", "เหลือง")).toBe("เหลือง +1 · แดง −1");
-    expect(cardEffectText(card("A", "DOUBLE_DOWN", 1), "DRAW", "แดง", "เหลือง")).toBe("ไม่มีผล");
+    expect(cardEffectText(card("A", "DOUBLE_DOWN", 1), "DRAW", "แดง", "เหลือง")).toBe("แดง · ไม่มีผล");
+    expect(cardEffectText(card("B", "STEAL", 2), "A", "แดง", "เหลือง")).toBe("เหลือง · ไม่มีผล");
     expect(cardEffectText({ side: "A", kind: "SUBSTITUTION", order: 1, swapWith: 3 }, "B", "แดง", "เหลือง")).toBe("แดง สลับคู่ 1 ↔ คู่ 3");
   });
 });

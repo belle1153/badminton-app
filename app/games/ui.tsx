@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- versioned API image URLs, like the leaderboard */
 
 import Link from "next/link";
+import { Fragment } from "react";
 import BackLink from "@/app/BackLink";
 import { knockoutPlaceholder } from "@/lib/games/format";
 import type { PlayerRef, TeamView, TieView } from "@/lib/games/state";
@@ -132,6 +133,25 @@ export function TieRow({ eventId, tie, teams }: { eventId: string; tie: TieView;
   );
 }
 
+/**
+ * A name that wraps only at its spaces — "Diamond / กันหยัด", never inside a
+ * Thai nickname, which the browser would otherwise split ("กัน / หยัด"). Each
+ * word is an inline block capped at the box width: it moves down whole when it
+ * fits, and only a word wider than the box breaks inside, so nothing runs off.
+ */
+export function NameText({ name }: { name: string }) {
+  return (
+    <>
+      {name.split(" ").map((word, i) => (
+        <Fragment key={i}>
+          {i > 0 && " "}
+          <span className="inline-block max-w-full break-words">{word}</span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 /** A pair's names one per line, so a phone shows both partners instead of cutting the second. */
 export function PairNames({
   players,
@@ -150,8 +170,8 @@ export function PairNames({
   return (
     <span className={`flex min-w-0 flex-col leading-tight ${align === "right" ? "items-end text-right" : ""} ${className}`} style={style}>
       {(names.length ? names : [fallback]).map((n, i) => (
-        <span key={i} className="max-w-full truncate">
-          {n}
+        <span key={i} className="max-w-full break-words">
+          <NameText name={n} />
         </span>
       ))}
     </span>

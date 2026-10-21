@@ -5,13 +5,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { GamesState, PlayerRef, RubberView, TeamView, TieView } from "@/lib/games/state";
-import { CARD_LABELS } from "@/lib/games/cards";
+import { CARD_LABELS, cardEffectText } from "@/lib/games/cards";
 import { ictDateKey, ictNowMinute, slotClock } from "@/lib/games/clock";
 import { fmtMinute, knockoutPlaceholder, setsLine } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
 import { tvTies } from "@/lib/games/tv";
 import { useGamesState } from "../../useGamesState";
-import { DARK } from "../../ui";
+import { DARK, NameText } from "../../ui";
 import { liveScore } from "../RunningTab";
 
 /* Sized in vw so a 1920×1080 TV matches the mockups and smaller screens scale. */
@@ -333,18 +333,18 @@ function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView>
       )}
       <div className="flex min-h-0 flex-1 flex-col">
         {tie.rubbers.map((r) => (
-          <TvRubberRow key={r.id} tie={tie} rubber={r} />
+          <TvRubberRow key={r.id} tie={tie} rubber={r} a={a} b={b} />
         ))}
       </div>
     </div>
   );
 }
 
-function TvRubberRow({ tie, rubber }: { tie: TieView; rubber: RubberView }) {
+function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a?: TeamView; b?: TeamView }) {
   const counting = rubber.liveSet != null && !rubber.finished;
   const done = rubber.status === "done";
   const [wa, wb] = setsWon(rubber.sets);
-  const card = tie.cards.find((c) => c.order === rubber.order);
+  const cards = tie.cards.filter((c) => c.order === rubber.order);
   const center = done ? (
     <span className="flex flex-col items-center">
       <b className="text-[1.9vw] leading-none tabular-nums">
@@ -378,11 +378,13 @@ function TvRubberRow({ tie, rubber }: { tie: TieView; rubber: RubberView }) {
       <TvNames players={rubber.a} dim={done && rubber.outcome === "B"} />
       <span className="flex flex-col items-center gap-[0.2vw]">
         {center}
-        {card && (
-          <span className="text-[0.75vw] font-bold" style={{ color: DARK.gold }}>
-            🃏 {CARD_LABELS[card.kind].name}
+        {/* Which team played it, and what it did: "🃏 DOUBLE DOWN" / "MARS +2". */}
+        {cards.map((c) => (
+          <span key={c.side} className="flex flex-col items-center text-center text-[0.75vw] font-bold leading-tight" style={{ color: DARK.gold }}>
+            <span>🃏 {CARD_LABELS[c.kind].name}</span>
+            <span>{cardEffectText(c, rubber.outcome, a?.name ?? "ทีม A", b?.name ?? "ทีม B")}</span>
           </span>
-        )}
+        ))}
       </span>
       <TvNames players={rubber.b} dim={done && rubber.outcome === "A"} right />
     </div>
@@ -399,8 +401,8 @@ function TvNames({ players, dim, right = false }: { players: (PlayerRef | null)[
     >
       {names.length ? (
         names.map((n, i) => (
-          <span key={i} className="max-w-full truncate">
-            {n}
+          <span key={i} className="max-w-full break-words">
+            <NameText name={n} />
           </span>
         ))
       ) : (

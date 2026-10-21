@@ -44,11 +44,14 @@ export function cardBonus(stage: Stage, cards: PlayedCard[], outcomeOf: (order: 
   return [a, b];
 }
 
-/** What a played card did, for the badge next to its pair: "แดง +2", "เหลือง +1 · แดง −1", "ไม่มีผล". */
+/**
+ * Who played a card and what it did, for the badge next to its pair:
+ * "แดง +2", "เหลือง +1 · แดง −1", "แดง · ไม่มีผล" — always naming the team.
+ */
 export function cardEffectText(card: PlayedCard, outcome: RubberOutcome, teamA: string, teamB: string): string {
   const [mine, theirs] = card.side === "A" ? [teamA, teamB] : [teamB, teamA];
   if (card.kind === "SUBSTITUTION") return `${mine} สลับคู่ ${card.order} ↔ คู่ ${card.swapWith}`;
-  if (outcome !== card.side) return "ไม่มีผล";
+  if (outcome !== card.side) return `${mine} · ไม่มีผล`;
   return card.kind === "DOUBLE_DOWN" ? `${mine} +2` : `${mine} +1 · ${theirs} −1`;
 }
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { GamesState, TeamView, TieView } from "@/lib/games/state";
 import { knockoutPlaceholder, pairName } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
+import { NameText } from "@/app/games/ui";
 import { CardChip, Chip, LineupStatus, lineupFilled } from "../LineupBits";
 
 export type Tab = number | "KO";
@@ -103,8 +104,8 @@ function TieLineups({ eventId, tie, teams }: { eventId: string; tie: TieView; te
                   {filled > 0 && (
                     <ol className="flex flex-col gap-0.5 text-[13px] text-gray-700">
                       {tie.rubbers.map((r) => (
-                        <li key={r.id} className="truncate">
-                          <b>คู่ {r.order}</b> · {pairName(r[key]) ?? "—"}
+                        <li key={r.id} className="break-words">
+                          <b>คู่ {r.order}</b> · <NameText name={pairName(r[key]) ?? "—"} />
                         </li>
                       ))}
                     </ol>

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { GamesState, PlayerRef, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/games/format";
 import { useGamesState } from "@/app/games/useGamesState";
+import { NameText } from "@/app/games/ui";
 import { adminApi } from "../api";
 import { CardChip, Chip, LineupStatus } from "./LineupBits";
 
@@ -304,8 +305,8 @@ function PairNamesCell({ players, team }: { players: (PlayerRef | null)[]; team?
     >
       {names.length ? (
         names.map((n, i) => (
-          <span key={i} className="max-w-full truncate">
-            {n}
+          <span key={i} className="max-w-full break-words">
+            <NameText name={n} />
           </span>
         ))
       ) : (
