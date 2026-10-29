@@ -123,6 +123,7 @@ export async function DELETE(
       for (const field of ["a1Id", "a2Id", "b1Id", "b2Id"] as const) {
         await prisma.gamesRubber.updateMany({ where: { [field]: id }, data: { [field]: survivor.id } });
       }
+      await prisma.gamesTeam.updateMany({ where: { captainId: id }, data: { captainId: survivor.id } });
       for (const m of await prisma.gamesTeamMember.findMany({ where: { athleteId: id } })) {
         const already = await prisma.gamesTeamMember.findFirst({
           where: { teamId: m.teamId, athleteId: survivor.id },

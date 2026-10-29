@@ -23,7 +23,7 @@ export async function loadGamesState(
       published: true,
       rankOverride: true,
       teams: {
-        select: { id: true, seed: true, name: true, color: true, updatedAt: true, members: { select: { athleteId: true } } },
+        select: { id: true, seed: true, name: true, color: true, captainId: true, updatedAt: true, members: { select: { athleteId: true } } },
       },
       ties: {
         select: {

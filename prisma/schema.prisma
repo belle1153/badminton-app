@@ -291,6 +291,8 @@ model GamesTeam {
   name      String
   color     String // hex, e.g. #dc2626
   logoUrl   String? // resized image stored as a data URL, like Athlete.photoUrl
+  // Athlete id of the captain, one of the members; a plain id like the lineups.
+  captainId String?
   // Cache version for /api/games/teams/[id]/logo.
   updatedAt DateTime          @default(now()) @updatedAt
   members   GamesTeamMember[]

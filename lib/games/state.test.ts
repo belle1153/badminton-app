@@ -11,6 +11,7 @@ function fixture(): GamesRows {
     name: t.name,
     color: t.color,
     hasLogo: t.seed === 1,
+    captainId: null as string | null,
     updatedAt: new Date(1000),
     members: [0, 1, 2, 3].map((i) => ({ athleteId: `p${t.seed}${i}` })),
   }));
@@ -131,6 +132,16 @@ describe("buildGamesState", () => {
     rubberOf(rows, "tie16-r1").a1Id = "p20"; // a seed-2 player on the seed-1 side
     const semi = buildGamesState(rows, NOW).ties.find((t) => t.id === "tie16")!;
     expect(semi).toMatchObject({ teamAId: "team1", teamBId: "team4", lineupMismatch: true });
+  });
+
+  it("names the captain only while they are on the team", () => {
+    const rows = fixture();
+    rows.event.teams[0].captainId = "p11";
+    rows.event.teams[1].captainId = "p11"; // on team 1, not team 2
+    const state = buildGamesState(rows, NOW);
+    expect(state.teams[0].captain?.id).toBe("p11");
+    expect(state.teams[1].captain).toBe(null);
+    expect(state.teams[2].captain).toBe(null);
   });
 
   it("serves photos and logos as versioned URLs, never inline", () => {

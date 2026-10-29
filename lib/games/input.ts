@@ -58,3 +58,58 @@ export function memberConflicts(
     return other ? [`${athleteNames.get(id) ?? id} (${other.name})`] : [];
   });
 }
+
+interface LineupTie {
+  teamAId: string | null;
+  teamBId: string | null;
+  rubbers: {
+    id: string;
+    a: ({ id: string } | null)[];
+    b: ({ id: string } | null)[];
+    finished: boolean;
+    sets: SetScore[];
+    liveSet: number | null;
+  }[];
+}
+
+/**
+ * After a team's roster changes: its lineup slots that still name someone no
+ * longer on the team, blanked. Without this the old names stay on the slip, and
+ * the lineup editor (which lists only the roster) shows those slots as empty, so
+ * they can't be taken off. Pairs already played, being counted or scored keep
+ * their names as the record of who played.
+ */
+export function staleLineupSlots(
+  ties: LineupTie[],
+  teamId: string,
+  roster: Set<string>
+): { rubberId: string; side: "A" | "B"; ids: [string | null, string | null] }[] {
+  const out: { rubberId: string; side: "A" | "B"; ids: [string | null, string | null] }[] = [];
+  for (const tie of ties) {
+    for (const side of ["A", "B"] as const) {
+      if ((side === "A" ? tie.teamAId : tie.teamBId) !== teamId) continue;
+      for (const r of tie.rubbers) {
+        if (r.finished || r.liveSet != null || r.sets.length > 0) continue;
+        const slot = side === "A" ? r.a : r.b;
+        const ids = [slot[0]?.id ?? null, slot[1]?.id ?? null] as [string | null, string | null];
+        const kept = ids.map((id) => (id && roster.has(id) ? id : null)) as [string | null, string | null];
+        if (kept[0] !== ids[0] || kept[1] !== ids[1]) out.push({ rubberId: r.id, side, ids: kept });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The captain to store after a team edit: the one asked for (null = none), who
+ * must be on the roster; when not asked, the current one while still on it.
+ */
+export function nextCaptain(
+  current: string | null,
+  requested: string | null | undefined,
+  roster: Set<string>
+): { captainId: string | null } | { error: string } {
+  if (requested === undefined) return { captainId: current && roster.has(current) ? current : null };
+  if (requested !== null && !roster.has(requested)) return { error: "กัปตันต้องเป็นผู้เล่นในทีม" };
+  return { captainId: requested };
+}

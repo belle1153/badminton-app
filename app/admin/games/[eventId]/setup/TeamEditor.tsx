@@ -35,6 +35,9 @@ export default function TeamEditor({
     setMembersState(ids);
     onDraft(team.id, ids);
   };
+  const [captain, setCaptain] = useState(team.captain?.id ?? "");
+  // Taking the captain off the roster drops them as captain too, as the server does.
+  const captainId = members.includes(captain) ? captain : "";
   const [query, setQuery] = useState("");
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -186,9 +189,26 @@ export default function TeamEditor({
             )}
           </div>
 
+          <label className="flex flex-col gap-1 text-xs text-gray-600">
+            กัปตันทีม
+            <select
+              id={`team-captain-${team.id}`}
+              value={captainId}
+              onChange={(e) => setCaptain(e.target.value)}
+              className="input"
+            >
+              <option value="">{members.length ? "ยังไม่เลือกกัปตัน" : "เพิ่มผู้เล่นก่อน"}</option>
+              {members.map((id) => (
+                <option key={id} value={id}>
+                  {names.get(id) ?? "?"}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
-            onClick={() => save({ name, color, memberIds: members }, "บันทึกทีมแล้ว")}
+            onClick={() => save({ name, color, memberIds: members, captainId: captainId || null }, "บันทึกทีมแล้ว")}
             className="self-start rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             บันทึกทีม

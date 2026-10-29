@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { GamesState, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute } from "@/lib/games/format";
 import { parseHHMM } from "@/lib/games/schedule";
-import { Avatar, DARK, TeamChip, TeamLogo, TieRow } from "../ui";
+import { Avatar, DARK, NameText, TeamChip, TeamLogo, TieRow } from "../ui";
 
 export function TeamsTab({ state }: { state: GamesState }) {
   return (
@@ -16,7 +16,17 @@ export function TeamsTab({ state }: { state: GamesState }) {
             <span className="rounded-lg px-3 py-0.5 text-lg font-bold" style={{ background: team.color, color: team.textColor }}>
               {team.name}
             </span>
-            <span className="ml-auto text-xs text-[#a9bdd3]">{team.members.length} คน</span>
+            {team.captain && (
+              <span className="ml-auto flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+                <span className="shrink-0 rounded px-1.5 py-px text-[11px] font-bold" style={{ background: DARK.gold, color: DARK.ground }}>
+                  กัปตัน
+                </span>
+                <span className="min-w-0 break-words">
+                  <NameText name={team.captain.name} />
+                </span>
+              </span>
+            )}
+            <span className={`${team.captain ? "" : "ml-auto "}shrink-0 text-xs text-[#a9bdd3]`}>{team.members.length} คน</span>
           </div>
           {team.members.length ? (
             <ul className="grid grid-cols-2 gap-x-3 gap-y-2.5">

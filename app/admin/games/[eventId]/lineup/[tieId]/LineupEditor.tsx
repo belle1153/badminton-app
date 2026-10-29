@@ -32,6 +32,11 @@ export default function LineupEditor({ initial, tieId, initialSide }: { initial:
   const used = new Set(pairs.flat().filter(Boolean));
   const left = team?.members.filter((m) => !used.has(m.id)) ?? [];
   const filledPairs = pairs.filter(([x, y]) => x && y).length;
+  // Someone on the slip who has since left the team: without their own option the
+  // select would look empty and the name could never be taken off.
+  const roster = new Set(team?.members.map((m) => m.id));
+  const names = new Map(tie.rubbers.flatMap((r) => [...r.a, ...r.b]).flatMap((p) => (p ? [[p.id, p.name] as const] : [])));
+  const outside = pairs.flat().filter((id) => id && !roster.has(id)).length;
 
   const set = (i: number, j: 0 | 1, id: string) =>
     setDrafts((d) => ({
@@ -89,29 +94,42 @@ export default function LineupEditor({ initial, tieId, initialSide }: { initial:
       ) : (
         <>
           <p className="text-xs text-gray-500">เรียงตามกระดาษของกัปตัน คู่ 1 อยู่บนสุด · คนที่ใส่แล้วไม่ขึ้นในช่องอื่น</p>
+          {outside > 0 && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+              มี {outside} ชื่อที่ไม่ได้อยู่ทีม {team.name} แล้ว (กรอบแดง) · เปลี่ยนเป็นคนในทีม หรือเลือก &quot;เลือกผู้เล่น&quot; เพื่อเอาออก แล้วกดบันทึก
+            </p>
+          )}
           <div className="flex flex-col rounded-xl border border-gray-200">
             {pairs.map((p, i) => (
               <div key={i} className="grid grid-cols-[44px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-1.5 border-t border-gray-100 px-2.5 py-2 first:border-t-0">
                 <span className="text-sm font-bold">คู่ {i + 1}</span>
-                {([0, 1] as const).map((j) => (
-                  <select
-                    key={j}
-                    aria-label={`คู่ ${i + 1} คนที่ ${j + 1}`}
-                    value={p[j]}
-                    onChange={(e) => set(i, j, e.target.value)}
-                    className="min-h-11 min-w-0 rounded-lg border bg-white px-2 text-[15px]"
-                    style={{ borderColor: p[j] ? "#b3cbe0" : "#fb923c", color: p[j] ? "#0b1c30" : "#8a9db3" }}
-                  >
-                    <option value="">เลือกผู้เล่น</option>
-                    {team.members
-                      .filter((m) => m.id === p[j] || !used.has(m.id))
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                  </select>
-                ))}
+                {([0, 1] as const).map((j) => {
+                  const gone = !!p[j] && !roster.has(p[j]);
+                  return (
+                    <select
+                      key={j}
+                      aria-label={`คู่ ${i + 1} คนที่ ${j + 1}`}
+                      value={p[j]}
+                      onChange={(e) => set(i, j, e.target.value)}
+                      className="min-h-11 min-w-0 rounded-lg border bg-white px-2 text-[15px]"
+                      style={{
+                        borderColor: gone ? "#dc2626" : p[j] ? "#b3cbe0" : "#fb923c",
+                        borderWidth: gone ? 2 : 1,
+                        color: gone ? "#b42318" : p[j] ? "#0b1c30" : "#8a9db3",
+                      }}
+                    >
+                      <option value="">เลือกผู้เล่น</option>
+                      {gone && <option value={p[j]}>{names.get(p[j]) ?? "?"} · ไม่ได้อยู่ทีมนี้แล้ว</option>}
+                      {team.members
+                        .filter((m) => m.id === p[j] || !used.has(m.id))
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                    </select>
+                  );
+                })}
               </div>
             ))}
           </div>

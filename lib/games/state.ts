@@ -39,6 +39,8 @@ export interface GamesRows {
       color: string;
       /** Whether a logo exists — the blob itself is never loaded here. */
       hasLogo: boolean;
+      /** Athlete id; only shown while that player is still on the team. */
+      captainId: string | null;
       updatedAt: Date;
       members: { athleteId: string }[];
     }[];
@@ -119,6 +121,7 @@ export interface TeamView {
   textColor: string;
   logoUrl: string | null;
   members: PlayerRef[];
+  captain: PlayerRef | null;
 }
 
 export interface GamesState {
@@ -168,6 +171,7 @@ export function buildGamesState(rows: GamesRows, now: Date, opts: { revealCards?
       textColor: textOn(t.color),
       logoUrl: t.hasLogo ? `/api/games/teams/${t.id}/logo?v=${t.updatedAt.getTime()}` : null,
       members: t.members.map((m) => player(m.athleteId)!).sort((a, b) => a.name.localeCompare(b.name, "th")),
+      captain: t.captainId && t.members.some((m) => m.athleteId === t.captainId) ? player(t.captainId) : null,
     }));
   const memberSets = new Map(ev.teams.map((t) => [t.id, new Set(t.members.map((m) => m.athleteId))]));
 
