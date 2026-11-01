@@ -4,7 +4,6 @@ import { envHealth, envProblems } from "./envHealth";
 const ALL = {
   LINE_CHANNEL_SECRET: "s",
   ADMIN_SECRET: "s",
-  CRON_SECRET: "s",
   LINE_CHANNEL_ACCESS_TOKEN: "s",
   LINE_GROUP_ID: "s",
 };
@@ -15,8 +14,8 @@ describe("envHealth", () => {
   });
 
   it("reports a missing key", () => {
-    const p = envProblems({ ...ALL, CRON_SECRET: undefined });
-    expect(p.map((c) => c.key)).toEqual(["CRON_SECRET"]);
+    const p = envProblems({ ...ALL, LINE_GROUP_ID: undefined });
+    expect(p.map((c) => c.key)).toEqual(["LINE_GROUP_ID"]);
   });
 
   it("treats a whitespace-only value as unset", () => {

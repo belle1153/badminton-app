@@ -3,9 +3,10 @@
 import { useState } from "react";
 
 /**
- * Posts the "sign-ups are open" message to the LINE group on demand — the admin
- * taps it at 11:00. The server is idempotent (shares a stamp with the Friday
- * cron), so a second tap just reports it was already sent rather than spamming.
+ * Posts the "sign-ups are open" message to the LINE group on demand — nothing
+ * posts it automatically any more, so this is the only way it goes out. The
+ * server is idempotent, so a second tap just reports it was already sent rather
+ * than spamming.
  *
  * If the push fails (most likely 429 — the monthly push quota is used up) the
  * server hands back the composed text, which we show with a copy button so the
@@ -13,8 +14,8 @@ import { useState } from "react";
  * draws on the quota.
  */
 export default function AnnounceRegistrationButton({
-  /** Day labels whose announcement has not gone out — shown up front, because a
-   *  failed automatic send is otherwise completely silent. */
+  /** Day labels whose announcement has not gone out — shown up front, so the
+   *  admin can see which days still need posting without pressing anything. */
   pending = [],
 }: {
   pending?: string[];

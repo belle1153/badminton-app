@@ -1,32 +1,14 @@
 import { prisma } from "@/lib/db";
 import { pushLineMessage, lineConfigured } from "@/lib/line";
-import { registrationOpensAt } from "@/lib/registration";
 
 const SIGNUP_URL = process.env.LINE_SIGNUP_URL ?? "https://tinyurl.com/54fk2r7s";
 
-/**
- * How long after sign-ups open the unattended cron keeps trying.
- *
- * It runs daily rather than only on Friday, so a Friday that failed — a 429 on
- * the push, LINE down, a deploy mid-flight — is retried the next morning and
- * the one after instead of being lost. `registrationOpenNotifiedAt` is stamped
- * only on a successful send, so the retries stop the moment one gets through.
- *
- * The window still exists to stop a first deploy (every OPEN session has a null
- * marker) announcing days that opened weeks ago.
+/*
+ * The "sign-ups are open" LINE post is sent only when the admin presses the
+ * button. There used to be a daily 11:00 cron that posted it automatically; the
+ * club turned that off (2026-11-01) along with the Friday 11:00 sign-up gate —
+ * sign-ups now open the moment a day is created.
  */
-const CRON_RETRY_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
-
-/**
- * Who is asking. The cron runs unattended and must never surprise the group, so
- * it gives up once the retry window closes. The admin button is a person
- * deciding to post right now — holding them to the same window meant that if
- * Friday 11:00 came and went (a failed push, nobody around, a day added late)
- * the announcement could never be sent at all, and the button just said
- * "แจ้งไปแล้ว" when it never had been. `registrationOpenNotifiedAt` is the real
- * don't-repeat guard for both.
- */
-export type AnnounceMode = "cron" | "manual";
 
 /** "จันทร์ที่ 27 กรกฎาคม" — dates are stored at UTC midnight of the intended
  *  local date, so format in UTC to keep that calendar date. */
@@ -45,17 +27,6 @@ export interface OpenDay {
   startTime: string;
 }
 
-/**
- * Days the daily cron may announce: everything the button may, minus days whose
- * sign-ups opened longer ago than the retry window. Pure, so the timing rule is
- * unit-testable without a DB.
- */
-export function pickCronRetryable<T extends { date: Date }>(sessions: T[], now: Date): T[] {
-  return pickAnnounceable(sessions, now).filter(
-    (s) => now.getTime() - registrationOpensAt(s.date).getTime() < CRON_RETRY_WINDOW_MS
-  );
-}
-
 /** UTC midnight of today's ICT date — session dates are stored that way, so
  *  this is the cut-off for "hasn't happened yet". */
 function ictToday(now: Date): number {
@@ -64,17 +35,14 @@ function ictToday(now: Date): number {
 }
 
 /**
- * Days the admin's button may announce: sign-ups already open, and the day
- * itself still to come. No freshness window — a person pressing the button is
- * the intent — but a day that has already been played is never announced, which
- * is what stops a stale OPEN session from being posted weeks later.
+ * Days the admin's button may announce: any day still to come (sign-ups are
+ * open from the moment a day is created). A day that has already been played is
+ * never announced, which is what stops a stale OPEN session from being posted
+ * weeks later. Pure, so the rule is unit-testable without a DB.
  */
 export function pickAnnounceable<T extends { date: Date }>(sessions: T[], now: Date): T[] {
   const today = ictToday(now);
-  return sessions.filter(
-    (s) =>
-      registrationOpensAt(s.date).getTime() <= now.getTime() && s.date.getTime() >= today
-  );
+  return sessions.filter((s) => s.date.getTime() >= today);
 }
 
 /** The "sign-ups are open" group message for the given days. */
@@ -120,16 +88,12 @@ export async function pendingAnnouncements(now: Date = new Date()): Promise<stri
 }
 
 /**
- * Post a single "sign-ups are open" message to the club LINE group for the days
- * whose sign-ups have opened, then stamp them so it goes out only once —
- * whichever fires first, the admin button or the daily cron, claims it and
- * every later run becomes a no-op. Never throws; a LINE hiccup just reports
- * back, and leaves the days unstamped so the next run retries them.
+ * Post a single "sign-ups are open" message to the club LINE group for the
+ * upcoming days not announced yet, then stamp them so a second press just
+ * reports it was already sent. Never throws; a LINE hiccup just reports back,
+ * and leaves the days unstamped so the next press retries them.
  */
-export async function announceRegistrationOpen(
-  now: Date = new Date(),
-  mode: AnnounceMode = "manual"
-): Promise<AnnounceResult> {
+export async function announceRegistrationOpen(now: Date = new Date()): Promise<AnnounceResult> {
   if (!lineConfigured()) {
     return { sent: false, reason: "ยังไม่ได้ตั้งค่า LINE (env)", days: [] };
   }
@@ -139,16 +103,14 @@ export async function announceRegistrationOpen(
     orderBy: { date: "asc" },
   });
 
-  const due =
-    mode === "cron" ? pickCronRetryable(candidates, now) : pickAnnounceable(candidates, now);
+  const due = pickAnnounceable(candidates, now);
   if (due.length === 0) {
-    // Say which of the two it was. The old combined wording ("ยังไม่ถึงเวลาเปิด
-    // หรือแจ้งไปแล้ว") hid a real failure: days that had never been announced
-    // looked identical to ones that had.
+    // Say which of the two it was: days that had never been announced must not
+    // look identical to ones that had.
     const reason =
       candidates.length === 0
         ? "แจ้งไปแล้วทุกวันที่เปิดอยู่"
-        : "ยังไม่ถึงเวลาเปิดลงชื่อ (ศุกร์ 11.00 น.)";
+        : "วันที่ยังไม่ได้แจ้ง ผ่านไปแล้วทั้งหมด";
     return { sent: false, reason, days: [] };
   }
 

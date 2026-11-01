@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { assignSeats, WAITLIST_LIMIT, type SeatInput, type TimeSlot } from "@/lib/signup";
 import { blockCapacities } from "@/lib/capacity";
 import { rebalanceSession } from "@/lib/seating";
-import { registrationIsOpen, formatOpensAt } from "@/lib/registration";
 import { findSimilarNames } from "@/lib/nameSimilarity";
 
 const SLOT_LABEL: Record<TimeSlot, string> = { EARLY: "1 ทุ่ม", LATE: "2 ทุ่ม" };
@@ -19,16 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) {
     return NextResponse.json({ error: "ไม่พบรอบนี้" }, { status: 404 });
   }
+  // Sign-ups are open from the moment a day is created (no Friday 11:00 gate
+  // since 2026-11-01) until it's closed.
   if (session.status === "CLOSED") {
     return NextResponse.json({ error: "รอบนี้ปิดแล้ว ไม่สามารถลงชื่อได้" }, { status: 400 });
-  }
-  // Enforced here, not just hidden in the UI — the form is public, so the rule
-  // has to hold for anyone posting straight at this endpoint too.
-  if (!registrationIsOpen(session.date)) {
-    return NextResponse.json(
-      { error: `ยังไม่เปิดให้ลงชื่อครับ — เปิด ${formatOpensAt(session.date)}` },
-      { status: 400 }
-    );
   }
 
   // Skill level is assessed by the admin, not self-reported: returning

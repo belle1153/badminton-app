@@ -86,9 +86,9 @@ game at any time.
 
 ## Club rules the code enforces
 
-**Registration window.** Sign-ups for a day open on the **Friday before it at
-11:00 ICT** (a Friday session opens that morning). Enforced server-side in the
-signup route, not just hidden in the UI. See `lib/registration.ts`.
+**Registration window.** Sign-ups for a day open **as soon as the admin creates
+the day** and stay open until it is closed. (Until 2026-11-01 they opened on
+the Friday before at 11:00 ICT; that gate and `lib/registration.ts` are gone.)
 
 **Capacity.** Two blocks per day: 1 ทุ่ม (EARLY, 19:00) and 2 ทุ่ม (LATE,
 20:00). Courts map to capacity: 2→14, 3→22, 4→28, 5→36, 6→42 players.
@@ -170,9 +170,9 @@ then re-seats everyone.
   LINE Official Account tier. This distinction drives the whole design.
 - Webhook (`/api/line/webhook`) uses **reply** — members type `รายชื่อ` /
   `เช็คชื่อ` / `list` to get a roster, or `<name> ถอนชื่อ <day>` to withdraw.
-- The only **push** is the once-per-Friday "sign-ups are open" announcement,
-  triggered by an admin button or a Vercel cron (`vercel.json`,
-  `0 4 * * 5` = 11:00 ICT Friday) and made idempotent by
+- The only **push** is the "sign-ups are open" announcement, sent **only when
+  the admin presses the button** (there is no automatic cron any more — removed
+  2026-11-01 with `vercel.json`) and made idempotent by
   `Session.registrationOpenNotifiedAt`. Sign-ups and withdrawals deliberately do
   **not** push — doing so once burned the whole monthly quota.
 - `/api/line/test` is a read-only diagnostic (quota, consumption, bot info);

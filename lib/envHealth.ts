@@ -3,7 +3,7 @@
  *
  * Values are NEVER read out, only whether each key is set. Every one of these
  * degrades quietly when missing: the app keeps working, so nothing tells you a
- * webhook is unverified or a cron endpoint is open until someone goes looking.
+ * webhook is unverified until someone goes looking.
  * This is that look, on a page the admin already opens.
  */
 
@@ -27,11 +27,6 @@ const CHECKS: { key: string; severity: EnvSeverity; impact: string }[] = [
     key: "ADMIN_SECRET",
     severity: "critical",
     impact: "คุกกี้แอดมินเซ็นด้วย PIN แทนคีย์สุ่ม — เดาง่ายกว่าที่ควร ควรตั้งเป็นค่าสุ่มยาวๆ",
-  },
-  {
-    key: "CRON_SECRET",
-    severity: "recommended",
-    impact: "ใครก็ยิง /api/cron/registration-open ได้ (ส่งได้แค่สิ่งที่ระบบจะส่งอยู่แล้ว แต่กินโควตา push)",
   },
   {
     key: "LINE_CHANNEL_ACCESS_TOKEN",

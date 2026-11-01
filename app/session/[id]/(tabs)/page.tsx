@@ -4,7 +4,6 @@ import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
 import SignUpForm from "../SignUpForm";
-import { registrationIsOpen, formatOpensAt } from "@/lib/registration";
 import WithdrawForm from "../WithdrawForm";
 
 export const dynamic = "force-dynamic";
@@ -67,14 +66,7 @@ export default async function SessionSignUpPage({
               ปิดรับสมัครหลักแล้ว — ลงชื่อตอนนี้จะเข้าคิวเป็นตัวสำรองครับ
             </p>
           )}
-          {registrationIsOpen(session.date) ? (
-            <SignUpForm sessionId={id} />
-          ) : (
-            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              <p className="font-semibold">🔒 ยังไม่เปิดให้ลงชื่อ</p>
-              <p>เปิดลงชื่อ {formatOpensAt(session.date)} — ระบบเปิดทุกวันศุกร์ 11.00 น. ครับ</p>
-            </div>
-          )}
+          <SignUpForm sessionId={id} />
           <WithdrawForm
             sessionId={id}
             signUps={session.signUps.map((s) => ({ id: s.id, name: s.name }))}
