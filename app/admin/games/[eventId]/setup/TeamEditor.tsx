@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import PhotoCropModal from "@/app/admin/athletes/PhotoCropModal";
 import { TEAM_SWATCHES } from "@/lib/games/schedule";
 import { textOn } from "@/lib/games/color";
+import { rankNameMatches } from "@/lib/nameSearch";
 import type { TeamView } from "@/lib/games/state";
 import { adminApi } from "../../api";
 
@@ -43,8 +44,14 @@ export default function TeamEditor({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const names = useMemo(() => new Map(athletes.map((a) => [a.id, a.name])), [athletes]);
 
+  // Names that START with the query first: "F" also hits every "(FB)" name, and
+  // in plain A–Z order those filled the 8 slots before "Film" or "First" showed.
   const matches = query.trim()
-    ? athletes.filter((a) => !members.includes(a.id) && a.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8)
+    ? rankNameMatches(
+        query,
+        athletes.filter((a) => !members.includes(a.id) && a.name.toLowerCase().includes(query.trim().toLowerCase())),
+        8
+      )
     : [];
 
   async function save(body: object, ok: string) {

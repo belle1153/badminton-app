@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { rankNameMatches } from "@/lib/nameSearch";
 
 interface MatchPlayerInfo {
   id: string;
@@ -28,9 +29,15 @@ export default function SelfCourtBanner({ matches }: { matches: MatchInfo[] }) {
     return [...map.entries()].map(([id, name]) => ({ id, name }));
   }, [matches]);
 
+  // Prefix matches first, so a one-letter search still shows the names that
+  // start with it rather than whichever 6 merely contain it.
   const suggestions =
     query.trim() && !selectedId
-      ? players.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      ? rankNameMatches(
+          query,
+          players.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase())),
+          6
+        )
       : [];
 
   // Every game (current or queued) this player is booked in.
