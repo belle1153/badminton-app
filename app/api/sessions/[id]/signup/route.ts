@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { assignSeats, WAITLIST_LIMIT, type SeatInput, type TimeSlot } from "@/lib/signup";
+import {
+  assignSeats,
+  selfSignUpBlocked,
+  WAITLIST_LIMIT,
+  type SeatInput,
+  type TimeSlot,
+} from "@/lib/signup";
 import { blockCapacities } from "@/lib/capacity";
 import { rebalanceSession } from "@/lib/seating";
 import { findSimilarNames } from "@/lib/nameSimilarity";
@@ -19,9 +25,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "ไม่พบรอบนี้" }, { status: 404 });
   }
   // Sign-ups are open from the moment a day is created (no Friday 11:00 gate
-  // since 2026-11-01) until it's closed.
-  if (session.status === "CLOSED") {
-    return NextResponse.json({ error: "รอบนี้ปิดแล้ว ไม่สามารถลงชื่อได้" }, { status: 400 });
+  // since 2026-11-01) until the admin closes registration or the day.
+  // Checked before the athlete lookup so a rejected name never creates a record.
+  const blocked = selfSignUpBlocked(session);
+  if (blocked) {
+    return NextResponse.json({ error: blocked }, { status: 400 });
   }
 
   // Skill level is assessed by the admin, not self-reported: returning
@@ -71,7 +79,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const skillLevel = athlete.skillLevel;
 
-  const registrationClosed = session.registrationClosedAt != null;
   const existing = await prisma.signUp.findMany({
     where: { sessionId: id, status: { not: "WITHDRAWN" } },
   });
@@ -107,33 +114,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
     await prisma.signUp.update({ where: { id: already.id }, data: { preferredSlot: timeSlot } });
-    if (!registrationClosed) await rebalanceSession(session);
+    await rebalanceSession(session);
     const moved = await prisma.signUp.findUnique({ where: { id: already.id } });
     return NextResponse.json(moved);
   }
 
-  // Registration soft-closed: new people can only queue as reserves.
-  if (registrationClosed) {
-    const waitCount = existing.filter((s) => s.status === "WAITLIST").length;
-    if (waitCount >= WAITLIST_LIMIT) {
-      return NextResponse.json({ error: "เต็มแล้วครับ (รวมรายชื่อสำรอง 5 คน)" }, { status: 400 });
-    }
-    const signUp = await prisma.signUp.create({
-      data: {
-        sessionId: id,
-        name,
-        skillLevel,
-        timeSlot,
-        preferredSlot: timeSlot,
-        status: "WAITLIST",
-        slotNumber: null,
-        athleteId: athlete.id,
-      },
-    });
-    return NextResponse.json(signUp);
-  }
-
-  // Registration open: work out where the newcomer lands (and reject only if
+  // Work out where the newcomer lands (and reject only if
   // even the waitlist is full). Existing sign-ups keep their seats since the
   // newcomer sorts last, so no rebalance of others is needed here.
   const hypothetical: SeatInput[] = [

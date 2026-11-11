@@ -43,7 +43,7 @@ export async function POST(
 
   // Recompute seats so a vacated 1 ทุ่ม pulls up the earliest person who wanted
   // it (possibly moving them out of 2 ทุ่ม), cascading the freed 2 ทุ่ม seat to
-  // the next reserve. Frozen once registration is soft-closed.
+  // the next reserve. Frozen once registration is closed.
   if (session.registrationClosedAt == null) {
     await rebalanceSession(session);
   }

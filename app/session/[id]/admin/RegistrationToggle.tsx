@@ -38,7 +38,7 @@ export default function RegistrationToggle({
       <div>
         <h2 className="font-semibold">การรับสมัคร</h2>
         <p className="text-xs text-gray-500">
-          {registrationClosed ? "ปิดรับสมัครแล้ว — ผู้เล่นใหม่ลงชื่อไม่ได้" : "เปิดรับสมัครอยู่"}
+          {registrationClosed ? "ปิดรับสมัครแล้ว — ผู้เล่นลงชื่อเองไม่ได้ (แอดมินยังเพิ่มชื่อได้)" : "เปิดรับสมัครอยู่"}
         </p>
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>

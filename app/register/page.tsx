@@ -71,7 +71,16 @@ export default async function RegisterPage() {
         ลงชื่อครั้งเดียว เลือกได้หลายวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
       </p>
 
-      <MultiSignUpForm days={days.map((d) => ({ id: d.id, label: d.shortLabel }))} />
+      {/* Days the admin closed registration on can't be picked any more. */}
+      {days.some((d) => !d.registrationClosed) ? (
+        <MultiSignUpForm
+          days={days
+            .filter((d) => !d.registrationClosed)
+            .map((d) => ({ id: d.id, label: d.shortLabel }))}
+        />
+      ) : (
+        <p className="text-sm text-amber-600">ทุกวันปิดรับสมัครแล้วครับ</p>
+      )}
 
       <section className="flex flex-col gap-3">
         {days.map((d) => (
@@ -87,7 +96,7 @@ export default async function RegisterPage() {
             <div className="text-sm text-gray-600 mt-1">
               เริ่ม {d.startTime} น. · 1 ทุ่ม {d.earlyCount}/{d.earlyCapacity} · 2 ทุ่ม {d.lateCount}/
               {d.lateCapacity} · สำรอง {d.waitlistCount}/{WAITLIST_LIMIT}
-              {d.registrationClosed && <span className="text-amber-600 ml-2">ปิดรับหลักแล้ว</span>}
+              {d.registrationClosed && <span className="text-amber-600 ml-2">ปิดรับสมัครแล้ว</span>}
             </div>
           </Link>
         ))}

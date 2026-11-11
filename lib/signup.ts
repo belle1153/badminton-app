@@ -3,6 +3,21 @@ export type TimeSlot = "EARLY" | "LATE";
 
 export const WAITLIST_LIMIT = 5;
 
+/**
+ * Why a player may not sign themselves up for this day, or null if they may.
+ * "ปิดรับสมัคร" is a hard close: no new names at all, not even as reserves
+ * (it used to still take up to 5 reserves, which the admin didn't expect).
+ * The admin's own quick-add is a separate route and isn't gated by this.
+ */
+export function selfSignUpBlocked(session: {
+  status: string;
+  registrationClosedAt: Date | null;
+}): string | null {
+  if (session.status === "CLOSED") return "รอบนี้ปิดแล้ว ไม่สามารถลงชื่อได้";
+  if (session.registrationClosedAt != null) return "ปิดรับสมัครแล้ว ลงชื่อเพิ่มไม่ได้ครับ";
+  return null;
+}
+
 export interface SeatInput {
   id: string;
   preferredSlot: TimeSlot;

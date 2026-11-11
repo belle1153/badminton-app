@@ -61,12 +61,11 @@ export default async function SessionSignUpPage({
     <>
       {!isClosed && (
         <>
-          {registrationClosed && (
-            <p className="text-sm text-amber-600">
-              ปิดรับสมัครหลักแล้ว — ลงชื่อตอนนี้จะเข้าคิวเป็นตัวสำรองครับ
-            </p>
+          {registrationClosed ? (
+            <p className="text-sm text-amber-600">ปิดรับสมัครแล้ว ลงชื่อเพิ่มไม่ได้ครับ</p>
+          ) : (
+            <SignUpForm sessionId={id} />
           )}
-          <SignUpForm sessionId={id} />
           <WithdrawForm
             sessionId={id}
             signUps={session.signUps.map((s) => ({ id: s.id, name: s.name }))}
