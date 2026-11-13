@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import { parseSets } from "@/lib/games/input";
-import { lineupKeyed, setsFromColumns, validateResult } from "@/lib/games/rules";
+import { lineupKeyed, qualifierOverMax, setsFromColumns, validateResult } from "@/lib/games/rules";
 import type { SetScore } from "@/lib/games/types";
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -20,6 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ru
     select: {
       set1A: true, set1B: true, set2A: true, set2B: true, set3A: true, set3B: true,
       a1Id: true, a2Id: true, b1Id: true, b2Id: true,
+      finishedAt: true,
       tie: { select: { stage: true } },
     },
   });
@@ -43,6 +44,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ru
     if (sets.length > 0 && !lineupKeyed(rubber)) {
       return bad("ยังไม่ได้คีย์ใบส่งตัวคู่นี้ครบทั้ง 2 ทีม · คีย์ใบส่งตัวก่อนกรอกคะแนน", 409);
     }
+    const over = rubber.tie.stage === "QUALIFIER" ? qualifierOverMax(sets) : null;
+    if (over) return bad(over);
     const at = (i: number, j: number) => sets![i]?.[j] ?? null;
     Object.assign(data, {
       set1A: at(0, 0), set1B: at(0, 1),
@@ -56,7 +59,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ru
     const check = validateResult(rubber.tie.stage, sets ?? setsFromColumns(rubber));
     if (!check.ok) return bad(check.error);
     warnings = check.warnings;
-    data.finishedAt = new Date();
+    // Correcting a result keeps the time it first finished: the big screen holds a
+    // round for five minutes after that, and an edit shouldn't bring an old one back.
+    data.finishedAt = rubber.finishedAt ?? new Date();
     data.liveSet = null;
   } else if (body.finish === false) {
     data.finishedAt = null;

@@ -81,6 +81,12 @@ export function isValidQualifierSet(a: number, b: number): boolean {
   return Math.max(a, b) === 21 && Math.min(a, b) <= 20;
 }
 
+/** No deuce in the qualifier, so 21 is as high as a set goes: the refusal for the first set past it, or null. */
+export function qualifierOverMax(sets: SetScore[]): string | null {
+  const i = sets.findIndex(([a, b]) => a > 21 || b > 21);
+  return i < 0 ? null : `รอบคัดเลือกได้สูงสุด 21 แต้ม · เซต ${i + 1} (${sets[i][0]}–${sets[i][1]})`;
+}
+
 /** Is this a score a finished knockout set can actually end on? */
 export function isValidKnockoutSet(a: number, b: number): boolean {
   const hi = Math.max(a, b);
@@ -101,6 +107,8 @@ export function validateResult(
   if (!isKnockout(stage)) {
     if (sets.length < 2) return { ok: false, error: "รอบคัดเลือกต้องใส่แต้มครบ 2 เซต" };
     if (sets.length > 2) return { ok: false, error: "รอบคัดเลือกมีแค่ 2 เซต" };
+    const over = qualifierOverMax(sets);
+    if (over) return { ok: false, error: over };
     const warnings = sets.flatMap(([x, y], i) =>
       x === y
         ? [`เซต ${i + 1} (${x}–${y}) แต้มเท่ากัน ไม่นับให้ฝั่งไหน`]

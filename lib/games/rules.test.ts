@@ -6,6 +6,7 @@ import {
   knockoutSetOver,
   isValidKnockoutSet,
   validateResult,
+  qualifierOverMax,
   tieScore,
   lineupKeyed,
 } from "./rules";
@@ -103,11 +104,19 @@ describe("validateResult", () => {
     expect(validateResult("QUALIFIER", [[21, 9], [17, 21]])).toEqual({ ok: true, warnings: [] });
     expect(validateResult("QUALIFIER", [[21, 20], [20, 21]])).toEqual({ ok: true, warnings: [] });
   });
-  it("saves a qualifier set that does not end at exactly 21 but warns", () => {
-    expect(validateResult("QUALIFIER", [[22, 20], [18, 15]])).toEqual({
+  it("saves a qualifier set that does not reach 21 but warns", () => {
+    expect(validateResult("QUALIFIER", [[21, 10], [18, 15]])).toEqual({
       ok: true,
-      warnings: ["เซต 1 (22–20) ไม่ตรงกติกา 21 แต้มไม่มีดิวส์", "เซต 2 (18–15) ไม่ตรงกติกา 21 แต้มไม่มีดิวส์"],
+      warnings: ["เซต 2 (18–15) ไม่ตรงกติกา 21 แต้มไม่มีดิวส์"],
     });
+  });
+  it("refuses a qualifier score above 21, since there is no deuce", () => {
+    expect(validateResult("QUALIFIER", [[22, 11], [21, 11]])).toEqual({
+      ok: false,
+      error: "รอบคัดเลือกได้สูงสุด 21 แต้ม · เซต 1 (22–11)",
+    });
+    expect(qualifierOverMax([[21, 11], [11, 23]])).toBe("รอบคัดเลือกได้สูงสุด 21 แต้ม · เซต 2 (11–23)");
+    expect(qualifierOverMax([[21, 20], [0, 21]])).toBe(null);
   });
   it("saves a level qualifier set but warns, since it counts for neither side", () => {
     expect(validateResult("QUALIFIER", [[21, 21], [21, 15]])).toEqual({

@@ -188,7 +188,7 @@ function RubberRow({
   }
 
   const setVal = (i: number, j: number, v: string) =>
-    setVals((cur) => cur.map((row, ri) => (ri === i ? row.map((c, ci) => (ci === j ? v.replace(/[^0-9]/g, "") : c)) : row)));
+    setVals((cur) => cur.map((row, ri) => (ri === i ? row.map((c, ci) => (ci === j ? v.replace(/[^0-9]/g, "").slice(0, 2) : c)) : row)));
 
   return (
     // One framed box per pair, so a result is never read against the wrong pair.
@@ -376,6 +376,7 @@ function SetInputs({
       <span className="text-xs text-gray-500">เซต {i + 1}</span>
       <input
         inputMode="numeric"
+        maxLength={2}
         aria-label={`คู่ ${order} เซต ${i + 1} แต้ม ${a?.name ?? "ทีม A"}`}
         placeholder={a?.name ?? "A"}
         value={row[0]}
@@ -386,6 +387,7 @@ function SetInputs({
       <span className="text-center text-gray-400">–</span>
       <input
         inputMode="numeric"
+        maxLength={2}
         aria-label={`คู่ ${order} เซต ${i + 1} แต้ม ${b?.name ?? "ทีม B"}`}
         placeholder={b?.name ?? "B"}
         value={row[1]}

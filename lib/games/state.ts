@@ -79,6 +79,8 @@ export interface RubberView {
   b: (PlayerRef | null)[];
   sets: SetScore[];
   finished: boolean;
+  /** When the result was first saved (ISO); the big screen holds a finished round on it. */
+  finishedAt: string | null;
   outcome: RubberOutcome;
   status: RubberStatus;
   liveSet: number | null;
@@ -271,6 +273,7 @@ export function buildGamesState(rows: GamesRows, now: Date, opts: { revealCards?
         b: [player(row.b1Id), player(row.b2Id)],
         sets,
         finished,
+        finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
         outcome,
         status,
         liveSet: row.liveSet,

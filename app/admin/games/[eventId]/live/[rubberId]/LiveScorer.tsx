@@ -357,7 +357,7 @@ function Summary({
   const count = ko ? 3 : 2;
   const [rows, setRows] = useState<string[][]>(() => Array.from({ length: count }, (_, i) => initial[i]?.map(String) ?? ["", ""]));
   const set = (i: number, j: number, v: string) =>
-    setRows((r) => r.map((row, ri) => (ri === i ? row.map((c, ci) => (ci === j ? v.replace(/[^0-9]/g, "") : c)) : row)));
+    setRows((r) => r.map((row, ri) => (ri === i ? row.map((c, ci) => (ci === j ? v.replace(/[^0-9]/g, "").slice(0, 2) : c)) : row)));
   const sets = rows.filter(([x, y]) => x !== "" && y !== "").map(([x, y]) => [Number(x), Number(y)] as SetScore);
   return (
     <Center>
@@ -369,6 +369,7 @@ function Summary({
             <input
               key={j}
               inputMode="numeric"
+              maxLength={2}
               aria-label={`เซต ${i + 1} แต้ม ${j === 0 ? aName : bName}`}
               placeholder={j === 0 ? aName : bName}
               value={row[j]}

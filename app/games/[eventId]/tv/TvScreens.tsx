@@ -271,7 +271,7 @@ export function TvShow({ initial, initialMode }: { initial: GamesState; initialM
 /** The ties in play (or next), side by side, each with its five pairs. */
 function MatchesView({ state }: { state: GamesState }) {
   const teams = new Map(state.teams.map((t) => [t.id, t]));
-  const ties = tvTies(state.ties);
+  const ties = tvTies(state.ties, new Date(state.serverNow));
   const first = ties[0];
   const note = !first ? "" : first.stage === "QUALIFIER" ? `รอบคัดเลือก · รอบที่ ${first.round} · ${first.startsAt}` : "รอบน็อกเอาต์";
   return (
