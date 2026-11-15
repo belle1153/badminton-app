@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute, setsLine } from "@/lib/games/format";
-import { DARK, PairAvatars, PairNames, Pill, TeamChip, TieRow } from "../ui";
+import { DARK, PairTiles, Pill, TeamChip, TieRow } from "../ui";
 
 type Stage = "Q" | "KO";
 
@@ -164,24 +164,23 @@ function CourtCard({
           <Pill bg="#1a2c42" fg="#82aacb">รอลง · {fmtMinute(rubber.startMinute)}</Pill>
         )}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="h-[26px] w-1 shrink-0 rounded-sm" style={{ background: a?.color ?? DARK.dim }} />
-          <PairAvatars players={rubber.a} />
-          <PairNames players={rubber.a} fallback={`คู่ ${rubber.order}`} className="text-xs font-semibold" />
+      {/* Both sides stretch to the taller one, so the photos line up when a name wraps. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-1.5">
+        <span className="flex min-w-0 items-stretch gap-1.5">
+          <span className="w-1 shrink-0 rounded-sm" style={{ background: a?.color ?? DARK.dim }} />
+          <PairTiles players={rubber.a} max="72px" fallback={`คู่ ${rubber.order}`} nameClass="text-xs font-semibold" />
         </span>
         {counting ? (
-          <span className="flex flex-col items-center">
+          <span className="flex flex-col items-center self-center">
             <b className="text-lg tabular-nums" style={{ color: DARK.gold }}>{liveScore(rubber)}</b>
             {rubber.sets.length > 1 && <span className="text-[10px] text-[#a9bdd3]">{setsLine(rubber.sets.slice(0, -1))}</span>}
           </span>
         ) : (
-          <span className="text-[13px] text-[#a9bdd3]">vs</span>
+          <span className="self-center text-[13px] text-[#a9bdd3]">vs</span>
         )}
-        <span className="flex min-w-0 items-center justify-end gap-1.5">
-          <PairNames players={rubber.b} fallback={`คู่ ${rubber.order}`} align="right" className="text-xs font-semibold" />
-          <PairAvatars players={rubber.b} />
-          <span className="h-[26px] w-1 shrink-0 rounded-sm" style={{ background: b?.color ?? DARK.dim }} />
+        <span className="flex min-w-0 items-stretch justify-end gap-1.5">
+          <PairTiles players={rubber.b} max="72px" fallback={`คู่ ${rubber.order}`} align="right" nameClass="text-xs font-semibold" />
+          <span className="w-1 shrink-0 rounded-sm" style={{ background: b?.color ?? DARK.dim }} />
         </span>
       </div>
       {nextText && <span className="text-[11px] text-[#a9bdd3]">ถัดไปบนสนามนี้: {nextText}</span>}

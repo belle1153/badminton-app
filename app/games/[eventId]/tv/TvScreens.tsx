@@ -7,11 +7,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { GamesState, PlayerRef, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { CARD_LABELS, cardEffectText } from "@/lib/games/cards";
 import { ictDateKey, ictNowMinute, slotClock } from "@/lib/games/clock";
-import { fmtMinute, knockoutPlaceholder, setsLine } from "@/lib/games/format";
+import { fmtMinute, knockoutPlaceholder } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
 import { tvTies } from "@/lib/games/tv";
 import { useGamesState } from "../../useGamesState";
-import { DARK, NameText } from "../../ui";
+import { DARK, PairTiles } from "../../ui";
 import { liveScore } from "../RunningTab";
 
 /* Sized in vw so a 1920×1080 TV matches the mockups and smaller screens scale. */
@@ -351,7 +351,12 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
         <span style={{ color: rubber.outcome === "A" ? DARK.gold : DARK.text }}>{wa}</span>–
         <span style={{ color: rubber.outcome === "B" ? DARK.gold : DARK.text }}>{wb}</span>
       </b>
-      <span className="text-[0.85vw] tabular-nums text-[#a9bdd3]">{setsLine(rubber.sets)}</span>
+      {/* One set per line keeps this column narrow, leaving the width to the photos. */}
+      {rubber.sets.map(([x, y], i) => (
+        <span key={i} className="text-[0.85vw] leading-tight tabular-nums text-[#a9bdd3]">
+          {x}–{y}
+        </span>
+      ))}
     </span>
   ) : counting ? (
     <b className="text-[1.9vw] tabular-nums" style={{ color: DARK.gold }}>
@@ -368,7 +373,7 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
   );
   return (
     <div
-      className="grid flex-1 grid-cols-[3.4vw_minmax(0,1fr)_7.5vw_minmax(0,1fr)] content-center items-center gap-x-[0.5vw] gap-y-[0.3vw] border-t py-[0.3vw]"
+      className="grid flex-1 grid-cols-[2.6vw_minmax(0,1fr)_5vw_minmax(0,1fr)] content-center items-center gap-x-[0.5vw] gap-y-[0.3vw] border-t py-[0.3vw]"
       style={{ borderColor: DARK.lineSoft, opacity: rubber.status === "cancelled" ? 0.5 : 1 }}
     >
       <span className="flex flex-col text-[0.95vw] font-bold leading-tight">
@@ -404,23 +409,20 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
   );
 }
 
-/** A pair's names, one per line, big enough to read from the back of the hall. */
+/**
+ * A pair as two photo tiles with the names over their faded bottoms, sized for the back of
+ * the hall; the side that lost the pair is dimmed.
+ */
 function TvNames({ players, dim, right = false }: { players: (PlayerRef | null)[]; dim: boolean; right?: boolean }) {
-  const names = players.filter((p): p is PlayerRef => p != null).map((p) => p.name);
   return (
-    <span
-      className={`flex min-w-0 flex-col text-[1.1vw] font-semibold leading-tight ${right ? "items-end text-right" : ""}`}
-      style={{ color: dim ? DARK.dim : DARK.text }}
-    >
-      {names.length ? (
-        names.map((n, i) => (
-          <span key={i} className="max-w-full break-words">
-            <NameText name={n} />
-          </span>
-        ))
-      ) : (
-        <span className="text-[0.9vw] font-normal text-[#8a9db3]">ยังไม่ส่งชื่อ</span>
-      )}
+    <span className={`flex min-w-0 ${right ? "justify-end" : ""}`} style={{ opacity: dim ? 0.45 : 1 }}>
+      <PairTiles
+        players={players}
+        max="4.8vw"
+        fallback="ยังไม่ส่งชื่อ"
+        align={right ? "right" : "left"}
+        nameClass="text-[0.95vw] font-semibold"
+      />
     </span>
   );
 }

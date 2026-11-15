@@ -103,6 +103,48 @@ export function PairAvatars({ players, size = 20, ring = DARK.panel }: { players
   );
 }
 
+// Photo tiles fade out over their lower part, so the name below sits on the panel colour.
+const FADE = "linear-gradient(to bottom, #000 50%, transparent 100%)";
+
+/**
+ * A pair as two square photo tiles, each fading out at the bottom with the name over the
+ * fade. Tiles share the width, up to `max` (any CSS length, so the big screen can pass vw);
+ * with nobody keyed yet it falls back to `fallback` as text.
+ */
+export function PairTiles({
+  players,
+  max,
+  fallback,
+  align = "left",
+  nameClass = "",
+}: {
+  players: (PlayerRef | null)[];
+  max: string;
+  fallback: string;
+  align?: "left" | "right";
+  nameClass?: string;
+}) {
+  if (!players.some(Boolean)) return <span className={`min-w-0 text-[#8a9db3] ${nameClass}`}>{fallback}</span>;
+  return (
+    <span className={`flex min-w-0 flex-1 gap-[6%] ${align === "right" ? "justify-end" : ""}`}>
+      {players.map((p, i) => (
+        <span key={i} className="flex min-w-0 flex-1 basis-0 flex-col items-center text-center" style={{ maxWidth: max }}>
+          <span
+            className="flex aspect-square w-full items-end justify-center overflow-hidden rounded-t-[12%] bg-[#2f6690]"
+            style={{ maskImage: FADE, WebkitMaskImage: FADE }}
+          >
+            {p?.photoUrl ? <img src={p.photoUrl} alt="" className="h-full w-full object-cover" /> : PERSON}
+          </span>
+          {/* Pulled up into the faded part of the photo. */}
+          <span className={`relative -mt-[24%] max-w-full break-words leading-tight [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${nameClass}`}>
+            {p ? <NameText name={p.name} /> : "—"}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** One tie as a row: time, name and courts, then both teams with the score — or who it will be. */
 export function TieRow({ eventId, tie, teams }: { eventId: string; tie: TieView; teams: Map<string, TeamView> }) {
   const a = teams.get(tie.teamAId ?? "");
