@@ -194,32 +194,6 @@ export function NameText({ name }: { name: string }) {
   );
 }
 
-/** A pair's names one per line, so a phone shows both partners instead of cutting the second. */
-export function PairNames({
-  players,
-  fallback,
-  align = "left",
-  className = "",
-  style,
-}: {
-  players: (PlayerRef | null)[];
-  fallback: string;
-  align?: "left" | "right";
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const names = players.filter((p): p is PlayerRef => p != null).map((p) => p.name);
-  return (
-    <span className={`flex min-w-0 flex-col leading-tight ${align === "right" ? "items-end text-right" : ""} ${className}`} style={style}>
-      {(names.length ? names : [fallback]).map((n, i) => (
-        <span key={i} className="max-w-full break-words">
-          <NameText name={n} />
-        </span>
-      ))}
-    </span>
-  );
-}
-
 /** Small pill. */
 export function Pill({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
   return (

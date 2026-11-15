@@ -2,11 +2,11 @@
 
 import BackLink from "@/app/BackLink";
 import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
-import { fmtMinute, knockoutPlaceholder, resultText, setsLine } from "@/lib/games/format";
+import { fmtMinute, knockoutPlaceholder, resultText } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
 import { CARD_LABELS, cardEffectText } from "@/lib/games/cards";
 import { useGamesState } from "../../../useGamesState";
-import { DARK, DarkPage, PairAvatars, PairNames, Pill, TeamChip } from "../../../ui";
+import { DARK, DarkPage, PairTiles, Pill, TeamChip } from "../../../ui";
 import { liveScore } from "../../RunningTab";
 
 /** One team-vs-team match: the tie score, then the five pairs. */
@@ -115,18 +115,13 @@ function RubberCard({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a
         </span>
         {chip}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="h-[30px] w-1 shrink-0 rounded-sm" style={{ background: a?.color ?? DARK.dim }} />
-          <PairAvatars players={rubber.a} size={22} />
-          <PairNames
-            players={rubber.a}
-            fallback={`คู่ ${rubber.order}`}
-            className="text-[13px]"
-            style={{ fontWeight: loserA ? 500 : 700, color: loserA ? DARK.dim : DARK.text }}
-          />
+      {/* Both sides stretch to the taller one, so the photos line up when a name wraps. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2">
+        <span className="flex min-w-0 items-stretch gap-1.5" style={{ opacity: loserA ? 0.5 : 1 }}>
+          <span className="w-1 shrink-0 rounded-sm" style={{ background: a?.color ?? DARK.dim }} />
+          <PairTiles players={rubber.a} max="72px" fallback={`คู่ ${rubber.order}`} nameClass="text-[13px] font-semibold" />
         </span>
-        <span className="flex flex-col items-center gap-0.5">
+        <span className="flex flex-col items-center gap-0.5 self-center">
           {done ? (
             <span className="whitespace-nowrap text-xl font-bold tabular-nums">
               <span style={{ color: rubber.outcome === "A" ? DARK.gold : DARK.dim }}>{wa}</span> –{" "}
@@ -137,22 +132,23 @@ function RubberCard({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a
           ) : (
             <span className="text-sm text-[#a9bdd3]">vs</span>
           )}
-          {(done || counting) && rubber.sets.length > 0 && (
-            <span className="whitespace-nowrap text-[11px] tabular-nums text-[#a9bdd3]">
-              {setsLine(counting ? rubber.sets.slice(0, -1) : rubber.sets)}
-            </span>
-          )}
+          {/* One set per line keeps this column narrow, leaving the width to the photos. */}
+          {(done || counting) &&
+            (counting ? rubber.sets.slice(0, -1) : rubber.sets).map(([x, y], i) => (
+              <span key={i} className="whitespace-nowrap text-[11px] leading-tight tabular-nums text-[#a9bdd3]">
+                {x}–{y}
+              </span>
+            ))}
         </span>
-        <span className="flex min-w-0 items-center justify-end gap-1.5">
-          <PairNames
+        <span className="flex min-w-0 items-stretch justify-end gap-1.5" style={{ opacity: loserB ? 0.5 : 1 }}>
+          <PairTiles
             players={rubber.b}
+            max="72px"
             fallback={`คู่ ${rubber.order}`}
             align="right"
-            className="text-[13px]"
-            style={{ fontWeight: loserB ? 500 : 700, color: loserB ? DARK.dim : DARK.text }}
+            nameClass="text-[13px] font-semibold"
           />
-          <PairAvatars players={rubber.b} size={22} />
-          <span className="h-[30px] w-1 shrink-0 rounded-sm" style={{ background: b?.color ?? DARK.dim }} />
+          <span className="w-1 shrink-0 rounded-sm" style={{ background: b?.color ?? DARK.dim }} />
         </span>
       </div>
       {tie.cards
