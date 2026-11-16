@@ -10,9 +10,9 @@ import { ictDateKey, ictNowMinute, slotClock } from "@/lib/games/clock";
 import { fmtMinute, knockoutPlaceholder } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
 import { tvTies } from "@/lib/games/tv";
+import { Bump, LiveScore, Swap, useFlip } from "../../motion";
 import { useGamesState } from "../../useGamesState";
 import { DARK, PairTiles } from "../../ui";
-import { liveScore } from "../RunningTab";
 
 /* Sized in vw so a 1920×1080 TV matches the mockups and smaller screens scale. */
 
@@ -121,6 +121,7 @@ function StandingsView({ state }: { state: GamesState }) {
   const qualifier = state.ties.filter((t) => t.stage === "QUALIFIER");
   const finishedTies = qualifier.filter((t) => t.status === "done").length;
   const cols = "6vw minmax(0,1fr) 10vw 7vw 7vw 7vw 11vw";
+  const rows = useFlip<HTMLDivElement>(state.standings.map((r) => r.teamId).join(","), `tv:${state.event.id}`);
   // No semi-final split until all 15 qualifier ties are done: the order can still change.
   const split = state.qualifierDone;
 
@@ -137,7 +138,7 @@ function StandingsView({ state }: { state: GamesState }) {
           </>
         }
       />
-      <div className="flex flex-1 flex-col overflow-hidden rounded-[1.25vw] border-[3px]" style={{ background: DARK.panel, borderColor: DARK.line }}>
+      <div ref={rows} className="flex flex-1 flex-col overflow-hidden rounded-[1.25vw] border-[3px]" style={{ background: DARK.panel, borderColor: DARK.line }}>
         <div className="grid items-center border-b-[3px] px-[2vw] py-[0.8vw] text-[1.35vw] text-[#a9bdd3]" style={{ gridTemplateColumns: cols, borderColor: DARK.lineSoft }}>
           <span>อันดับ</span>
           <span>ทีม</span>
@@ -152,8 +153,10 @@ function StandingsView({ state }: { state: GamesState }) {
           return (
             <div
               key={row.teamId}
-              className="grid flex-1 items-center px-[2vw] tabular-nums"
+              data-flip={row.teamId}
+              className="relative grid flex-1 items-center px-[2vw] tabular-nums"
               style={{
+                background: DARK.panel,
                 gridTemplateColumns: cols,
                 borderTop: i === 0 ? "none" : split && row.rank === 5 ? `4px dashed ${DARK.live}` : `2px solid ${DARK.lineSoft}`,
               }}
@@ -164,7 +167,9 @@ function StandingsView({ state }: { state: GamesState }) {
                 <TvChip team={teams.get(row.teamId)} font="2.8vw" />
                 {split && <span className="text-[1.25vw]" style={{ color: top ? DARK.gold : DARK.dim }}>{top ? "เข้ารอบรองฯ" : "ชิงอันดับ 5"}</span>}
               </span>
-              <span className="text-right text-[4.8vw] font-bold leading-none">{row.points}</span>
+              <span className="text-right text-[4.8vw] font-bold leading-none">
+                <Bump value={row.points}>{row.points}</Bump>
+              </span>
               <span className="text-right text-[2.3vw] text-[#c3cedd]">{row.won}</span>
               <span className="text-right text-[2.3vw] text-[#c3cedd]">{row.drawn}</span>
               <span className="text-right text-[2.3vw] text-[#c3cedd]">{row.lost}</span>
@@ -247,7 +252,10 @@ export function TvShow({ initial, initialMode }: { initial: GamesState; initialM
           style={{ background: DARK.gold, animation: `tvprog ${ROTATE_MS}ms linear forwards` }}
         />
       )}
-      {shown === "matches" ? <MatchesView state={state} /> : <StandingsView state={state} />}
+      {/* Keyed on the view, so each swap fades in; the same column layout as the frame. */}
+      <div key={shown} className="games-enter flex min-h-0 flex-1 flex-col gap-[1.2vw]">
+        {shown === "matches" ? <MatchesView state={state} /> : <StandingsView state={state} />}
+      </div>
       <div
         className="absolute bottom-[1.2vw] left-1/2 flex -translate-x-1/2 gap-[0.5vw] rounded-full border-2 p-[0.4vw] transition-opacity duration-300"
         style={{ background: DARK.panel, borderColor: DARK.line, opacity: controls ? 1 : 0, pointerEvents: controls ? "auto" : "none" }}
@@ -280,11 +288,15 @@ function MatchesView({ state }: { state: GamesState }) {
       {ties.length === 0 ? (
         <p className="text-[1.6vw] text-[#a9bdd3]">ยังไม่มีแมตซ์</p>
       ) : (
-        <div className="grid min-h-0 flex-1 gap-[1.2vw]" style={{ gridTemplateColumns: `repeat(${ties.length}, minmax(0, 1fr))` }}>
+        <Swap
+          id={ties.map((t) => t.id).join(",")}
+          className="grid min-h-0 flex-1 gap-[1.2vw]"
+          style={{ gridTemplateColumns: `repeat(${ties.length}, minmax(0, 1fr))` }}
+        >
           {ties.map((t) => (
             <TvTiePanel key={t.id} tie={t} teams={teams} />
           ))}
-        </div>
+        </Swap>
       )}
     </>
   );
@@ -296,7 +308,7 @@ function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView>
   const live = tie.status === "live";
   return (
     <div
-      className="flex min-h-0 flex-col gap-[0.5vw] rounded-[1vw] border-[3px] p-[1vw]"
+      className="flex min-h-0 flex-col gap-[0.5vw] rounded-[1vw] border-[3px] p-[1vw] transition-colors duration-700"
       style={{ background: DARK.panel, borderColor: live ? DARK.live : DARK.line }}
     >
       <div className="flex items-center justify-between text-[1.05vw] text-[#a9bdd3]">
@@ -307,6 +319,7 @@ function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView>
           className="rounded-full px-[0.7vw] font-bold"
           style={live ? { background: DARK.live, color: DARK.ground } : { color: DARK.muted }}
         >
+          {live && <span className="games-live-dot" aria-hidden="true" />}
           {live ? "กำลังแข่ง" : tie.status === "done" ? "จบแล้ว" : `เริ่ม ${tie.startsAt}`}
         </span>
       </div>
@@ -317,7 +330,7 @@ function TvTiePanel({ tie, teams }: { tie: TieView; teams: Map<string, TeamView>
             <TvChip team={a} font="1.2vw" />
           </span>
           <span className="text-[2.9vw] font-bold leading-none tabular-nums">
-            {tie.pointsA}–{tie.pointsB}
+            <Bump value={tie.pointsA}>{tie.pointsA}</Bump>–<Bump value={tie.pointsB}>{tie.pointsB}</Bump>
           </span>
           <span className="justify-self-end">
             <TvChip team={b} font="1.2vw" />
@@ -360,12 +373,13 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
     </span>
   ) : counting ? (
     <b className="text-[1.9vw] tabular-nums" style={{ color: DARK.gold }}>
-      {liveScore(rubber)}
+      <LiveScore rubber={rubber} />
     </b>
   ) : rubber.status === "cancelled" ? (
     <span className="text-[0.9vw] text-[#8a9db3]">ไม่ต้องแข่ง</span>
   ) : rubber.status === "live" ? (
-    <span className="rounded-full px-[0.6vw] text-[0.9vw] font-bold" style={{ background: DARK.live, color: DARK.ground }}>
+    // No room for a dot in this narrow column, so the whole badge breathes instead.
+    <span className="games-breathe whitespace-nowrap rounded-full px-[0.6vw] text-[0.9vw] font-bold" style={{ background: DARK.live, color: DARK.ground }}>
       กำลังแข่ง
     </span>
   ) : (
@@ -381,7 +395,10 @@ function TvRubberRow({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; 
         <span className="font-normal text-[#a9bdd3]">ส.{rubber.court}</span>
       </span>
       <TvNames players={rubber.a} dim={done && rubber.outcome === "B"} />
-      <span className="flex flex-col items-center">{center}</span>
+      {/* Pops when the pair's result comes in, and again if the admin corrects it. */}
+      <Bump value={done ? `${wa}-${wb}` : ""} className="flex flex-col items-center">
+        {center}
+      </Bump>
       <TvNames players={rubber.b} dim={done && rubber.outcome === "A"} right />
       {cards.length > 0 && (
         // One full-width line per card under the team that played it, as big as the names so it
@@ -483,7 +500,13 @@ export function TvSchedule({ initial }: { initial: GamesState }) {
                 {a && b ? (
                   <span className="flex items-center gap-[0.8vw] text-[1.25vw] text-[#c3cedd]">
                     <TvChip team={a} font="1.3vw" />
-                    {t.status === "upcoming" ? "vs" : <b className="tabular-nums text-white">{t.pointsA}–{t.pointsB}</b>}
+                    {t.status === "upcoming" ? (
+                      "vs"
+                    ) : (
+                      <b className="tabular-nums text-white">
+                        <Bump value={t.pointsA}>{t.pointsA}</Bump>–<Bump value={t.pointsB}>{t.pointsB}</Bump>
+                      </b>
+                    )}
                     <TvChip team={b} font="1.3vw" />
                     {t.projected && <span>(ตามอันดับตอนนี้)</span>}
                   </span>
@@ -506,7 +529,7 @@ function ScheduleCell({ tie, teams }: { tie: TieView; teams: Map<string, TeamVie
       <span className="flex items-center gap-[0.6vw]">
         <span className="h-[0.95vw] w-[0.95vw] rounded-[0.2vw]" style={{ background: team?.color ?? DARK.dim }} />
         <span className="flex-1 truncate" style={{ fontWeight: tie.status === "done" && points > other ? 700 : 500 }}>{team?.name ?? "—"}</span>
-        <b className="tabular-nums">{tie.status === "upcoming" ? "" : points}</b>
+        <b className="tabular-nums">{tie.status !== "upcoming" && <Bump value={points}>{points}</Bump>}</b>
       </span>
     );
   };

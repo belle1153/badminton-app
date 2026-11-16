@@ -108,9 +108,92 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------
+   TUA TUENG GAMES: motion for the player pages and the big screen
+   (used through app/games/motion.tsx and app/games/ui.tsx).
+   --------------------------------------------------------------- */
+
+/* A score that just changed: pops and flashes gold, then settles. */
+@keyframes games-bump {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.4);
+    color: #ffcf4d;
+    text-shadow: 0 0 0.5em rgba(255, 207, 77, 0.75);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.games-bump {
+  animation: games-bump 750ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+/* The dot on a "live" badge. */
+@keyframes games-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.65);
+  }
+}
+.games-pulse {
+  animation: games-pulse 1.3s ease-in-out infinite;
+}
+.games-live-dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  border-radius: 9999px;
+  background: currentColor;
+  vertical-align: 0.1em;
+  animation: games-pulse 1.3s ease-in-out infinite;
+}
+
+/* A "live" badge too narrow for the dot: the whole badge fades a little instead. */
+@keyframes games-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.games-breathe {
+  animation: games-breathe 1.6s ease-in-out infinite;
+}
+
+/* A tab, a view or a new round coming in. */
+@keyframes games-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.games-enter {
+  animation: games-enter 400ms ease-out both;
+}
+
 /* Respect a reduced-motion preference: the decoration is not information. */
 @media (prefers-reduced-motion: reduce) {
-  .pixel-anim {
+  .pixel-anim,
+  .games-bump,
+  .games-pulse,
+  .games-breathe,
+  .games-live-dot,
+  .games-enter {
     animation: none !important;
   }
 }

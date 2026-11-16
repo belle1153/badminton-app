@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { GamesState, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute } from "@/lib/games/format";
 import { parseHHMM } from "@/lib/games/schedule";
+import { Bump, useFlip } from "../motion";
 import { Avatar, DARK, NameText, TeamChip, TeamLogo, TieRow } from "../ui";
 
 export function TeamsTab({ state }: { state: GamesState }) {
@@ -240,7 +241,7 @@ function ScheduleLine({ team, points, bold }: { team: TeamView | undefined; poin
     <span className="flex items-center gap-1.5">
       <span className="h-2 w-2 rounded-sm" style={{ background: team?.color ?? DARK.dim }} />
       <span className="flex-1 truncate" style={{ fontWeight: bold ? 700 : 500 }}>{team?.name ?? "—"}</span>
-      <b className="tabular-nums">{points ?? ""}</b>
+      <b className="tabular-nums">{points != null && <Bump value={points}>{points}</Bump>}</b>
     </span>
   );
 }
@@ -248,13 +249,14 @@ function ScheduleLine({ team, points, bold }: { team: TeamView | undefined; poin
 export function StandingsTab({ state, teams }: { state: GamesState; teams: Map<string, TeamView> }) {
   // No semi-final split until all 15 qualifier ties are done: the order can still change.
   const split = state.qualifierDone;
+  const rows = useFlip<HTMLDivElement>(state.standings.map((r) => r.teamId).join(","), `tab:${state.event.id}`);
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex items-baseline justify-between">
         <h2 className="text-base font-bold">ตารางคะแนนรวม</h2>
         <span className="text-[11px] text-[#a9bdd3]">ชนะ 2 · เสมอ 1 · แพ้ 0</span>
       </div>
-      <div className="overflow-hidden rounded-xl border" style={{ background: DARK.panel, borderColor: DARK.line }}>
+      <div ref={rows} className="overflow-hidden rounded-xl border" style={{ background: DARK.panel, borderColor: DARK.line }}>
         <div className="grid grid-cols-[24px_minmax(0,1fr)_44px_64px_44px] gap-1.5 border-b px-2.5 py-2 text-[11px] text-[#a9bdd3]" style={{ borderColor: DARK.lineSoft }}>
           <span>#</span>
           <span>ทีม</span>
@@ -267,15 +269,18 @@ export function StandingsTab({ state, teams }: { state: GamesState; teams: Map<s
           return (
             <div
               key={row.teamId}
-              className="grid grid-cols-[24px_minmax(0,1fr)_44px_64px_44px] items-center gap-1.5 px-2.5 py-2 tabular-nums"
-              style={{ borderTop: i === 0 ? "none" : split && row.rank === 5 ? `2px dashed ${DARK.live}` : `1px solid ${DARK.lineSoft}` }}
+              data-flip={row.teamId}
+              className="relative grid grid-cols-[24px_minmax(0,1fr)_44px_64px_44px] items-center gap-1.5 px-2.5 py-2 tabular-nums"
+              style={{ background: DARK.panel, borderTop: i === 0 ? "none" : split && row.rank === 5 ? `2px dashed ${DARK.live}` : `1px solid ${DARK.lineSoft}` }}
             >
               <span className="text-sm font-bold" style={{ color: top ? DARK.gold : DARK.dim }}>{row.rank}</span>
               <span className="flex min-w-0 items-center gap-1.5">
                 <TeamChip team={teams.get(row.teamId)} />
                 {split && <span className="text-[10px]" style={{ color: top ? DARK.gold : DARK.dim }}>{top ? "รองฯ" : "ชิงที่ 5"}</span>}
               </span>
-              <span className="text-right text-base font-bold">{row.points}</span>
+              <span className="text-right text-base font-bold">
+                <Bump value={row.points}>{row.points}</Bump>
+              </span>
               <span className="text-center text-xs text-[#c3cedd]">{row.won}-{row.drawn}-{row.lost}</span>
               <span className="text-right text-xs text-[#c3cedd]">{row.diff > 0 ? `+${row.diff}` : row.diff}</span>
             </div>

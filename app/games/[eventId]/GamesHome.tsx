@@ -33,7 +33,10 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
         <BackLink href="/" tone="dark" />
         <h1 className="text-2xl font-bold tracking-wide">{state.event.name}</h1>
         <span className="flex items-center gap-2 text-[13px] text-[#a9bdd3]">
-          <span className="h-2 w-2 rounded-full" style={{ background: DARK.live }} />
+          <span
+            className={`h-2 w-2 rounded-full ${state.ties.some((t) => t.status === "live") ? "games-pulse" : ""}`}
+            style={{ background: DARK.live }}
+          />
           {stageLine(state)}
         </span>
         {!state.event.published && <Pill bg={DARK.gold} fg={DARK.ground}>แอดมินดูก่อนเปิด · ผู้เล่นยังเห็น Coming soon</Pill>}
@@ -49,7 +52,7 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
               type="button"
               onClick={() => choose(t.key)}
               aria-current={on ? "page" : undefined}
-              className={`${i < 3 ? "col-span-2" : "col-span-3"} min-h-11 rounded-xl border px-1 text-[13px] font-bold leading-tight`}
+              className={`${i < 3 ? "col-span-2" : "col-span-3"} min-h-11 rounded-xl border px-1 text-[13px] font-bold leading-tight transition active:scale-[0.97]`}
               style={
                 on
                   ? { background: DARK.gold, color: DARK.ground, borderColor: DARK.gold }
@@ -62,11 +65,14 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
         })}
       </nav>
 
-      {tab === "teams" && <TeamsTab state={state} />}
-      {tab === "rules" && <RulesTab state={state} />}
-      {tab === "schedule" && <ScheduleTab state={state} teams={teams} />}
-      {tab === "running" && <RunningTab state={state} teams={teams} />}
-      {tab === "standings" && <StandingsTab state={state} teams={teams} />}
+      {/* Keyed on the tab, so the one just opened fades in. */}
+      <div key={tab} className="games-enter">
+        {tab === "teams" && <TeamsTab state={state} />}
+        {tab === "rules" && <RulesTab state={state} />}
+        {tab === "schedule" && <ScheduleTab state={state} teams={teams} />}
+        {tab === "running" && <RunningTab state={state} teams={teams} />}
+        {tab === "standings" && <StandingsTab state={state} teams={teams} />}
+      </div>
     </DarkPage>
   );
 }

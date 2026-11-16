@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/state";
 import { fmtMinute, setsLine } from "@/lib/games/format";
+import { Bump, LiveScore, Swap } from "../motion";
 import { DARK, PairTiles, Pill, TeamChip, TieRow } from "../ui";
 
 type Stage = "Q" | "KO";
@@ -48,7 +49,7 @@ export default function RunningTab({ state, teams }: { state: GamesState; teams:
             key={s}
             type="button"
             onClick={() => setStage(s)}
-            className="min-h-10 rounded-lg text-sm font-bold"
+            className="min-h-10 rounded-lg text-sm font-bold transition active:scale-[0.97]"
             style={s === stage ? { background: DARK.gold, color: DARK.ground } : { color: DARK.muted }}
           >
             {s === "Q" ? "รอบคัดเลือก" : "รอบน็อกเอาต์"}
@@ -56,58 +57,60 @@ export default function RunningTab({ state, teams }: { state: GamesState; teams:
         ))}
       </div>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-base font-bold">บนสนาม</h2>
-          <span className="text-[11px] text-[#a9bdd3]">ผลขึ้นเมื่อแอดมินกรอกจากใบผล</span>
-        </div>
-        {groups.length === 0 && (
-          <p className="text-sm text-[#a9bdd3]">
-            {stage === "KO" && !state.qualifierDone
-              ? `เริ่มหลังจบรอบคัดเลือก${firstKo ? ` · นัดแรก ${firstKo.startsAt}` : ""}`
-              : "ยังไม่มีคู่ลงสนาม"}
-          </p>
-        )}
-        {groups.map(({ tie, courts }) => (
-          <div key={tie.id} className="flex flex-col gap-1.5">
-            <TieHeader eventId={state.event.id} tie={tie} teams={teams} />
-            {courts.map((c) => {
-              const { rubber } = rubbers.get(c.nowRubberId!)!;
-              const next = c.nextRubberId ? rubbers.get(c.nextRubberId) : undefined;
-              return (
-                <CourtCard
-                  key={c.court}
-                  eventId={state.event.id}
-                  court={c.court}
-                  started={c.nowStarted}
-                  tie={tie}
-                  rubber={rubber}
-                  teams={teams}
-                  nextText={next ? nextText(next.tie, next.rubber, tie, teams) : null}
-                />
-              );
-            })}
+      <Swap id={stage} className="flex flex-col gap-5">
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-base font-bold">บนสนาม</h2>
+            <span className="text-[11px] text-[#a9bdd3]">ผลขึ้นเมื่อแอดมินกรอกจากใบผล</span>
           </div>
-        ))}
-      </section>
-
-      {upcoming.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-base font-bold">ถัดไป</h2>
-          {upcoming.map((t) => (
-            <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
+          {groups.length === 0 && (
+            <p className="text-sm text-[#a9bdd3]">
+              {stage === "KO" && !state.qualifierDone
+                ? `เริ่มหลังจบรอบคัดเลือก${firstKo ? ` · นัดแรก ${firstKo.startsAt}` : ""}`
+                : "ยังไม่มีคู่ลงสนาม"}
+            </p>
+          )}
+          {groups.map(({ tie, courts }) => (
+            <div key={tie.id} className="flex flex-col gap-1.5">
+              <TieHeader eventId={state.event.id} tie={tie} teams={teams} />
+              {courts.map((c) => {
+                const { rubber } = rubbers.get(c.nowRubberId!)!;
+                const next = c.nextRubberId ? rubbers.get(c.nextRubberId) : undefined;
+                return (
+                  <CourtCard
+                    key={c.court}
+                    eventId={state.event.id}
+                    court={c.court}
+                    started={c.nowStarted}
+                    tie={tie}
+                    rubber={rubber}
+                    teams={teams}
+                    nextText={next ? nextText(next.tie, next.rubber, tie, teams) : null}
+                  />
+                );
+              })}
+            </div>
           ))}
         </section>
-      )}
 
-      {done.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-base font-bold">จบแล้ว</h2>
-          {done.map((t) => (
-            <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
-          ))}
-        </section>
-      )}
+        {upcoming.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-base font-bold">ถัดไป</h2>
+            {upcoming.map((t) => (
+              <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
+            ))}
+          </section>
+        )}
+
+        {done.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-base font-bold">จบแล้ว</h2>
+            {done.map((t) => (
+              <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
+            ))}
+          </section>
+        )}
+      </Swap>
     </div>
   );
 }
@@ -118,7 +121,9 @@ function TieHeader({ eventId, tie, teams }: { eventId: string; tie: TieView; tea
       <span className="truncate text-xs text-[#a9bdd3]">{tie.stage === "QUALIFIER" ? `แมตซ์ ${tie.matchNo}` : tie.label}</span>
       <span className="flex items-center gap-2.5">
         <TeamChip team={teams.get(tie.teamAId ?? "")} />
-        <b className="text-lg tabular-nums">{tie.pointsA}–{tie.pointsB}</b>
+        <b className="text-lg tabular-nums">
+          <Bump value={tie.pointsA}>{tie.pointsA}</Bump>–<Bump value={tie.pointsB}>{tie.pointsB}</Bump>
+        </b>
         <TeamChip team={teams.get(tie.teamBId ?? "")} />
       </span>
       <span className="justify-self-end text-xs text-[#a9bdd3]">ดูแมตซ์ ›</span>
@@ -157,9 +162,9 @@ function CourtCard({
           สนาม {court} <span className="font-medium text-[#a9bdd3]">· คู่ {rubber.order}</span>
         </span>
         {counting ? (
-          <Pill bg={DARK.live} fg={DARK.ground}>นับสด</Pill>
+          <Pill bg={DARK.live} fg={DARK.ground} live>นับสด</Pill>
         ) : started ? (
-          <Pill bg={DARK.live} fg={DARK.ground}>กำลังแข่ง</Pill>
+          <Pill bg={DARK.live} fg={DARK.ground} live>กำลังแข่ง</Pill>
         ) : (
           <Pill bg="#1a2c42" fg="#82aacb">รอลง · {fmtMinute(rubber.startMinute)}</Pill>
         )}
@@ -172,7 +177,9 @@ function CourtCard({
         </span>
         {counting ? (
           <span className="flex flex-col items-center self-center">
-            <b className="text-lg tabular-nums" style={{ color: DARK.gold }}>{liveScore(rubber)}</b>
+            <b className="text-lg tabular-nums" style={{ color: DARK.gold }}>
+              <LiveScore rubber={rubber} />
+            </b>
             {rubber.sets.length > 1 && <span className="text-[10px] text-[#a9bdd3]">{setsLine(rubber.sets.slice(0, -1))}</span>}
           </span>
         ) : (
@@ -186,12 +193,6 @@ function CourtCard({
       {nextText && <span className="text-[11px] text-[#a9bdd3]">ถัดไปบนสนามนี้: {nextText}</span>}
     </Link>
   );
-}
-
-/** The set being counted live, e.g. "11–9". */
-export function liveScore(rubber: RubberView): string {
-  const cur = rubber.sets[(rubber.liveSet ?? 1) - 1];
-  return cur ? `${cur[0]}–${cur[1]}` : "0–0";
 }
 
 function nextText(tie: TieView, rubber: RubberView, currentTie: TieView, teams: Map<string, TeamView>): string {

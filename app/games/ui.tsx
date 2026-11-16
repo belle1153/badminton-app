@@ -7,6 +7,7 @@ import { Fragment } from "react";
 import BackLink from "@/app/BackLink";
 import { knockoutPlaceholder } from "@/lib/games/format";
 import type { PlayerRef, TeamView, TieView } from "@/lib/games/state";
+import { Bump } from "./motion";
 
 export const DARK = {
   ground: "#0b1c30",
@@ -164,7 +165,13 @@ export function TieRow({ eventId, tie, teams }: { eventId: string; tie: TieView;
         {a && b ? (
           <span className="flex flex-wrap items-center gap-1.5 text-xs text-[#c3cedd]">
             <TeamChip team={a} />
-            {tie.status === "upcoming" ? "vs" : <b className="tabular-nums text-white">{tie.pointsA}–{tie.pointsB}</b>}
+            {tie.status === "upcoming" ? (
+              "vs"
+            ) : (
+              <b className="tabular-nums text-white">
+                <Bump value={tie.pointsA}>{tie.pointsA}</Bump>–<Bump value={tie.pointsB}>{tie.pointsB}</Bump>
+              </b>
+            )}
             <TeamChip team={b} />
           </span>
         ) : (
@@ -194,10 +201,11 @@ export function NameText({ name }: { name: string }) {
   );
 }
 
-/** Small pill. */
-export function Pill({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
+/** Small pill; `live` adds a pulsing dot for something happening right now. */
+export function Pill({ children, bg, fg, live = false }: { children: React.ReactNode; bg: string; fg: string; live?: boolean }) {
   return (
     <span className="whitespace-nowrap rounded-full px-2 py-[1px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
+      {live && <span className="games-live-dot" aria-hidden="true" />}
       {children}
     </span>
   );

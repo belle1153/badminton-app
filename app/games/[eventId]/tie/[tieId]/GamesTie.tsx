@@ -5,9 +5,9 @@ import type { GamesState, RubberView, TeamView, TieView } from "@/lib/games/stat
 import { fmtMinute, knockoutPlaceholder, resultText } from "@/lib/games/format";
 import { setsWon } from "@/lib/games/rules";
 import { CARD_LABELS, cardEffectText } from "@/lib/games/cards";
+import { Bump, LiveScore } from "../../../motion";
 import { useGamesState } from "../../../useGamesState";
 import { DARK, DarkPage, PairTiles, Pill, TeamChip } from "../../../ui";
-import { liveScore } from "../../RunningTab";
 
 /** One team-vs-team match: the tie score, then the five pairs. */
 export default function GamesTie({ initial, tieId }: { initial: GamesState; tieId: string }) {
@@ -33,7 +33,7 @@ export default function GamesTie({ initial, tieId }: { initial: GamesState; tieI
         <TeamSide team={a} wins={wins("A")} />
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-[44px] font-bold leading-none tabular-nums">
-            {tie.pointsA} – {tie.pointsB}
+            <Bump value={tie.pointsA}>{tie.pointsA}</Bump> – <Bump value={tie.pointsB}>{tie.pointsB}</Bump>
           </span>
           <span className="text-[11px] text-[#a9bdd3]">คะแนนแมตซ์ · จบ {done} / 5 คู่</span>
           {(tie.bonusA !== 0 || tie.bonusB !== 0) && (
@@ -82,7 +82,7 @@ function RubberCard({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a
       case "done":
         return <Pill bg="#1d4d73" fg="#dbe6f0">จบแล้ว</Pill>;
       case "live":
-        return <Pill bg={DARK.live} fg={DARK.ground}>{counting ? "นับสด" : "กำลังแข่ง"}</Pill>;
+        return <Pill bg={DARK.live} fg={DARK.ground} live>{counting ? "นับสด" : "กำลังแข่ง"}</Pill>;
       case "cancelled":
         return <Pill bg="#1a2c42" fg={DARK.dim}>ไม่ต้องแข่ง</Pill>;
       case "next":
@@ -121,14 +121,17 @@ function RubberCard({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a
           <span className="w-1 shrink-0 rounded-sm" style={{ background: a?.color ?? DARK.dim }} />
           <PairTiles players={rubber.a} max="72px" fallback={`คู่ ${rubber.order}`} nameClass="text-[13px] font-semibold" />
         </span>
-        <span className="flex flex-col items-center gap-0.5 self-center">
+        {/* Pops when the result comes in, and again if the admin corrects it. */}
+        <Bump value={done ? `${wa}-${wb}` : ""} className="flex flex-col items-center gap-0.5 self-center">
           {done ? (
             <span className="whitespace-nowrap text-xl font-bold tabular-nums">
               <span style={{ color: rubber.outcome === "A" ? DARK.gold : DARK.dim }}>{wa}</span> –{" "}
               <span style={{ color: rubber.outcome === "B" ? DARK.gold : DARK.dim }}>{wb}</span>
             </span>
           ) : counting ? (
-            <span className="text-xl font-bold tabular-nums" style={{ color: DARK.gold }}>{liveScore(rubber)}</span>
+            <span className="text-xl font-bold tabular-nums" style={{ color: DARK.gold }}>
+              <LiveScore rubber={rubber} />
+            </span>
           ) : (
             <span className="text-sm text-[#a9bdd3]">vs</span>
           )}
@@ -139,7 +142,7 @@ function RubberCard({ tie, rubber, a, b }: { tie: TieView; rubber: RubberView; a
                 {x}–{y}
               </span>
             ))}
-        </span>
+        </Bump>
         <span className="flex min-w-0 items-stretch justify-end gap-1.5" style={{ opacity: loserB ? 0.5 : 1 }}>
           <PairTiles
             players={rubber.b}
