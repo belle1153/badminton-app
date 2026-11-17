@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import {
   evaluateQuest,
+  signedUpBeforeDay,
   startedQuests,
   questStatus,
   type QuestDef,
@@ -63,6 +64,7 @@ interface QuestSession {
     name: string;
     addedByAdmin: boolean;
     checkedInAt: Date | null;
+    createdAt: Date;
     matchSlots: { match: { finishedAt: Date | null } }[];
   }[];
 }
@@ -95,6 +97,8 @@ async function loadQuestData(
             // "fastest to sign up" only ranks genuine user-side sign-ups.
             addedByAdmin: true,
             checkedInAt: true,
+            // When they got on the list — "sign up by midnight" is judged on it.
+            createdAt: true,
             matchSlots: { select: { match: { select: { finishedAt: true } } } },
           },
         },
@@ -137,6 +141,7 @@ function evaluateAthlete(
     let checkinDays = 0;
     let bestSignupPlace: number | null = null;
     const signupPlaces: number[] = [];
+    let earlySignupDays = 0;
 
     for (const s of inWindow) {
       // Sign-up order counts only genuine user-side sign-ups — an admin
@@ -151,6 +156,8 @@ function evaluateAthlete(
 
       const mine = s.signUps.find((su) => su.athleteId === athleteId);
       if (!mine) continue;
+      // Withdrawn rows are already filtered out, so withdrawing loses it.
+      if (signedUpBeforeDay(mine.createdAt, s.date)) earlySignupDays++;
       // Attendance = checked in that day, whether or not a game finished.
       if (mine.checkedInAt != null) checkinDays++;
       const finished = mine.matchSlots.filter((ms) => ms.match.finishedAt != null).length;
@@ -166,6 +173,7 @@ function evaluateAthlete(
       checkinDays,
       bestSignupPlace,
       signupPlaces,
+      earlySignupDays,
     };
     const clubDaysInRange = clubDays.filter(
       (d) => d.getTime() >= q.startDate.getTime() && d.getTime() < q.endDate.getTime()

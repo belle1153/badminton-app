@@ -7,6 +7,7 @@ import {
   overlappingQuests,
   questStatus,
   inRange,
+  signedUpBeforeDay,
   QUEST_KINDS,
   type QuestDef,
   type QuestPlayerFacts,
@@ -33,6 +34,7 @@ const facts = (over: Partial<QuestPlayerFacts> = {}): QuestPlayerFacts => ({
   checkinDays: 0,
   bestSignupPlace: null,
   signupPlaces: [],
+  earlySignupDays: 0,
   ...over,
 });
 
@@ -186,6 +188,48 @@ describe("earnedExp on the once-only rules", () => {
   });
 });
 
+describe("signedUpBeforeDay — the midnight cut-off", () => {
+  // Wednesday 18 Nov is stored at UTC midnight; its day starts 00:00 ICT,
+  // which is 17 Nov 17:00 UTC.
+  const wed = d("2026-11-18");
+
+  it("counts a sign-up at 23:59 the night before", () => {
+    expect(signedUpBeforeDay(new Date("2026-11-17T16:59:59.000Z"), wed)).toBe(true);
+  });
+
+  it("does not count one at 00:00 on the day itself", () => {
+    expect(signedUpBeforeDay(new Date("2026-11-17T17:00:00.000Z"), wed)).toBe(false);
+  });
+
+  it("counts someone who signed up days earlier", () => {
+    expect(signedUpBeforeDay(new Date("2026-11-10T03:00:00.000Z"), wed)).toBe(true);
+  });
+});
+
+describe("signup-before-day", () => {
+  const q = quest({ kind: "signup-before-day", expReward: 500 });
+
+  it("pays the full reward once they signed up in time", () => {
+    const p = evaluateQuest(q, facts({ earlySignupDays: 1 }), []);
+    expect(p.completed).toBe(true);
+    expect(p.earnedExp).toBe(500);
+  });
+
+  it("pays once, not per day, even across several days", () => {
+    expect(evaluateQuest(q, facts({ earlySignupDays: 2 }), []).earnedExp).toBe(500);
+  });
+
+  it("pays nothing to someone who did not sign up in time", () => {
+    const p = evaluateQuest(q, facts({ earlySignupDays: 0 }), []);
+    expect(p.completed).toBe(false);
+    expect(p.earnedExp).toBe(0);
+  });
+
+  it("takes no target, so the admin form does not ask for one", () => {
+    expect(QUEST_KINDS.find((k) => k.kind === "signup-before-day")?.targetLabel).toBeNull();
+  });
+});
+
 describe("unknown kinds", () => {
   it("never marks anyone complete", () => {
     const p = evaluateQuest(quest({ kind: "retired-rule" }), facts({ gamesPlayed: 999 }), []);
@@ -319,6 +363,7 @@ describe("QUEST_KINDS", () => {
           checkinDays: 2,
           bestSignupPlace: 1,
           signupPlaces: [1],
+          earlySignupDays: 1,
         }),
         [d("2026-08-01")]
       );

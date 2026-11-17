@@ -17,7 +17,8 @@ export type QuestKind =
   | "checkin-days"
   | "games-played"
   | "fastest-signup"
-  | "fastest-signup-daily";
+  | "fastest-signup-daily"
+  | "signup-before-day";
 
 export interface QuestKindSpec {
   kind: QuestKind;
@@ -67,7 +68,23 @@ export const QUEST_KINDS: QuestKindSpec[] = [
     hint: "ติดอันดับวันไหนได้ EXP วันนั้น ทำซ้ำได้ทุกวันที่ก๊วนจัดในช่วงนี้ (EXP ที่กรอกคือต่อ 1 วัน)",
     perDay: true,
   },
+  {
+    kind: "signup-before-day",
+    label: "ลงชื่อก่อนเที่ยงคืน คืนก่อนวันตี (ครั้งเดียวจบ)",
+    targetLabel: null,
+    hint: "มีชื่อในรายชื่อวันตีในช่วงนี้ก่อน 00:00 น. ของวันนั้น (ลงชื่อเองหรือแอดมินเพิ่มก็ได้ ถอนชื่อแล้วไม่ได้) ได้ EXP ก้อนเดียว",
+  },
 ];
+
+/**
+ * Whether a sign-up was made before its play day began — before 00:00 ICT that
+ * day, i.e. by midnight the night before. Session dates are stored at UTC
+ * midnight of the local date, and ICT is UTC+7, so the day starts 7 hours
+ * before the stored instant.
+ */
+export function signedUpBeforeDay(createdAt: Date, sessionDate: Date): boolean {
+  return createdAt.getTime() < sessionDate.getTime() - 7 * 60 * 60 * 1000;
+}
 
 /** Kinds whose EXP is paid per qualifying day — `expReward` reads "per day",
  *  and a player's total is a multiple of it. */
@@ -101,6 +118,9 @@ export interface QuestPlayerFacts {
   /** Their placing on every day in range they signed themselves up, one entry
    *  per day — what a per-day rule counts over. */
   signupPlaces: number[];
+  /** Days in range they were on the list (not withdrawn) before 00:00 ICT that
+   *  day — see signedUpBeforeDay. */
+  earlySignupDays: number;
 }
 
 export interface QuestProgress {
@@ -222,6 +242,18 @@ function scoreRule(
         // No goal to fill — the count is open-ended, so there is no bar to draw.
         target: null,
         payDays: days,
+      };
+    }
+
+    case "signup-before-day": {
+      // One payout however many days qualify — "sign up by midnight" is a
+      // one-off push for a particular day, not a habit to reward nightly.
+      const days = facts.earlySignupDays;
+      return {
+        completed: days > 0,
+        progressLabel: days > 0 ? "ลงชื่อทันแล้ว" : "ยังไม่ได้ลงชื่อ",
+        current: days,
+        target: null,
       };
     }
 
