@@ -108,7 +108,7 @@ export default function MatchControls({
 
   return (
     <div className="flex flex-col gap-8">
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
 
       <section className="flex flex-col gap-2">
         <h2 className="font-semibold">คู่ซ้อมแข่ง (จับคู่ตายตัว)</h2>

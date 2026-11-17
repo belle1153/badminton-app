@@ -220,7 +220,7 @@ export default function TeamEditor({
           >
             บันทึกทีม
           </button>
-          {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
+          {msg && <p className={`ui-msg text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
         </>
       )}
 

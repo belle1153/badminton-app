@@ -224,7 +224,7 @@ export default function UpcomingPlanner({
         ชื่อถึงจะขึ้นมาที่นี่ (รอคนมาครบ/มือดีก่อนได้) · พอเกมจบ คู่หน้าสุดลงสนามให้เอง ·
         กด ✎ สลับคนได้ตลอด แก้แล้วบันทึกทันที — ไม่มีใครลงสนามโดยไม่โผล่ตรงนี้ก่อน
       </p>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
 
       {/* On-demand generation — never auto-forms คู่เตรียม as people check in.
           Hidden while the queue is at its cap: holding players back is what
@@ -515,7 +515,7 @@ function ManualPendingPairForm({
             {loading ? "กำลังจัด..." : "จัดคู่"}
           </button>
           {message && (
-            <p className={`text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
+            <p className={`ui-msg text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
           )}
         </>
       )}

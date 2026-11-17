@@ -153,7 +153,7 @@ export default function CourtCard({
           editable ? "min-h-[200px]" : "min-h-[280px]"
         }`}
       >
-        {error && <p className="text-red-300 text-xs text-center mb-1">{error}</p>}
+        {error && <p className="ui-msg text-red-300 text-xs text-center mb-1">{error}</p>}
         {!match ? (
           <div className="flex-1 rounded-lg border-2 border-white/20 flex items-center justify-center">
             <p className="text-white/50 text-sm font-medium">ว่าง</p>

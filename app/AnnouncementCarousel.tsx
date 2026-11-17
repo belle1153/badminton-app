@@ -27,23 +27,26 @@ export default function AnnouncementCarousel({ items }: { items: Item[] }) {
 
   return (
     <section className="rounded-lg border border-brand-200 bg-brand-50/60 p-3 flex flex-col gap-2">
-      <p className="font-semibold text-brand-800">📣 {a.title}</p>
-      {a.body && <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.body}</p>}
-      {a.imageUrl && (
-        // Blue frame hugs the image and grows with it (portrait posters too),
-        // capped only by container width and a generous max height — no wasted
-        // letterbox bars around it.
-        <div className="w-full flex justify-center">
-          <div className="rounded-md overflow-hidden bg-brand-100/40 max-w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={a.imageUrl}
-              alt={a.title}
-              className="block w-auto max-w-full max-h-[80vh] object-contain"
-            />
+      {/* Keyed on the announcement, so the one that just came up fades in. */}
+      <div key={a.id} className="ui-fade-in flex flex-col gap-2">
+        <p className="font-semibold text-brand-800">📣 {a.title}</p>
+        {a.body && <p className="text-sm text-gray-700 whitespace-pre-wrap">{a.body}</p>}
+        {a.imageUrl && (
+          // Blue frame hugs the image and grows with it (portrait posters too),
+          // capped only by container width and a generous max height — no wasted
+          // letterbox bars around it.
+          <div className="w-full flex justify-center">
+            <div className="rounded-md overflow-hidden bg-brand-100/40 max-w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={a.imageUrl}
+                alt={a.title}
+                className="block w-auto max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {items.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-1">
           {items.map((it, i) => (

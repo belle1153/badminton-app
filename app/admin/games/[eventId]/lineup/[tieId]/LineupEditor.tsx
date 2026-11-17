@@ -168,7 +168,7 @@ export default function LineupEditor({ initial, tieId, initialSide }: { initial:
           )}
         </>
       )}
-      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
+      {msg && <p className={`ui-msg text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
     </>
   );
 }
@@ -311,7 +311,7 @@ function CardPicker({
           )}
         </>
       )}
-      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
+      {msg && <p className={`ui-msg text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
     </section>
   );
 }

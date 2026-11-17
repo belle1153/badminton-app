@@ -214,7 +214,7 @@ export default function MatchHistory({
 
   return (
     <div className="flex flex-col gap-2">
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
       <div className="overflow-x-auto border border-gray-200 rounded-md">
         <table className="w-full text-sm border-collapse">
           <thead>

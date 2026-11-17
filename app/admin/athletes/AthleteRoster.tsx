@@ -135,7 +135,7 @@ export default function AthleteRoster({ athletes }: { athletes: Athlete[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
 
       <form onSubmit={addAthlete} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
         <span className="text-sm font-semibold">เพิ่มผู้เล่นใหม่</span>

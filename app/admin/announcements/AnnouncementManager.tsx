@@ -103,7 +103,7 @@ export default function AnnouncementManager({
 
   return (
     <div className="flex flex-col gap-5">
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
 
       <form onSubmit={create} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
         <span className="text-sm font-semibold">{addLabel}</span>

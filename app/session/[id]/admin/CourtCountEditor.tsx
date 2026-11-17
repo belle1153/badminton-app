@@ -107,7 +107,7 @@ export default function CourtCountEditor({
       {invalid && (
         <p className="text-xs text-amber-600">คอร์ทช่วง 2 ทุ่ม ต้องไม่น้อยกว่าช่วง 1 ทุ่ม</p>
       )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="ui-msg text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">
         <button
           onClick={save}

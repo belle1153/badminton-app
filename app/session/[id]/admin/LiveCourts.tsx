@@ -414,7 +414,7 @@ export default function LiveCourts({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
 
       <div className="grid grid-cols-2 gap-3">
         {courtList.map((court) => {
@@ -536,8 +536,8 @@ export default function LiveCourts({
       )}
 
       {finishing && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-sm p-4 flex flex-col gap-3 shadow-xl">
+        <div className="ui-fade-in fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="ui-pop-in bg-white rounded-xl w-full max-w-sm p-4 flex flex-col gap-3 shadow-xl">
             <h3 className="font-semibold text-center">สนาม {finishing.court} — ใครชนะ?</h3>
             <div className="grid grid-cols-1 gap-2">
               {([1, 2] as const).map((t) => {
@@ -567,7 +567,7 @@ export default function LiveCourts({
                 🤝 เสมอ
               </button>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
             <div className="flex flex-col gap-2 mt-1">
               <div className="flex gap-2">
                 <button

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Chakra_Petch, Press_Start_2P } from "next/font/google";
 import { isAdmin } from "@/lib/adminAuth";
+import NavProgress from "./NavProgress";
 import SiteHeader from "./SiteHeader";
 import "./globals.css";
 
@@ -46,6 +47,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${chakraPetch.variable} ${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <NavProgress />
         <SiteHeader admin={admin} />
         {children}
       </body>

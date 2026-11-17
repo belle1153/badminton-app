@@ -211,7 +211,7 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
       >
         {loading ? "กำลังลง..." : "ลงชื่อ"}
       </button>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
       <Toast message={message} onDone={clearMessage} />
     </form>
   );

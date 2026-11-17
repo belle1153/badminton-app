@@ -177,7 +177,7 @@ export default function AddPlayerForm({
         </button>
       </form>
       {message && (
-        <p className={`text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
+        <p className={`ui-msg text-sm ${message.ok ? "text-brand-700" : "text-amber-600"}`}>{message.text}</p>
       )}
     </section>
   );

@@ -112,7 +112,7 @@ export default function NewSessionForm() {
           />
         </Field>
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
 
         <button
           type="submit"

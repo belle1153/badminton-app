@@ -40,7 +40,7 @@ export default function RegistrationToggle({
         <p className="text-xs text-gray-500">
           {registrationClosed ? "ปิดรับสมัครแล้ว — ผู้เล่นลงชื่อเองไม่ได้ (แอดมินยังเพิ่มชื่อได้)" : "เปิดรับสมัครอยู่"}
         </p>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="ui-msg text-xs text-red-600">{error}</p>}
       </div>
       <button
         onClick={handleToggle}

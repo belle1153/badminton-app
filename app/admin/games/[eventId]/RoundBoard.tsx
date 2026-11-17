@@ -294,7 +294,7 @@ function RubberRow({
           </span>
         </div>
       )}
-      {msg && <span className={`text-xs ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</span>}
+      {msg && <span className={`ui-msg text-xs ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</span>}
     </div>
   );
 }

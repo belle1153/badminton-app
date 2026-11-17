@@ -89,7 +89,7 @@ export default function EventSettings({ state, onSaved }: { state: GamesState; o
           สร้างตารางแข่งใหม่ (ตามลำดับทีม)
         </button>
       </div>
-      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
+      {msg && <p className={`ui-msg text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
 
       {level.length > 0 && (
         <div className="flex flex-col gap-2 rounded-md bg-amber-50 p-3">

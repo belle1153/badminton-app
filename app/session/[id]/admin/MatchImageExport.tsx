@@ -187,7 +187,7 @@ export default function MatchImageExport({
       >
         {busy ? "กำลังสร้างรูป…" : "🖼️ บันทึกผลเป็นรูป (ส่งให้สมาชิก)"}
       </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
     </div>
   );
 }

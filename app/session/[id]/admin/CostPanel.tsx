@@ -56,7 +56,7 @@ export default function CostPanel({
   return (
     <section className="flex flex-col gap-2">
       <h2 className="font-semibold">ปิดวัน{isClosed ? " (ปิดแล้ว)" : ""}</h2>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
 
       {isClosed ? (
         <div className="flex flex-col gap-2 text-sm">

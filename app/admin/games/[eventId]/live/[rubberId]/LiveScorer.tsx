@@ -160,7 +160,7 @@ export default function LiveScorer({ initial, rubberId }: { initial: GamesState;
         </button>
       </div>
 
-      {error && <p className="bg-red-900/60 px-3 py-1 text-center text-sm">{error}</p>}
+      {error && <p className="ui-msg bg-red-900/60 px-3 py-1 text-center text-sm">{error}</p>}
 
       {blocked && (
         <Center>
@@ -261,7 +261,7 @@ function describe(state: GamesState, rubberId: string): string {
 }
 
 function Center({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-[#102843] px-4 text-center">{children}</div>;
+  return <div className="ui-fade-in flex flex-1 flex-col items-center justify-center gap-3 bg-[#102843] px-4 text-center">{children}</div>;
 }
 
 function Half({

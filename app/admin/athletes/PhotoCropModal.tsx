@@ -81,8 +81,8 @@ export default function PhotoCropModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-4 flex flex-col gap-3 w-full max-w-xs">
+    <div className="ui-fade-in fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
+      <div className="ui-pop-in bg-white rounded-xl p-4 flex flex-col gap-3 w-full max-w-xs">
         <h3 className="font-semibold text-center">ปรับรูป</h3>
         <div
           className="relative mx-auto overflow-hidden rounded-full bg-gray-100 touch-none select-none"

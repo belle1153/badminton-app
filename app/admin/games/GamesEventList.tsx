@@ -65,7 +65,7 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
         </button>
       </form>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
 
       <ul className="flex flex-col gap-3">
         {events.length === 0 && <li className="text-sm text-gray-500">ยังไม่มีงานแข่ง</li>}

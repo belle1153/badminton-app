@@ -258,7 +258,7 @@ export default function QuestManager({ initial }: { initial: QuestRow[] }) {
           </div>
         )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="ui-msg text-sm text-red-600">{error}</p>}
 
         <div className="flex items-center gap-2">
           <button

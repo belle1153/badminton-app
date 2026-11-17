@@ -45,7 +45,7 @@ export default function PinGate({ redirectTo }: { redirectTo?: string }) {
         onChange={(e) => setPin(e.target.value)}
         className="input"
       />
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="ui-msg text-red-600 text-sm">{error}</p>}
       <button
         type="submit"
         disabled={loading}

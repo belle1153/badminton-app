@@ -89,7 +89,7 @@ export default function AnnounceRegistrationButton({
         </p>
       )}
 
-      {msg && <p className={`text-xs ${msg.ok ? "text-green-600" : "text-gray-500"}`}>{msg.text}</p>}
+      {msg && <p className={`ui-msg text-xs ${msg.ok ? "text-green-600" : "text-gray-500"}`}>{msg.text}</p>}
 
       {fallback && (
         <div className="flex flex-col gap-1.5 mt-1">
