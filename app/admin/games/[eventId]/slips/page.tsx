@@ -46,7 +46,7 @@ export default async function GamesSlipsPage({ params }: { params: Promise<{ eve
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">ใบผล · {state.event.name}</h1>
         <p className="text-sm text-gray-600">
-          {slips.length} ใบ (รอบคัดเลือก 2 เซต · น็อกเอาต์ 3 เซต) · 4 ใบต่อ A4 · ชื่อผู้เล่นเว้นให้เขียนหน้างาน
+          {slips.length} ใบ (รอบคัดเลือก 2 เซต · น็อกเอาต์ 3 เซต) · 4 ใบต่อ A4 · ชื่อผู้เล่นเขียนหน้างานในแถวของฝั่งตัวเอง
         </p>
       </div>
       <PrintButton />
@@ -64,15 +64,10 @@ export default async function GamesSlipsPage({ params }: { params: Promise<{ eve
               <span>vs</span>
               <span className="border-b border-black">ทีม {s.b || "................"}</span>
             </div>
-            <div className="grid grid-cols-[1fr_auto_1fr] gap-[3mm] text-[10pt]">
-              <span>ผู้เล่น ..................... + .....................</span>
-              <span />
-              <span>ผู้เล่น ..................... + .....................</span>
-            </div>
             <table className="w-full border-collapse text-center text-[10pt]">
               <thead>
                 <tr>
-                  <th className="w-[30mm] border border-black p-[1mm] text-left">ฝั่ง</th>
+                  <th className="w-[70mm] border border-black p-[1mm] text-left">ฝั่ง / ผู้เล่น</th>
                   {Array.from({ length: s.sets }, (_, i) => (
                     <th key={i} className="border border-black p-[1mm]">
                       เซต {i + 1}
@@ -83,7 +78,11 @@ export default async function GamesSlipsPage({ params }: { params: Promise<{ eve
               <tbody>
                 {[s.a || "ทีม A", s.b || "ทีม B"].map((name, i) => (
                   <tr key={i}>
-                    <td className="h-[9mm] border border-black p-[1mm] text-left">{name}</td>
+                    {/* Each side's players are written in its own row, next to the scores they played. */}
+                    <td className="h-[12mm] border border-black px-[1.5mm] py-[1mm] text-left">
+                      <span className="block font-bold">{name}</span>
+                      <span className="block text-[9pt]">ผู้เล่น ............................... + ...............................</span>
+                    </td>
                     {Array.from({ length: s.sets }, (_, j) => (
                       <td key={j} className="border border-black" />
                     ))}
