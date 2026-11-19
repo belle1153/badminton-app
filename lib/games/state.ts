@@ -269,8 +269,10 @@ export function buildGamesState(rows: GamesRows, now: Date, opts: { revealCards?
         id: row.id,
         order: row.order,
         court: row.court,
-        a: [player(row.a1Id), player(row.a2Id)],
-        b: [player(row.b1Id), player(row.b2Id)],
+        // A knockout side with no team yet (qualifier not finished) shows no names,
+        // even if a lineup was keyed earlier when the bracket looked different.
+        a: teamAId ? [player(row.a1Id), player(row.a2Id)] : [null, null],
+        b: teamBId ? [player(row.b1Id), player(row.b2Id)] : [null, null],
         sets,
         finished,
         finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,

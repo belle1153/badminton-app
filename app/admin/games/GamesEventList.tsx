@@ -19,6 +19,8 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState<string | null>(null);
+  const [resetDone, setResetDone] = useState<string | null>(null);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +42,16 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
     const res = await adminApi(`/api/admin/games/${id}`, "DELETE");
     if (!res.ok) setError(res.error);
     setConfirmDelete(null);
+    router.refresh();
+  }
+
+  async function reset(id: string) {
+    setBusy(true);
+    const res = await adminApi(`/api/admin/games/${id}/reset`, "POST");
+    setBusy(false);
+    setConfirmReset(null);
+    if (!res.ok) setError(res.error);
+    else setResetDone(id);
     router.refresh();
   }
 
@@ -102,6 +114,23 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
                 พิมพ์ใบผล
               </Link>
             </div>
+            {confirmReset === ev.id && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+                ล้างใบส่งตัว SECRET CARD และผลทุกคู่ (ทั้งรอบคัดเลือกและน็อกเอาต์) ให้ว่างเหมือนเริ่มใหม่? ทีมและผู้เล่นยังอยู่ · กู้คืนไม่ได้
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => reset(ev.id)}
+                  className="rounded-md bg-amber-600 px-3 py-1 font-medium text-white disabled:opacity-50"
+                >
+                  {busy ? "กำลังล้าง..." : "รีเซตเลย"}
+                </button>
+                <button type="button" onClick={() => setConfirmReset(null)} className="rounded-md border border-amber-300 px-3 py-1">
+                  ยกเลิก
+                </button>
+              </div>
+            )}
+            {resetDone === ev.id && <p className="ui-msg text-sm text-green-700">รีเซตแล้ว ใบส่งตัว การ์ด และผลว่างทั้งหมด</p>}
             {confirmDelete === ev.id ? (
               <div className="flex flex-wrap items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-800">
                 ลบงานนี้และผลทั้งหมด? กู้คืนไม่ได้
@@ -113,9 +142,21 @@ export default function GamesEventList({ events }: { events: EventRow[] }) {
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={() => setConfirmDelete(ev.id)} className="self-start text-xs text-red-600 hover:underline">
-                ลบงาน
-              </button>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmReset(ev.id);
+                    setResetDone(null);
+                  }}
+                  className="text-xs text-amber-700 hover:underline"
+                >
+                  รีเซตใบส่งตัว · การ์ด · ผล
+                </button>
+                <button type="button" onClick={() => setConfirmDelete(ev.id)} className="text-xs text-red-600 hover:underline">
+                  ลบงาน
+                </button>
+              </div>
             )}
           </li>
         ))}
