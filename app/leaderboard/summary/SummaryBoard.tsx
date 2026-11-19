@@ -1,59 +1,105 @@
 import Link from "next/link";
-import type { SummaryCategory } from "@/lib/missionSummary";
+import type { SummaryCategory, SummaryRow } from "@/lib/missionSummary";
+import { AwardAvatar } from "./AwardAvatar";
+import { MEDAL } from "./medal";
 
-/** Place colours, matching the leaderboard podium. */
-const METAL = ["#ffcf4d", "#cfd8e3", "#e0955a"];
 
-/** The seven top-3 cards; shared by the player page and the admin preview. */
-export default function SummaryBoard({ categories, dark = true }: { categories: SummaryCategory[]; dark?: boolean }) {
+function Value({ row, unit, big }: { row: SummaryRow; unit: string; big?: boolean }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {categories.map((c) => (
-        <section
-          key={c.id}
-          className={
-            dark
-              ? "flex flex-col gap-2 rounded border-2 border-[#384a63] bg-[#232f42] p-3"
-              : "flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3"
-          }
+    <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-[#ffcf4d]">
+      <span className={big ? "text-3xl xl:text-4xl" : "text-base"}>{row.value.toLocaleString()}</span>
+      <span className={big ? "ml-1 text-sm text-[#e8c766]" : "ml-1 text-xs text-[#e8c766]"}>{unit}</span>
+    </span>
+  );
+}
+
+/** One category: the winner(s) up front and large, then second and third. */
+function CategoryCard({ c }: { c: SummaryCategory }) {
+  const first = c.rows.filter((r) => r.rank === 1);
+  const rest = c.rows.filter((r) => r.rank > 1);
+  return (
+    <section
+      className="relative flex w-full flex-col gap-4 overflow-hidden rounded-2xl border p-4 md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] xl:p-5"
+      style={{
+        borderColor: "#ffcf4d40",
+        background: "linear-gradient(165deg, #2a3650 0%, #18223a 55%, #121a2c 100%)",
+        boxShadow: "0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06)",
+      }}
+    >
+      {/* Soft gold light behind the champion */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full"
+        style={{ background: "radial-gradient(circle, #ffcf4d33, transparent 70%)" }}
+      />
+
+      <header className="relative flex items-center gap-3">
+        <span
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-2xl"
+          style={{ background: "radial-gradient(circle at 35% 30%, #3d4c6b, #1a2335)", boxShadow: "0 0 0 2px #ffcf4d55, 0 0 14px #ffcf4d44" }}
         >
-          <div className="flex flex-col">
-            <h2 className={`text-[15px] font-bold ${dark ? "text-[#f2f5fa]" : "text-gray-900"}`}>
-              {c.icon} {c.title}
-            </h2>
-            {c.note && <span className={`text-[11px] ${dark ? "text-[#8095ad]" : "text-gray-500"}`}>{c.note}</span>}
+          {c.icon}
+        </span>
+        <div className="flex min-w-0 flex-col">
+          <h2 className="text-lg font-bold leading-tight text-[#f7f9fc] xl:text-xl">{c.title}</h2>
+          {c.note && <span className="text-[11px] text-[#8fa3bd]">{c.note}</span>}
+        </div>
+      </header>
+
+      {c.rows.length === 0 ? (
+        <p className="relative text-sm text-[#8fa3bd]">ยังไม่มีใครเข้าเกณฑ์</p>
+      ) : (
+        <>
+          <div className="relative flex flex-wrap justify-center gap-x-6 gap-y-3">
+            {first.map((r) => (
+              <Link key={r.athleteId} href={`/player/${r.athleteId}`} className="flex flex-col items-center gap-1.5 text-center">
+                <span className="text-2xl leading-none" aria-hidden="true">
+                  👑
+                </span>
+                <AwardAvatar row={r} rank={1} size={first.length > 1 ? 72 : 96} />
+                <span className="max-w-[160px] break-words text-lg font-bold leading-tight text-white">{r.name}</span>
+                <Value row={r} unit={c.unit} big />
+                {r.detail && <span className="text-[11px] text-[#8fa3bd]">{r.detail}</span>}
+              </Link>
+            ))}
           </div>
-          {c.rows.length === 0 ? (
-            <p className={`text-[12px] ${dark ? "text-[#8095ad]" : "text-gray-500"}`}>ยังไม่มีใครเข้าเกณฑ์</p>
-          ) : (
-            <ol className="flex flex-col gap-1.5">
-              {c.rows.map((r) => (
-                <li key={r.athleteId} className="flex items-center gap-2.5">
-                  <span
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold text-[#1c2536]"
-                    style={{ background: METAL[r.rank - 1] }}
-                  >
-                    {r.rank}
-                  </span>
-                  <div className="flex min-w-0 flex-col">
-                    <Link
-                      href={`/player/${r.athleteId}`}
-                      className={`truncate text-[13.5px] font-semibold hover:underline ${dark ? "text-[#e2e8f2]" : "text-gray-900"}`}
+
+          {rest.length > 0 && (
+            <ol className="relative flex flex-col gap-2 border-t border-white/10 pt-3">
+              {rest.map((r) => (
+                <li key={r.athleteId}>
+                  <Link href={`/player/${r.athleteId}`} className="flex items-center gap-3 rounded-lg px-1 py-0.5 hover:bg-white/5">
+                    <span
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold text-[#1c2536]"
+                      style={{ background: MEDAL[r.rank - 1].mid }}
                     >
-                      {r.name}
-                    </Link>
-                    {r.detail && <span className={`text-[11px] ${dark ? "text-[#8095ad]" : "text-gray-500"}`}>{r.detail}</span>}
-                  </div>
-                  <span
-                    className={`ml-auto shrink-0 text-[13px] font-bold tabular-nums ${dark ? "text-[#ffcf4d]" : "text-brand-700"}`}
-                  >
-                    {r.value.toLocaleString()} {c.unit}
-                  </span>
+                      {r.rank}
+                    </span>
+                    <AwardAvatar row={r} rank={r.rank} size={38} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-[15px] font-semibold text-[#e8eef6]">{r.name}</span>
+                      {r.detail && <span className="truncate text-[11px] text-[#8fa3bd]">{r.detail}</span>}
+                    </span>
+                    <span className="ml-auto">
+                      <Value row={r} unit={c.unit} />
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ol>
           )}
-        </section>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** The seven categories; an odd last card sits centred rather than hanging left. */
+export default function SummaryBoard({ categories }: { categories: SummaryCategory[] }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-4">
+      {categories.map((c) => (
+        <CategoryCard key={c.id} c={c} />
       ))}
     </div>
   );

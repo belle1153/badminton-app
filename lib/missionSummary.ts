@@ -29,12 +29,15 @@ export interface PlayerTotals {
   draws: number;
   withdrawals: number;
   coins: number;
+  /** Versioned photo URL, or null when the athlete has no photo. */
+  photoUrl?: string | null;
 }
 
 export interface SummaryRow {
   rank: number;
   athleteId: string;
   name: string;
+  photoUrl: string | null;
   /** The number the category ranks by (win rate as 0–100, one decimal). */
   value: number;
   /** Extra context, e.g. "45 ชนะ / 80 เกม". */
@@ -79,6 +82,7 @@ export function summarize(players: PlayerTotals[]): SummaryCategory[] {
     rank,
     athleteId: p.athleteId,
     name: p.name,
+    photoUrl: p.photoUrl ?? null,
     value,
     detail,
   });
@@ -126,7 +130,7 @@ export function summarize(players: PlayerTotals[]): SummaryCategory[] {
 
 /** Every linked athlete's totals in one pass over the sign-ups. */
 export async function loadPlayerTotals(): Promise<PlayerTotals[]> {
-  const [signUps, withdrawn, clubDays, athletes] = await Promise.all([
+  const [signUps, withdrawn, clubDays, athletes, withPhoto] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
       select: { athleteId: true, ...PROGRESS_SIGNUP_SELECT },
@@ -137,8 +141,12 @@ export async function loadPlayerTotals(): Promise<PlayerTotals[]> {
       _count: { _all: true },
     }),
     loadClubPlayDays(),
-    prisma.athlete.findMany({ select: { id: true, name: true } }),
+    prisma.athlete.findMany({ select: { id: true, name: true, updatedAt: true } }),
+    // Only which athletes have a photo — the data-URL blobs stay in the DB and
+    // are served, cached, by /api/athletes/[id]/photo.
+    prisma.athlete.findMany({ where: { photoUrl: { not: null } }, select: { id: true } }),
   ]);
+  const hasPhoto = new Set(withPhoto.map((a) => a.id));
 
   const byAthlete = new Map<string, ProgressSignUp[]>();
   for (const s of signUps) {
@@ -172,6 +180,7 @@ export async function loadPlayerTotals(): Promise<PlayerTotals[]> {
       draws,
       withdrawals: withdrawals.get(a.id) ?? 0,
       coins: progress.achievements.filter((x) => x.earned).length,
+      photoUrl: hasPhoto.has(a.id) ? `/api/athletes/${a.id}/photo?v=${a.updatedAt.getTime()}` : null,
     };
   });
 }
