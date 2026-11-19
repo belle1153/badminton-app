@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import BackLink from "@/app/BackLink";
 import type { GamesState } from "@/lib/games/state";
@@ -29,9 +30,18 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
 
   return (
     <DarkPage>
-      <div className="flex flex-col gap-1.5">
-        <BackLink href="/" tone="dark" />
-        <h1 className="text-2xl font-bold tracking-wide">{state.event.name}</h1>
+      <BackLink href="/" tone="dark" />
+      <div className="-mt-2 flex flex-col items-center gap-2 text-center">
+        <h1 className="w-full">
+          <Image
+            src="/games-logo-2026.webp"
+            alt={state.event.name}
+            width={1000}
+            height={646}
+            priority
+            className="mx-auto h-auto w-full max-w-[340px]"
+          />
+        </h1>
         <span className="flex items-center gap-2 text-[13px] text-[#a9bdd3]">
           <span
             className={`h-2 w-2 rounded-full ${state.ties.some((t) => t.status === "live") ? "games-pulse" : ""}`}
@@ -39,12 +49,16 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
           />
           {stageLine(state)}
         </span>
-        {!state.event.published && <Pill bg={DARK.gold} fg={DARK.ground}>แอดมินดูก่อนเปิด · ผู้เล่นยังเห็น Coming soon</Pill>}
+        {!state.event.published && (
+          <span className="self-center">
+            <Pill bg={DARK.gold} fg={DARK.ground}>แอดมินดูก่อนเปิด · ผู้เล่นยังเห็น Coming soon</Pill>
+          </span>
+        )}
       </div>
 
-      {/* 3 + 2 on a phone, so every tab is in view without sideways scrolling. */}
-      <nav className="grid grid-cols-6 gap-1.5">
-        {TABS.map((t, i) => {
+      {/* Five equal tiles in one row: every tab in view on a phone, no sideways scrolling. */}
+      <nav className="grid grid-cols-5 gap-1.5">
+        {TABS.map((t) => {
           const on = t.key === tab;
           return (
             <button
@@ -52,14 +66,19 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
               type="button"
               onClick={() => choose(t.key)}
               aria-current={on ? "page" : undefined}
-              className={`${i < 3 ? "col-span-2" : "col-span-3"} min-h-11 rounded-xl border px-1 text-[13px] font-bold leading-tight transition active:scale-[0.97]`}
+              aria-label={t.label}
+              title={t.label}
+              className="flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-xl border px-0.5 text-[12px] font-bold leading-tight transition active:scale-[0.97]"
               style={
                 on
                   ? { background: DARK.gold, color: DARK.ground, borderColor: DARK.gold }
                   : { background: DARK.panel, color: DARK.muted, borderColor: DARK.line }
               }
             >
-              {t.label}
+              <span className="text-lg leading-none" aria-hidden="true">
+                {t.icon}
+              </span>
+              {t.short}
             </button>
           );
         })}

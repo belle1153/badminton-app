@@ -15,6 +15,9 @@ import {
  */
 export const MIN_GAMES = 70;
 export const TOP_PLACES = 3;
+/** Athletes left out of ถอนชื่อมากสุด only: the organisers' own accounts, whose
+ *  withdrawals were testing the sign-up flow. Matched on Athlete.name (unique). */
+export const WITHDRAWAL_EXCLUDED = ["NK", "NW"];
 
 export interface PlayerTotals {
   athleteId: string;
@@ -108,7 +111,11 @@ export function summarize(players: PlayerTotals[]): SummaryCategory[] {
     },
     {
       id: "withdrawals", title: "ถอนชื่อมากสุด", icon: "🏃", unit: "ครั้ง",
-      rows: topPlaces(players, (p) => p.withdrawals, (p, r) => row(p, r, p.withdrawals)),
+      rows: topPlaces(
+        players.filter((p) => !WITHDRAWAL_EXCLUDED.includes(p.name)),
+        (p) => p.withdrawals,
+        (p, r) => row(p, r, p.withdrawals)
+      ),
     },
     {
       id: "coins", title: "เก็บเหรียญมากสุด", icon: "🏅", unit: "เหรียญ",

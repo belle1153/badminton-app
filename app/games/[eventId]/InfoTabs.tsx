@@ -13,7 +13,7 @@ export function TeamsTab({ state }: { state: GamesState }) {
       {state.teams.map((team) => (
         <div key={team.id} className="flex flex-col gap-3 rounded-xl border-2 p-3" style={{ background: DARK.panel, borderColor: team.color }}>
           <div className="flex items-center gap-2.5">
-            <TeamLogo team={team} size={36} />
+            <TeamLogo team={team} size={40} />
             <span className="rounded-lg px-3 py-0.5 text-lg font-bold" style={{ background: team.color, color: team.textColor }}>
               {team.name}
             </span>
@@ -32,8 +32,8 @@ export function TeamsTab({ state }: { state: GamesState }) {
           {team.members.length ? (
             <ul className="grid grid-cols-2 gap-x-3 gap-y-2.5">
               {team.members.map((p) => (
-                <li key={p.id} className="flex min-w-0 items-center gap-2 text-sm leading-tight">
-                  <Avatar player={p} size={34} />
+                <li key={p.id} className="flex min-w-0 items-center gap-2.5 text-[15px] leading-tight">
+                  <Avatar player={p} size={40} />
                   <span className="min-w-0 break-words">{p.name}</span>
                 </li>
               ))}

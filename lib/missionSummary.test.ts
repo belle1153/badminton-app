@@ -25,6 +25,12 @@ describe("summarize", () => {
     expect(cat(players, "draws").rows.map((r) => r.name)).toEqual(["reg"]);
   });
 
+  it("leaves the organisers' test accounts out of withdrawals only", () => {
+    const players = [p("NK", { withdrawals: 14, games: 5 }), p("NW", { withdrawals: 13 }), p("Dice", { withdrawals: 8 })];
+    expect(cat(players, "withdrawals").rows.map((r) => r.name)).toEqual(["Dice"]);
+    expect(cat(players, "games").rows.map((r) => r.name)).toEqual(["NK"]);
+  });
+
   it("leaves out zeros", () => {
     expect(cat([p("a", { withdrawals: 0 })], "withdrawals").rows).toEqual([]);
   });

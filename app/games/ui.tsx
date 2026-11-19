@@ -227,8 +227,10 @@ export function ComingSoon({ name }: { name: string }) {
     <DarkPage>
       <BackLink href="/" tone="dark" />
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <span className="text-5xl">🏅</span>
-        <h1 className="text-2xl font-bold">{name}</h1>
+        <h1 className="w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/games-logo-2026.webp" alt={name} width={1000} height={646} className="mx-auto h-auto w-full max-w-[340px]" />
+        </h1>
         <span className="rounded-full bg-[#ffcf4d] px-4 py-1 text-sm font-bold text-[#0b1c30]">Coming soon</span>
         <p className="max-w-[28ch] text-sm text-[#a9bdd3]">ตารางแข่งและผลจะเปิดให้ดูที่นี่เร็วๆ นี้</p>
       </div>
