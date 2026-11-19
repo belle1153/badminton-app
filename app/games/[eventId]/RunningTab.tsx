@@ -73,6 +73,7 @@ export default function RunningTab({ state, teams }: { state: GamesState; teams:
           {groups.map(({ tie, courts }) => (
             <div key={tie.id} className="flex flex-col gap-1.5">
               <TieHeader eventId={state.event.id} tie={tie} teams={teams} />
+              <div className="grid gap-1.5 md:grid-cols-2">
               {courts.map((c) => {
                 const { rubber } = rubbers.get(c.nowRubberId!)!;
                 const next = c.nextRubberId ? rubbers.get(c.nextRubberId) : undefined;
@@ -89,6 +90,7 @@ export default function RunningTab({ state, teams }: { state: GamesState; teams:
                   />
                 );
               })}
+              </div>
             </div>
           ))}
         </section>
@@ -96,18 +98,22 @@ export default function RunningTab({ state, teams }: { state: GamesState; teams:
         {upcoming.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="text-base font-bold">ถัดไป</h2>
-            {upcoming.map((t) => (
-              <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
-            ))}
+            <div className="grid gap-2 md:grid-cols-2">
+              {upcoming.map((t) => (
+                <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
+              ))}
+            </div>
           </section>
         )}
 
         {done.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="text-base font-bold">จบแล้ว</h2>
-            {done.map((t) => (
-              <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
-            ))}
+            <div className="grid gap-2 md:grid-cols-2">
+              {done.map((t) => (
+                <TieRow key={t.id} eventId={state.event.id} tie={t} teams={teams} />
+              ))}
+            </div>
           </section>
         )}
       </Swap>

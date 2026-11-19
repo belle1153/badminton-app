@@ -216,7 +216,11 @@ export function DarkPage({ children }: { children: React.ReactNode }) {
   return (
     // flex-1: fill the rest of the body's flex column, so a short tab never leaves white below.
     <div className="flex-1 font-[family-name:var(--font-pixel-body)]" style={{ background: DARK.ground, color: DARK.text }}>
-      <main className="mx-auto flex w-full max-w-[480px] flex-col gap-6 px-4 pb-10 pt-4">{children}</main>
+      {/* Phone width on a phone; wider on a tablet / computer so the page doesn't sit
+          in a thin strip with big empty margins. Each tab adds its own columns. */}
+      <main className="mx-auto flex w-full max-w-[480px] flex-col gap-6 px-4 pb-10 pt-4 md:max-w-3xl md:px-6 lg:max-w-5xl">
+        {children}
+      </main>
     </div>
   );
 }

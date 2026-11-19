@@ -9,7 +9,7 @@ import { Avatar, DARK, NameText, TeamChip, TeamLogo, TieRow } from "../ui";
 
 export function TeamsTab({ state }: { state: GamesState }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       {state.teams.map((team) => (
         <div key={team.id} className="flex flex-col gap-3 rounded-xl border-2 p-3" style={{ background: DARK.panel, borderColor: team.color }}>
           <div className="flex items-center gap-2.5">
@@ -55,8 +55,9 @@ export function RulesTab({ state }: { state: GamesState }) {
   const qEnd = lastRound ? fmtMinute(parseHHMM(lastRound) + 3 * state.event.qualifierMinutes) : null;
 
   // Wording from the organisers (2026-10-21).
+  // Two balanced columns on a wide screen; each card stays whole.
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 md:block md:columns-2 md:gap-3 md:[&>*]:mb-3 md:[&>*]:break-inside-avoid">
       <RuleCard title="⚠️ กติกาสำคัญ" highlight>
         <li>ห้ามเสิร์ฟยิง (backhand สูง) ทุกกรณี</li>
         <li>ไม่มีกรรมการในการตัดสิน นับคะแนน เช็คเส้น ช่วยกัน</li>
@@ -188,7 +189,7 @@ export function ScheduleTab({ state, teams }: { state: GamesState; teams: Map<st
   const rounds = [1, 2, 3, 4, 5].map((r) => qualifier.filter((t) => t.round === r));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[3fr_2fr] lg:items-start">
       <section className="flex flex-col gap-2.5">
         <h2 className="text-base font-bold">รอบคัดเลือก</h2>
         {rounds.map((ties, r) => (
@@ -251,7 +252,7 @@ export function StandingsTab({ state, teams }: { state: GamesState; teams: Map<s
   const split = state.qualifierDone;
   const rows = useFlip<HTMLDivElement>(state.standings.map((r) => r.teamId).join(","), `tab:${state.event.id}`);
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-2.5">
       <div className="flex items-baseline justify-between">
         <h2 className="text-base font-bold">ตารางคะแนนรวม</h2>
         <span className="text-[11px] text-[#a9bdd3]">ชนะ 2 · เสมอ 1 · แพ้ 0</span>

@@ -47,9 +47,12 @@ export default function GamesTie({ initial, tieId }: { initial: GamesState; tieI
       {(!a || !b) && <p className="text-center text-sm text-[#a9bdd3]">{knockoutPlaceholder(tie.stage, tie.slot)}</p>}
       {tie.projected && a && b && <p className="text-center text-xs text-[#a9bdd3]">คู่นี้ตามอันดับตอนนี้ อาจเปลี่ยนได้จนรอบคัดเลือกจบ</p>}
 
-      {tie.rubbers.map((r) => (
-        <RubberCard key={r.id} tie={tie} rubber={r} a={a} b={b} />
-      ))}
+      {/* One pair per row on a phone, two side by side on a wider screen. */}
+      <div className="grid gap-6 md:grid-cols-2 md:gap-4">
+        {tie.rubbers.map((r) => (
+          <RubberCard key={r.id} tie={tie} rubber={r} a={a} b={b} />
+        ))}
+      </div>
 
       <p className="text-[11px] leading-relaxed text-[#a9bdd3]">
         {knockout

@@ -68,7 +68,7 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
               aria-current={on ? "page" : undefined}
               aria-label={t.label}
               title={t.label}
-              className="flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-xl border px-0.5 text-[12px] font-bold leading-tight transition active:scale-[0.97]"
+              className="flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-xl border px-0.5 text-[12px] font-bold leading-tight transition active:scale-[0.97] md:min-h-12 md:flex-row md:gap-2 md:text-sm"
               style={
                 on
                   ? { background: DARK.gold, color: DARK.ground, borderColor: DARK.gold }
@@ -78,7 +78,8 @@ export default function GamesHome({ initial, initialTab }: { initial: GamesState
               <span className="text-lg leading-none" aria-hidden="true">
                 {t.icon}
               </span>
-              {t.short}
+              <span className="md:hidden">{t.short}</span>
+              <span className="hidden md:inline">{t.label}</span>
             </button>
           );
         })}
