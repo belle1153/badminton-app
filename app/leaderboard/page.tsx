@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loadLeaderboard, type LeaderboardEntry } from "@/lib/leaderboard";
 import QuestBoard from "./QuestBoard";
+import { missionSummaryOpen } from "@/lib/missionSummary";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ function Avatar({
 }
 
 export default async function LeaderboardPage() {
-  const top = await loadLeaderboard();
+  const [top, summaryOpen] = await Promise.all([loadLeaderboard(), missionSummaryOpen()]);
 
   // Everyone who holds each of the top three places — a tie puts two or more
   // people on the same block rather than pushing one of them off it.
@@ -93,6 +94,16 @@ export default async function LeaderboardPage() {
           <h1 className="text-xl font-bold text-[#f2f5fa]">🏆 อันดับโคตรตึง!</h1>
           <p className="text-[12.5px] text-[#8095ad]">อันดับทุกคนในก๊วน — วัดจาก EXP</p>
         </div>
+
+        {summaryOpen && (
+          <Link
+            href="/leaderboard/summary"
+            className="flex items-center justify-between rounded border-2 border-amber-300/70 bg-[#232f42] px-3 py-2.5 text-[13px] font-semibold text-amber-300 hover:bg-[#2a3950]"
+          >
+            🏆 สรุปมิชชั่นโคตรตึง · 3 อันดับแรกแต่ละหมวด
+            <span className="font-[family-name:var(--font-pixel-display)] text-[10px]">&gt;</span>
+          </Link>
+        )}
 
         {top.length === 0 ? (
           <p className="rounded border-2 border-[#384a63] bg-[#232f42] p-4 text-[13px] text-[#8095ad]">

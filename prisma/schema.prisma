@@ -169,6 +169,9 @@ model AppSettings {
   // the admin edits these on the Master page, and each day freezes them at close.
   entryFee       Int      @default(95)
   gameFee        Int      @default(25)
+  // มิชชั่นโคตรตึง summary page (/leaderboard/summary): players see it only once
+  // the admin switches it on; admins can always preview it.
+  missionSummaryOpen Boolean @default(false)
   updatedAt      DateTime @updatedAt
 }
 

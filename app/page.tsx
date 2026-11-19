@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { BUILD_LABEL } from "@/lib/version";
 import { latestEventForHome } from "@/lib/games/load";
 import { isAdmin } from "@/lib/adminAuth";
+import { missionSummaryOpen } from "@/lib/missionSummary";
 import AnnouncementCarousel from "./AnnouncementCarousel";
 import MyStatsCard from "./MyStatsCard";
 
@@ -35,7 +36,9 @@ export default async function Home() {
   }));
   const games = await latestEventForHome();
   // While the event is still "Coming soon", admins can open it to test the player pages.
-  const adminPreview = games != null && !games.published && (await isAdmin());
+  const [admin, summaryOpen] = await Promise.all([isAdmin(), missionSummaryOpen()]);
+  const adminPreview = games != null && !games.published && admin;
+  // มิชชั่นโคตรตึง summary: a card for everyone once opened; admins see it early to check.
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -91,6 +94,18 @@ export default async function Home() {
             <span className="text-xs text-slate-400">อันดับทุกคนในก๊วน</span>
           </Link>
         </div>
+
+        {(summaryOpen || admin) && (
+          <Link
+            href="/leaderboard/summary"
+            className={`rounded-2xl border-2 ${summaryOpen ? "border-amber-300 shadow-[0_0_16px_rgba(255,207,77,0.3)]" : "border-dashed border-amber-300"} bg-[#141d2b] p-6 flex flex-col items-center gap-1.5 text-center hover:border-amber-200 transition`}
+          >
+            <span className="text-4xl">🏆</span>
+            <span className="font-bold text-lg text-amber-300">สรุปมิชชั่นโคตรตึง</span>
+            <span className="text-xs text-slate-400">3 อันดับแรก เล่นมากสุด · Win rate · เหรียญ และอื่น ๆ</span>
+            {!summaryOpen && <span className="text-xs text-amber-300">แอดมินเห็นคนเดียว · ผู้เล่นยังไม่เห็นการ์ดนี้</span>}
+          </Link>
+        )}
 
         {/* TUA TUENG GAMES: a link once the admin publishes the event; until then
             a teaser players can see but not open (admins can, to test). */}

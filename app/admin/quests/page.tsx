@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
 import QuestManager from "./QuestManager";
+import MissionSummaryToggle from "./MissionSummaryToggle";
+import { missionSummaryOpen } from "@/lib/missionSummary";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +12,12 @@ export default async function QuestsAdminPage() {
     redirect("/admin/login");
   }
 
-  const quests = await prisma.quest.findMany({
-    orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
-  });
+  const [quests, summaryOpen] = await Promise.all([
+    prisma.quest.findMany({
+      orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
+    }),
+    missionSummaryOpen(),
+  ]);
 
   return (
     <main className="max-w-2xl mx-auto w-full p-6 flex flex-col gap-6">
@@ -30,6 +35,8 @@ export default async function QuestsAdminPage() {
           <b>ลบ</b> = ยกเลิกจริง EXP หายทั้งก๊วน
         </p>
       </div>
+
+      <MissionSummaryToggle open={summaryOpen} />
 
       <QuestManager
         initial={quests.map((q) => ({
