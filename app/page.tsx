@@ -54,6 +54,56 @@ export default async function Home() {
       </h1>
 
       <div className="flex flex-col gap-4">
+        {/* TUA TUENG GAMES, first on the page: a link once the admin publishes the
+            event; until then a teaser players can see but not open (admins can, to test). */}
+        {games?.published ? (
+          <Link
+            href={`/games/${games.id}`}
+            className="rounded-2xl border-2 border-amber-300 bg-[#0b1c30] p-4 flex flex-col items-center gap-2 text-center shadow-[0_0_16px_rgba(255,207,77,0.3)] hover:border-amber-200 transition"
+          >
+            <Image
+              src="/games-logo-2026.webp"
+              alt={games?.name ?? "TUA TUENG GAMES"}
+              width={1000}
+              height={646}
+              priority
+              className="w-full max-w-md h-auto"
+            />
+            <span className="text-sm text-slate-300">ตารางแข่ง ผล และตารางคะแนนทีม</span>
+          </Link>
+        ) : games && adminPreview ? (
+          <Link
+            href={`/games/${games.id}`}
+            className="rounded-2xl border-2 border-dashed border-amber-300 bg-[#0b1c30] p-4 flex flex-col items-center gap-2 text-center hover:border-amber-200 transition"
+          >
+            <Image
+              src="/games-logo-2026.webp"
+              alt={games?.name ?? "TUA TUENG GAMES"}
+              width={1000}
+              height={646}
+              priority
+              className="w-full max-w-md h-auto"
+            />
+            <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
+            <span className="text-xs text-amber-300">แอดมินกดเข้าดูได้ · ผู้เล่นยังกดไม่ได้</span>
+          </Link>
+        ) : (
+          <div
+            aria-disabled="true"
+            className="rounded-2xl border-2 border-dashed border-slate-500 bg-[#0b1c30] p-4 flex flex-col items-center gap-2 text-center"
+          >
+            <Image
+              src="/games-logo-2026.webp"
+              alt={games?.name ?? "TUA TUENG GAMES"}
+              width={1000}
+              height={646}
+              priority
+              className="w-full max-w-md h-auto"
+            />
+            <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
+          </div>
+        )}
+
         {/* Signing up is what people come here to do — give it the whole row. */}
         <Link
           href="/register"
@@ -107,37 +157,6 @@ export default async function Home() {
           </Link>
         )}
 
-        {/* TUA TUENG GAMES: a link once the admin publishes the event; until then
-            a teaser players can see but not open (admins can, to test). */}
-        {games?.published ? (
-          <Link
-            href={`/games/${games.id}`}
-            className="rounded-2xl border-2 border-amber-300 bg-[#0b1c30] p-6 flex flex-col items-center gap-1.5 text-center shadow-[0_0_16px_rgba(255,207,77,0.3)] hover:border-amber-200 transition"
-          >
-            <span className="text-4xl">🏅</span>
-            <span className="font-bold text-lg text-amber-300">{games.name}</span>
-            <span className="text-xs text-slate-400">ตารางแข่ง ผล และตารางคะแนนทีม</span>
-          </Link>
-        ) : games && adminPreview ? (
-          <Link
-            href={`/games/${games.id}`}
-            className="rounded-2xl border-2 border-dashed border-amber-300 bg-[#0b1c30] p-6 flex flex-col items-center gap-1.5 text-center hover:border-amber-200 transition"
-          >
-            <span className="text-4xl opacity-70">🏅</span>
-            <span className="font-bold text-lg text-slate-200">{games.name}</span>
-            <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
-            <span className="text-xs text-amber-300">แอดมินกดเข้าดูได้ · ผู้เล่นยังกดไม่ได้</span>
-          </Link>
-        ) : (
-          <div
-            aria-disabled="true"
-            className="rounded-2xl border-2 border-dashed border-slate-500 bg-[#0b1c30] p-6 flex flex-col items-center gap-1.5 text-center"
-          >
-            <span className="text-4xl opacity-70">🏅</span>
-            <span className="font-bold text-lg text-slate-200">{games?.name ?? "TUA TUENG GAMES"}</span>
-            <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
-          </div>
-        )}
       </div>
 
       <AnnouncementCarousel items={announcements} />
