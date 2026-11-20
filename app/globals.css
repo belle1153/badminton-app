@@ -349,15 +349,21 @@ body {
 @keyframes award-confetti {
   0% {
     opacity: 1;
-    transform: translate(0, -20px) rotate(0);
+    transform: translate(0, 0) rotate(0);
+  }
+  /* A sideways wobble halfway down, so pieces flutter instead of sliding. */
+  50% {
+    transform: translate(calc(var(--drift, 0) * -0.35), 70vh) rotate(calc(var(--spin, 360deg) * 0.5));
   }
   100% {
-    opacity: 0.9;
-    transform: translate(var(--drift, 0), 105vh) rotate(var(--spin, 360deg));
+    opacity: 0.85;
+    transform: translate(var(--drift, 0), 145vh) rotate(var(--spin, 360deg));
   }
 }
 .award-confetti {
-  animation: award-confetti 3s ease-in both;
+  animation-name: award-confetti;
+  animation-duration: 4s;
+  animation-fill-mode: both;
 }
 
 /* Slow sway of the spotlight. */

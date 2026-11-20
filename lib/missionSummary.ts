@@ -10,14 +10,12 @@ import {
  * The มิชชั่นโคตรตึง season summary: top three per category, over all play history.
  *
  * Computed on every read like the leaderboard: results can be edited, so a
- * stored summary would drift. Win rate, losses and draws only count players with
- * at least MIN_GAMES games, so one lucky evening cannot top the table.
+ * stored summary would drift. Only win rate is limited to players with at least
+ * MIN_GAMES games, so one lucky evening cannot top it; every other category
+ * counts everyone.
  */
 export const MIN_GAMES = 70;
 export const TOP_PLACES = 3;
-/** Athletes left out of ถอนชื่อมากสุด only: the organisers' own accounts, whose
- *  withdrawals were testing the sign-up flow. Matched on Athlete.name (unique). */
-export const WITHDRAWAL_EXCLUDED = ["NK", "NW"];
 
 export interface PlayerTotals {
   athleteId: string;
@@ -27,7 +25,6 @@ export interface PlayerTotals {
   wins: number;
   losses: number;
   draws: number;
-  withdrawals: number;
   coins: number;
   /** Versioned photo URL, or null when the athlete has no photo. */
   photoUrl?: string | null;
@@ -45,7 +42,7 @@ export interface SummaryRow {
 }
 
 export interface SummaryCategory {
-  id: "games" | "days" | "winRate" | "losses" | "draws" | "withdrawals" | "coins";
+  id: "games" | "days" | "winRate" | "wins" | "losses" | "draws" | "coins";
   title: string;
   icon: string;
   unit: string;
@@ -54,7 +51,11 @@ export interface SummaryCategory {
   rows: SummaryRow[];
 }
 
-/** Highest first; ties share a place, and everyone placed TOP_PLACES or better is kept. */
+/**
+ * Highest first. Ties share a place and the next score takes the very next place
+ * (1, 2, 2, 3), so a shared second still leaves a third on the podium — the
+ * organisers' call for the award night (2026-11-20).
+ */
 function topPlaces<T extends { name: string }>(
   items: T[],
   score: (t: T) => number,
@@ -66,9 +67,9 @@ function topPlaces<T extends { name: string }>(
   const out: SummaryRow[] = [];
   let lastScore: number | null = null;
   let lastRank = 0;
-  sorted.forEach((t, i) => {
+  sorted.forEach((t) => {
     const s = score(t);
-    const rank = lastScore != null && s === lastScore ? lastRank : i + 1;
+    const rank = lastScore != null && s === lastScore ? lastRank : lastRank + 1;
     lastScore = s;
     lastRank = rank;
     if (rank <= TOP_PLACES) out.push(toRow(t, rank));
@@ -100,26 +101,22 @@ export function summarize(players: PlayerTotals[]): SummaryCategory[] {
       rows: topPlaces(players, (p) => p.days, (p, r) => row(p, r, p.days)),
     },
     {
-      id: "winRate", title: "Win rate สูงสุด", icon: "🔥", unit: "%", note,
+      id: "winRate", title: "Win Rate สูงสุด", icon: "🌟", unit: "%", note,
       rows: topPlaces(regulars, winRate, (p, r) =>
         row(p, r, Math.round(winRate(p) * 1000) / 10, `ชนะ ${p.wins} แพ้ ${p.losses} เสมอ ${p.draws} (เสมอไม่นับ)`)
       ),
     },
     {
-      id: "losses", title: "แพ้มากสุด", icon: "💀", unit: "เกม", note,
-      rows: topPlaces(regulars, (p) => p.losses, (p, r) => row(p, r, p.losses, `จาก ${p.games} เกม`)),
+      id: "wins", title: "ชนะมากสุด", icon: "🔥", unit: "เกม",
+      rows: topPlaces(players, (p) => p.wins, (p, r) => row(p, r, p.wins)),
     },
     {
-      id: "draws", title: "เสมอมากสุด", icon: "🤝", unit: "เกม", note,
-      rows: topPlaces(regulars, (p) => p.draws, (p, r) => row(p, r, p.draws, `จาก ${p.games} เกม`)),
+      id: "losses", title: "แพ้มากสุด", icon: "💀", unit: "เกม",
+      rows: topPlaces(players, (p) => p.losses, (p, r) => row(p, r, p.losses)),
     },
     {
-      id: "withdrawals", title: "ถอนชื่อมากสุด", icon: "🏃", unit: "ครั้ง",
-      rows: topPlaces(
-        players.filter((p) => !WITHDRAWAL_EXCLUDED.includes(p.name)),
-        (p) => p.withdrawals,
-        (p, r) => row(p, r, p.withdrawals)
-      ),
+      id: "draws", title: "เสมอมากสุด", icon: "🤝", unit: "เกม",
+      rows: topPlaces(players, (p) => p.draws, (p, r) => row(p, r, p.draws)),
     },
     {
       id: "coins", title: "เก็บเหรียญมากสุด", icon: "🏅", unit: "เหรียญ",
@@ -130,15 +127,10 @@ export function summarize(players: PlayerTotals[]): SummaryCategory[] {
 
 /** Every linked athlete's totals in one pass over the sign-ups. */
 export async function loadPlayerTotals(): Promise<PlayerTotals[]> {
-  const [signUps, withdrawn, clubDays, athletes, withPhoto] = await Promise.all([
+  const [signUps, clubDays, athletes, withPhoto] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
       select: { athleteId: true, ...PROGRESS_SIGNUP_SELECT },
-    }),
-    prisma.signUp.groupBy({
-      by: ["athleteId"],
-      where: { athleteId: { not: null }, status: "WITHDRAWN" },
-      _count: { _all: true },
     }),
     loadClubPlayDays(),
     prisma.athlete.findMany({ select: { id: true, name: true, updatedAt: true } }),
@@ -154,7 +146,6 @@ export async function loadPlayerTotals(): Promise<PlayerTotals[]> {
     if (list) list.push(s);
     else byAthlete.set(s.athleteId!, [s]);
   }
-  const withdrawals = new Map(withdrawn.map((w) => [w.athleteId!, w._count._all]));
 
   return athletes.map((a) => {
     const rows = byAthlete.get(a.id) ?? [];
@@ -178,7 +169,6 @@ export async function loadPlayerTotals(): Promise<PlayerTotals[]> {
       wins,
       losses,
       draws,
-      withdrawals: withdrawals.get(a.id) ?? 0,
       coins: progress.achievements.filter((x) => x.earned).length,
       photoUrl: hasPhoto.has(a.id) ? `/api/athletes/${a.id}/photo?v=${a.updatedAt.getTime()}` : null,
     };

@@ -26,39 +26,63 @@ function buildSteps(categories: SummaryCategory[]): Step[] {
 
 const CONFETTI_COLORS = ["#ffcf4d", "#ff6fb5", "#4f9fe6", "#7ee08a", "#ffffff", "#ff9d4d"];
 
-/** A burst of falling paper, rebuilt each time first place is revealed. */
+/** Small seeded random generator (mulberry32): real scatter, but stable for a given burst. */
+function randomFrom(seed: number) {
+  let a = (seed * 2654435761) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const EASINGS = ["linear", "ease-in", "cubic-bezier(.3,.1,.7,1)", "cubic-bezier(.2,.6,.6,1)"];
+
+/**
+ * A messy burst of falling paper, rebuilt each time first place is revealed:
+ * pieces start at different heights and times, fall at different speeds, drift
+ * either way and come in strips, squares and dots — no neat curve.
+ */
 function Confetti({ seed }: { seed: number }) {
-  const bits = useMemo(
-    () =>
-      Array.from({ length: 90 }, (_, i) => {
-        // Deterministic per piece, so a re-render doesn't reshuffle mid-fall.
-        const r = (n: number) => (Math.sin(seed * 97 + i * 13.7 + n) + 1) / 2;
-        return {
-          left: `${r(1) * 100}%`,
-          delay: `${r(2) * 1.4}s`,
-          duration: `${3.4 + r(3) * 2.6}s`,
-          size: 6 + r(4) * 8,
-          color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-          drift: `${(r(5) - 0.5) * 160}px`,
-          spin: `${r(6) * 720 - 360}deg`,
-        };
-      }),
-    [seed]
-  );
+  const bits = useMemo(() => {
+    const r = randomFrom(seed + 1);
+    return Array.from({ length: 180 }, () => {
+      const shape = r();
+      const size = 5 + r() * 10;
+      return {
+        left: `${r() * 104 - 2}%`,
+        top: `${-(r() * 35 + 3)}vh`,
+        delay: `${r() * 3}s`,
+        duration: `${3 + r() * 4.5}s`,
+        easing: EASINGS[Math.floor(r() * EASINGS.length)],
+        width: shape < 0.5 ? size * 0.5 : size,
+        height: shape < 0.5 ? size * 1.3 : shape < 0.8 ? size : size * 0.8,
+        round: shape >= 0.8 ? "50%" : "2px",
+        color: CONFETTI_COLORS[Math.floor(r() * CONFETTI_COLORS.length)],
+        drift: `${(r() - 0.5) * 520}px`,
+        spin: `${(r() - 0.5) * 1440}deg`,
+      };
+    });
+  }, [seed]);
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       {bits.map((b, i) => (
         <span
           key={i}
-          className="award-confetti absolute top-0 block rounded-[2px]"
+          className="award-confetti absolute block"
           style={
             {
               left: b.left,
-              width: b.size,
-              height: b.size * 0.45,
+              top: b.top,
+              width: b.width,
+              height: b.height,
+              borderRadius: b.round,
               background: b.color,
               animationDelay: b.delay,
               animationDuration: b.duration,
+              animationTimingFunction: b.easing,
               "--drift": b.drift,
               "--spin": b.spin,
             } as React.CSSProperties

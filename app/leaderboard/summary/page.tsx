@@ -57,7 +57,7 @@ export default async function MissionSummaryPage() {
             สรุปมิชชั่นโคตรตึง
           </h1>
           <p className="max-w-2xl text-[13px] text-[#a9bdd3] md:text-sm">
-            3 อันดับแรกของแต่ละหมวด นับจากทุกเกมที่เล่นจบ · Win rate / แพ้ / เสมอ นับเฉพาะคนที่เล่น {MIN_GAMES} เกมขึ้นไป ·
+            3 อันดับแรกของแต่ละหมวด นับจากทุกเกมที่เล่นจบ · Win Rate นับเฉพาะคนที่เล่น {MIN_GAMES} เกมขึ้นไป ·
             คะแนนเท่ากันได้อันดับเท่ากัน
           </p>
           {visible && <AwardPresenter categories={categories} />}

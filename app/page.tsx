@@ -152,7 +152,7 @@ export default async function Home() {
           >
             <span className="text-4xl">🏆</span>
             <span className="font-bold text-lg text-amber-300">สรุปมิชชั่นโคตรตึง</span>
-            <span className="text-xs text-slate-400">3 อันดับแรก เล่นมากสุด · Win rate · เหรียญ และอื่น ๆ</span>
+            <span className="text-xs text-slate-400">3 อันดับแรก เล่นมากสุด · Win Rate · เหรียญ และอื่น ๆ</span>
             {!summaryOpen && <span className="text-xs text-amber-300">แอดมินเห็นคนเดียว · ผู้เล่นยังไม่เห็นการ์ดนี้</span>}
           </Link>
         )}

@@ -32,7 +32,7 @@ export default function MissionSummaryToggle({ open }: { open: boolean }) {
       <div className="flex flex-col gap-1">
         <h2 className="font-semibold">🏆 หน้าสรุปมิชชั่นโคตรตึง</h2>
         <p className="text-sm text-gray-500">
-          3 อันดับแรก 7 หมวด (เล่นมากสุด มาบ่อยสุด Win rate แพ้ เสมอ ถอนชื่อ เหรียญ) ระบบคำนวณสดจากผลเกมทุกครั้ง
+          3 อันดับแรก 7 หมวด (เล่นมากสุด มาเล่นมากสุด Win Rate ชนะ แพ้ เสมอ เหรียญ) ระบบคำนวณสดจากผลเกมทุกครั้ง
         </p>
       </div>
       <label className="flex items-center gap-2 text-sm">
