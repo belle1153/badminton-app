@@ -70,10 +70,15 @@ export function buildPlayerProgress(
   clubDays: Date[],
   /** EXP from completed quests — supplied by the caller, since quests live in
    *  their own table and are evaluated separately. */
-  questExp = 0
+  questExp = 0,
+  /** How many of `clubDays`' first days count as รุ่นบุกเบิก. A later season
+   *  passes 0: its first days are not the club's first days. */
+  opts: { foundingWindow?: number } = {}
 ): PlayerProgress {
   const foundingDates = new Set(
-    clubDays.slice(0, FOUNDING_WINDOW).map((d) => d.toISOString().slice(0, 10))
+    clubDays
+      .slice(0, opts.foundingWindow ?? FOUNDING_WINDOW)
+      .map((d) => d.toISOString().slice(0, 10))
   );
 
   // One entry per session the player actually finished a game in.
