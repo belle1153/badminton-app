@@ -34,3 +34,19 @@ describe("summarize", () => {
     expect(cat([p("a", { wins: 0 })], "wins").rows).toEqual([]);
   });
 });
+
+describe("expTopRows", () => {
+  it("keeps everyone placed 5th or better, ties included", async () => {
+    const { expTopRows } = await import("./missionSummary");
+    const entry = (name: string, rank: number, exp: number) => ({
+      rank, athleteId: name, name, hasPhoto: false, photoVersion: 0, exp, level: 7,
+      rankTitle: "", theme: {} as never, days: 0, games: 0, season: 1 as const,
+    });
+    const rows = expTopRows([
+      entry("a", 1, 900), entry("b", 2, 800), entry("c", 3, 700), entry("d", 4, 600),
+      entry("e", 5, 500), entry("f", 5, 500), entry("g", 7, 400),
+    ]);
+    expect(rows.map((r) => [r.name, r.rank])).toEqual([["a", 1], ["b", 2], ["c", 3], ["d", 4], ["e", 5], ["f", 5]]);
+    expect(rows[0]).toMatchObject({ value: 900, detail: "Lv.7", photoUrl: null });
+  });
+});

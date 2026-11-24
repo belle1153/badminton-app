@@ -1,12 +1,9 @@
 import { prisma } from "@/lib/db";
 import { type RankTheme } from "@/lib/levels";
-import {
-  buildPlayerProgress,
-  loadClubPlayDays,
-  PROGRESS_SIGNUP_SELECT,
-  type ProgressSignUp,
-} from "@/lib/playerProgress";
-import { loadQuestExpByAthlete } from "@/lib/questProgress";
+import { loadClubPlayDays, PROGRESS_SIGNUP_SELECT, type ProgressSignUp } from "@/lib/playerProgress";
+import { loadQuestExpByAthleteBySeason } from "@/lib/questProgress";
+import { buildSeasonedProgress, type SeasonedProgress } from "@/lib/seasonProgress";
+import { currentSeason, type SeasonId } from "@/lib/seasons";
 
 export interface LeaderboardEntry {
   rank: number;
@@ -20,6 +17,8 @@ export interface LeaderboardEntry {
   theme: RankTheme;
   days: number;
   games: number;
+  /** The season `exp`, `days` and `games` are counted over. */
+  season: SeasonId;
 }
 
 export interface RankableRow {
@@ -60,20 +59,12 @@ export function rankPlayers<T extends RankableRow>(rows: T[]): (T & { rank: numb
 }
 
 /**
- * Everyone holding a place of `maxRank` or better — the whole ranked roster
- * when no limit is given.
- *
- * Counts places, not people: cutting at a fixed number of players would drop
- * someone who is genuinely tied with the last person shown, which is exactly
- * the unfairness the shared-place ranking exists to avoid. A big tie can
- * therefore return more than `maxRank` players, and that's correct.
- *
- * Deliberately one pass over every sign-up rather than calling
- * loadPlayerProgress per athlete, which would be two queries each — roughly
- * 160 round trips for the current roster.
+ * Every athlete's seasoned progress, in one pass over every sign-up rather than
+ * calling loadSeasonedProgress per athlete, which would be two queries each —
+ * roughly 160 round trips for the current roster.
  */
-export async function loadLeaderboard(maxRank = Infinity): Promise<LeaderboardEntry[]> {
-  const [signUps, clubDays, athletes, questExpByAthlete] = await Promise.all([
+async function loadRoster(now: Date) {
+  const [signUps, clubDays, athletes, questExp] = await Promise.all([
     prisma.signUp.findMany({
       where: { athleteId: { not: null }, status: { not: "WITHDRAWN" } },
       select: { athleteId: true, ...PROGRESS_SIGNUP_SELECT },
@@ -82,12 +73,9 @@ export async function loadLeaderboard(maxRank = Infinity): Promise<LeaderboardEn
     prisma.athlete.findMany({
       select: { id: true, name: true, photoUrl: true, updatedAt: true },
     }),
-    loadQuestExpByAthlete(),
+    loadQuestExpByAthleteBySeason(now),
   ]);
 
-  // Group each player's sign-ups, then run the same progress calculation the
-  // profile uses — computing EXP separately here is how the two drifted apart
-  // when badges started paying out.
   const byAthlete = new Map<string, ProgressSignUp[]>();
   for (const s of signUps) {
     if (!s.athleteId) continue;
@@ -96,34 +84,64 @@ export async function loadLeaderboard(maxRank = Infinity): Promise<LeaderboardEn
     else byAthlete.set(s.athleteId, [s]);
   }
 
+  // The same seasoned calculation the profile uses — computing EXP separately
+  // here is how the two drifted apart when badges started paying out.
   const byId = new Map(athletes.map((a) => [a.id, a]));
-  const progressById = new Map<string, ReturnType<typeof buildPlayerProgress>>();
-  const rows: RankableRow[] = [];
+  const out: { athlete: (typeof athletes)[number]; seasoned: SeasonedProgress }[] = [];
   for (const [athleteId, playerSignUps] of byAthlete) {
     const athlete = byId.get(athleteId);
     if (!athlete) continue;
-    const progress = buildPlayerProgress(
-      athleteId,
-      playerSignUps,
-      clubDays,
-      questExpByAthlete.get(athleteId) ?? 0
-    );
-    if (progress.exp.total <= 0) continue;
-    progressById.set(athleteId, progress);
+    out.push({
+      athlete,
+      seasoned: buildSeasonedProgress(
+        athleteId,
+        playerSignUps,
+        clubDays,
+        questExp.get(athleteId) ?? new Map(),
+        now
+      ),
+    });
+  }
+  return out;
+}
+
+/**
+ * Ranks one season. `lifetimeLevel` shows the player's real level (the live
+ * leaderboard); otherwise the level is that season's alone — "Lv at the end of
+ * Season 1" on the hall of fame, which must not move during later seasons.
+ *
+ * Counts places, not people: cutting at a fixed number of players would drop
+ * someone who is genuinely tied with the last person shown, which is exactly
+ * the unfairness the shared-place ranking exists to avoid. A big tie can
+ * therefore return more than `maxRank` players, and that's correct.
+ */
+async function rankSeason(
+  seasonId: SeasonId,
+  maxRank: number,
+  now: Date,
+  lifetimeLevel: boolean
+): Promise<LeaderboardEntry[]> {
+  const roster = await loadRoster(now);
+  const picked = new Map<string, { athlete: (typeof roster)[number]["athlete"]; s: SeasonedProgress; season: SeasonedProgress["current"] }>();
+  const rows: RankableRow[] = [];
+  for (const { athlete, seasoned } of roster) {
+    const season = seasoned.seasons.find((x) => x.season.id === seasonId);
+    if (!season || season.progress.exp.total <= 0) continue;
+    picked.set(athlete.id, { athlete, s: seasoned, season });
     rows.push({
-      athleteId,
+      athleteId: athlete.id,
       name: athlete.name,
-      exp: progress.exp.total,
-      days: progress.daysPlayed,
-      games: progress.gamesPlayed,
+      exp: season.progress.exp.total,
+      days: season.progress.daysPlayed,
+      games: season.progress.gamesPlayed,
     });
   }
 
   return rankPlayers(rows)
     .filter((r) => r.rank <= maxRank)
     .map((r) => {
-      const athlete = byId.get(r.athleteId)!;
-      const progress = progressById.get(r.athleteId)!.level;
+      const { athlete, s, season } = picked.get(r.athleteId)!;
+      const level = lifetimeLevel ? s.level : season.progress.level;
       return {
         rank: r.rank,
         athleteId: r.athleteId,
@@ -131,11 +149,26 @@ export async function loadLeaderboard(maxRank = Infinity): Promise<LeaderboardEn
         hasPhoto: athlete.photoUrl != null,
         photoVersion: athlete.updatedAt.getTime(),
         exp: r.exp,
-        level: progress.level,
-        rankTitle: progress.rank,
-        theme: progress.theme,
+        level: level.level,
+        rankTitle: level.rank,
+        theme: level.theme,
         days: r.days,
         games: r.games,
+        season: seasonId,
       };
     });
+}
+
+/** The live leaderboard: this season's EXP, the player's lifetime level. */
+export function loadLeaderboard(maxRank = Infinity, now: Date = new Date()): Promise<LeaderboardEntry[]> {
+  return rankSeason(currentSeason(now).id, maxRank, now, true);
+}
+
+/** One season's final table, with each player's level from that season alone. */
+export function loadSeasonLeaderboard(
+  seasonId: SeasonId,
+  maxRank = Infinity,
+  now: Date = new Date()
+): Promise<LeaderboardEntry[]> {
+  return rankSeason(seasonId, maxRank, now, false);
 }
