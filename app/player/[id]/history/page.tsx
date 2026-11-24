@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { loadSeasonedProgress } from "@/lib/seasonProgress";
-import { loadQuestProgress, loadQuestExpBySeason, questForSeason } from "@/lib/questProgress";
+import { loadPlayerQuests } from "@/lib/questProgress";
 import { isPerDayKind } from "@/lib/quests";
 import { expForBadge } from "@/lib/achievementRarity";
 import { EXP_RATES } from "@/lib/exp";
@@ -43,24 +43,22 @@ export default async function PointsHistoryPage({
   });
   if (!athlete) notFound();
 
-  const [quests, questBySeason] = await Promise.all([
-    loadQuestProgress(id),
-    loadQuestExpBySeason(id),
-  ]);
-  const seasoned = await loadSeasonedProgress(id, questBySeason);
+  const playerQuests = await loadPlayerQuests(id);
+  const seasoned = await loadSeasonedProgress(id, playerQuests.expBySeason);
   // The totals are this season's (what the profile shows); the timeline runs
   // across every season, with a divider where each one starts.
   const progress = seasoned.current.progress;
   const seasonLabel = seasoned.current.season.label;
   const multiSeason = seasoned.seasons.length > 1;
-  const qExp = questBySeason.get(seasoned.current.season.id) ?? 0;
+  const qExp = playerQuests.expBySeason.get(seasoned.current.season.id) ?? 0;
 
   const badgeExp = progress.achievements
     .filter((a) => a.earned)
     .reduce((n, a) => n + expForBadge(a.target), 0);
-  // Only quests that pay into the season being totalled, so the list adds up.
-  const completedQuests = quests.filter(
-    (q) => q.progress.completed && questForSeason(q, seasoned.current.season) != null
+  // This season's share of each quest (per-day quests clipped to its days), so
+  // the list adds up to the quest line above it.
+  const completedQuests = (playerQuests.bySeason.get(seasoned.current.season.id) ?? []).filter(
+    (q) => q.progress.completed && q.progress.earnedExp > 0
   );
   const { exp } = progress;
 

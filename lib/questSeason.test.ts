@@ -47,12 +47,13 @@ describe("questForSeason", () => {
   });
 
   it("a one-off quest crossing the boundary goes whole to the season it ends in", () => {
+    const later = new Date("2026-12-10T12:00:00+07:00");
     const q = quest({ kind: "days-played", target: 2 });
-    expect(questForSeason(q, S1)).toBeNull();
-    expect(questForSeason(q, S2)).toEqual(q);
+    expect(questForSeason(q, S1, later)).toBeNull();
+    expect(questForSeason(q, S2, later)).toEqual(q);
     const ends = quest({ kind: "days-played", startDate: d("2026-11-23"), endDate: d("2026-11-30") });
-    expect(questForSeason(ends, S1)).toEqual(ends);
-    expect(questForSeason(ends, S2)).toBeNull();
+    expect(questForSeason(ends, S1, later)).toEqual(ends);
+    expect(questForSeason(ends, S2, later)).toBeNull();
   });
 });
 
@@ -77,5 +78,23 @@ describe("scoreQuestExpBySeason", () => {
     const m = scoreQuestExpBySeason("me", [quest({ endDate: d("2026-11-28") })], [sessions[0]], [club[0]], new Date("2026-11-28T12:00:00+07:00"));
     expect(m.get(1)).toBe(20);
     expect(m.has(2)).toBe(false);
+  });
+});
+
+describe("review fixes", () => {
+  const sessions = [session("2026-11-25"), session("2026-12-02")];
+  const club = [d("2026-11-25"), d("2026-12-02")];
+
+  it("before 30 Nov a one-off quest ending in Season 2 still counts in Season 1", () => {
+    const q = quest({ kind: "days-played", target: 1, expReward: 100, startDate: d("2026-11-01"), endDate: d("2026-12-01") });
+    const m = scoreQuestExpBySeason("me", [q], [sessions[0]], [club[0]], new Date("2026-11-26T12:00:00+07:00"));
+    expect(m.get(1)).toBe(100);
+  });
+
+  it("lists each season's quests with that season's own earned EXP", async () => {
+    const { scoreQuestsBySeason } = await import("./questProgress");
+    const lists = scoreQuestsBySeason("me", [quest()], sessions, club, new Date("2026-12-10T12:00:00+07:00"));
+    expect(lists.get(1)?.map((q) => q.progress.earnedExp)).toEqual([20]);
+    expect(lists.get(2)?.map((q) => q.progress.earnedExp)).toEqual([20]);
   });
 });

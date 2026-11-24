@@ -5,7 +5,8 @@ import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
 import { loadSeasonedProgress } from "@/lib/seasonProgress";
 import { loadSeasonLeaderboard } from "@/lib/leaderboard";
-import { loadQuestProgress, loadQuestExpBySeason, loadQuests } from "@/lib/questProgress";
+import { loadPlayerQuests, loadQuests } from "@/lib/questProgress";
+import { startedSeasons } from "@/lib/seasons";
 import { upcomingQuests, visibleQuests, isPerDayKind, thaiQuestRange } from "@/lib/quests";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
 import CoinGrid from "./CoinGrid";
@@ -74,18 +75,24 @@ export default async function PlayerProfilePage({
   });
   if (!athlete) notFound();
 
-  // Scored over every started quest — switched-off ones included, so hiding a
-  // quest never claws back EXP. Only the visible ones are rendered.
-  const scored = await loadQuestProgress(id);
-  const quests = visibleQuests(scored);
-  // Quests that haven't started yet: shown as a locked preview so a member sees
-  // what's coming (the in-window `quests` above hides them until they open).
-  const upcoming = upcomingQuests(await loadQuests(true), new Date());
-  const [stats, recent, seasoned] = await Promise.all([
+  // Once a later season has begun, the Season 1 table gives the shelf its rank.
+  const pastSeason = startedSeasons().length > 1 ? startedSeasons()[0] : null;
+  // Quest EXP is scored once and shared by the quest cards and the totals.
+  const questsP = loadPlayerQuests(id);
+  const [playerQuests, upcomingAll, stats, recent, seasoned, pastTable] = await Promise.all([
+    questsP,
+    loadQuests(true),
     loadPlayerGames(id).then((games) => computePlayerStats(games)),
     loadPlayerMatchHistory(id, 10),
-    loadQuestExpBySeason(id).then((q) => loadSeasonedProgress(id, q)),
+    questsP.then((q) => loadSeasonedProgress(id, q.expBySeason)),
+    pastSeason ? loadSeasonLeaderboard(pastSeason.id) : Promise.resolve(null),
   ]);
+  // Scored over every started quest — switched-off ones included, so hiding a
+  // quest never claws back EXP. Only the visible ones are rendered.
+  const quests = visibleQuests(playerQuests.quests);
+  // Quests that haven't started yet: shown as a locked preview so a member sees
+  // what's coming (the in-window `quests` above hides them until they open).
+  const upcoming = upcomingQuests(upcomingAll, new Date());
 
   // Level is lifetime; EXP and coins are the current season's. Career stats
   // (days, games, wins) stay lifetime — they are a record, not a mission score.
@@ -97,9 +104,7 @@ export default async function PlayerProfilePage({
 
   // The Season 1 souvenir shelf, once a later season has begun.
   const ss1 = multiSeason ? seasoned.seasons[0] : null;
-  const ss1Rank = ss1
-    ? (await loadSeasonLeaderboard(ss1.season.id)).find((e) => e.athleteId === id)?.rank ?? null
-    : null;
+  const ss1Rank = pastTable?.find((e) => e.athleteId === id)?.rank ?? null;
   const shelf = ss1
     ? {
         title: `🏛️ ที่ระลึก ${ss1.season.label}`,
