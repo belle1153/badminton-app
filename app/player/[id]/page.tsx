@@ -3,11 +3,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
 import { computePlayerStats, loadPlayerGames, loadPlayerMatchHistory } from "@/lib/playerStats";
-import { loadPlayerProgress } from "@/lib/playerProgress";
-import { loadQuestProgress, questExp, loadQuests } from "@/lib/questProgress";
+import { loadSeasonedProgress } from "@/lib/seasonProgress";
+import { loadSeasonLeaderboard } from "@/lib/leaderboard";
+import { loadQuestProgress, loadQuestExpBySeason, loadQuests } from "@/lib/questProgress";
 import { upcomingQuests, visibleQuests, isPerDayKind, thaiQuestRange } from "@/lib/quests";
 import GameHistoryTable, { type HistoryRow } from "../../session/GameHistoryTable";
-import AchievementCoin from "./AchievementCoin";
+import CoinGrid from "./CoinGrid";
 import RememberMe from "./RememberMe";
 
 export const dynamic = "force-dynamic";
@@ -80,14 +81,44 @@ export default async function PlayerProfilePage({
   // Quests that haven't started yet: shown as a locked preview so a member sees
   // what's coming (the in-window `quests` above hides them until they open).
   const upcoming = upcomingQuests(await loadQuests(true), new Date());
-  const [stats, recent, progress] = await Promise.all([
+  const [stats, recent, seasoned] = await Promise.all([
     loadPlayerGames(id).then((games) => computePlayerStats(games)),
     loadPlayerMatchHistory(id, 10),
-    loadPlayerProgress(id, questExp(scored)),
+    loadQuestExpBySeason(id).then((q) => loadSeasonedProgress(id, q)),
   ]);
 
-  const theme = progress.level.theme;
-  const earnedCount = progress.achievements.filter((a) => a.earned).length;
+  // Level is lifetime; EXP and coins are the current season's. Career stats
+  // (days, games, wins) stay lifetime — they are a record, not a mission score.
+  const level = seasoned.level;
+  const progress = seasoned.current.progress;
+  const seasonLabel = seasoned.current.season.label;
+  const multiSeason = seasoned.seasons.length > 1;
+  const theme = level.theme;
+
+  // The Season 1 souvenir shelf, once a later season has begun.
+  const ss1 = multiSeason ? seasoned.seasons[0] : null;
+  const ss1Rank = ss1
+    ? (await loadSeasonLeaderboard(ss1.season.id)).find((e) => e.athleteId === id)?.rank ?? null
+    : null;
+  const shelf = ss1
+    ? {
+        title: `🏛️ ที่ระลึก ${ss1.season.label}`,
+        summary: [
+          `${ss1.progress.achievements.filter((a) => a.earned).length} เหรียญ`,
+          `EXP ${ss1.progress.exp.total.toLocaleString()}`,
+          ss1Rank != null ? `อันดับ ${ss1Rank}` : null,
+          `Lv.${ss1.progress.level.level}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        achievements: ss1.progress.achievements.filter((a) => a.earned),
+      }
+    : undefined;
+  const seasonCoins = seasoned.seasons.map((s) => ({
+    id: s.season.id,
+    label: s.season.label,
+    earnedIds: s.progress.achievements.filter((a) => a.earned).map((a) => a.id),
+  }));
 
   const historyRows: HistoryRow[] = recent.map((m) => ({
     id: m.id,
@@ -196,7 +227,7 @@ export default async function PlayerProfilePage({
                       textShadow: `0 0 10px ${theme.accent}99, 2px 2px 0 rgba(0,0,0,.5)`,
                     }}
                   >
-                    Lv.{progress.level.level}
+                    Lv.{level.level}
                   </span>
                   <span
                     className="rounded-sm px-2.5 py-1 text-xs font-bold"
@@ -206,10 +237,16 @@ export default async function PlayerProfilePage({
                       border: `1px solid ${theme.border}`,
                     }}
                   >
-                    {theme.icon} {progress.level.rank}
+                    {theme.icon} {level.rank}
                   </span>
-                  <span className="ml-auto text-xs tabular-nums text-[#9fb4c9]">
-                    {progress.exp.total.toLocaleString()} EXP
+                  <span className="ml-auto flex flex-col items-end gap-0.5 text-xs tabular-nums text-[#9fb4c9]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="rounded-sm bg-amber-300 px-1.5 text-[10px] font-bold text-[#0b1c30]">{seasonLabel}</span>
+                      {progress.exp.total.toLocaleString()} EXP
+                    </span>
+                    {multiSeason && (
+                      <span className="text-[10px] text-[#5d7086]">EXP รวม {seasoned.lifetimeExp.toLocaleString()}</span>
+                    )}
                   </span>
                 </div>
 
@@ -221,20 +258,21 @@ export default async function PlayerProfilePage({
                     <div
                       className="h-full"
                       style={{
-                        width: `${Math.round(progress.level.progress * 100)}%`,
+                        width: `${Math.round(level.progress * 100)}%`,
                         backgroundImage: `repeating-linear-gradient(90deg, ${theme.accent} 0 6px, ${theme.accentDim} 6px 8px)`,
                         boxShadow: `0 0 8px ${theme.accent}aa`,
                       }}
                     />
                   </div>
                   <p className="text-[11px] tabular-nums text-[#8095ad]">
-                    อีก {progress.level.toNextLevel.toLocaleString()} EXP ถึง Lv.
-                    {progress.level.level + 1}
+                    อีก {level.toNextLevel.toLocaleString()} EXP ถึง Lv.
+                    {level.level + 1}
                   </p>
                 </div>
 
                 <p className="text-[10.5px] text-[#5d7086]">
                   เลเวลนับจากการมาเล่นและลงสนาม — คนละเรื่องกับระดับมือ
+                  {multiSeason && " · EXP นับใหม่ทุก Season แต่ Lv. ไม่ลด"}
                 </p>
               </div>
             </section>
@@ -352,19 +390,12 @@ export default async function PlayerProfilePage({
               </section>
             )}
 
-            <section className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-bold text-[#e2e8f2]">เหรียญสะสม</h2>
-                <span className="text-[11px] tabular-nums text-[#5d7086]">
-                  {earnedCount}/{progress.achievements.length}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2.5">
-                {progress.achievements.map((a, i) => (
-                  <AchievementCoin key={a.id} achievement={a} index={i} />
-                ))}
-              </div>
-            </section>
+            <CoinGrid
+              achievements={progress.achievements}
+              currentLabel={seasonLabel}
+              seasons={seasonCoins}
+              shelf={shelf}
+            />
 
             {recent.length > 0 && (
               <section className="flex flex-col gap-2">

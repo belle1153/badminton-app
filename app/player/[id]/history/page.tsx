@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { loadPlayerProgress } from "@/lib/playerProgress";
-import { loadQuestProgress, questExp } from "@/lib/questProgress";
+import { loadSeasonedProgress } from "@/lib/seasonProgress";
+import { loadQuestProgress, loadQuestExpBySeason, questForSeason } from "@/lib/questProgress";
 import { isPerDayKind } from "@/lib/quests";
 import { expForBadge } from "@/lib/achievementRarity";
 import { EXP_RATES } from "@/lib/exp";
@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
  * the numbers here always match the profile total.
  */
 
-const PANEL = "border-2 border-[#384a63] bg-[#232f42] shadow-[5px_5px_0_rgba(0,0,0,0.35)]";
+const PANEL =
+  "border-2 border-[#384a63] bg-[#232f42] shadow-[5px_5px_0_rgba(0,0,0,0.35)]";
 
 /** Session dates are stored at UTC midnight of the intended local date. */
 function thaiDate(date: Date): string {
@@ -42,14 +43,25 @@ export default async function PointsHistoryPage({
   });
   if (!athlete) notFound();
 
-  const quests = await loadQuestProgress(id);
-  const qExp = questExp(quests);
-  const progress = await loadPlayerProgress(id, qExp);
+  const [quests, questBySeason] = await Promise.all([
+    loadQuestProgress(id),
+    loadQuestExpBySeason(id),
+  ]);
+  const seasoned = await loadSeasonedProgress(id, questBySeason);
+  // The totals are this season's (what the profile shows); the timeline runs
+  // across every season, with a divider where each one starts.
+  const progress = seasoned.current.progress;
+  const seasonLabel = seasoned.current.season.label;
+  const multiSeason = seasoned.seasons.length > 1;
+  const qExp = questBySeason.get(seasoned.current.season.id) ?? 0;
 
   const badgeExp = progress.achievements
     .filter((a) => a.earned)
     .reduce((n, a) => n + expForBadge(a.target), 0);
-  const completedQuests = quests.filter((q) => q.progress.completed);
+  // Only quests that pay into the season being totalled, so the list adds up.
+  const completedQuests = quests.filter(
+    (q) => q.progress.completed && questForSeason(q, seasoned.current.season) != null
+  );
   const { exp } = progress;
 
   // Every EXP source, so the list adds up to the profile total exactly.
@@ -63,8 +75,12 @@ export default async function PointsHistoryPage({
     { label: "เควสสำเร็จ", value: qExp },
   ].filter((s) => s.value > 0);
 
-  // Newest day first.
-  const days = [...progress.expDays].reverse();
+  // Newest day first, each tagged with its season for the dividers.
+  const days = seasoned.seasons
+    .flatMap((s) =>
+      s.progress.expDays.map((d) => ({ ...d, seasonLabel: s.season.label })),
+    )
+    .reverse();
 
   return (
     <div
@@ -79,29 +95,48 @@ export default async function PointsHistoryPage({
           href={`/player/${id}`}
           className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-[#8fa3bd] hover:text-white"
         >
-          <span className="font-[family-name:var(--font-pixel-display)] text-[10px]">&lt;</span>
+          <span className="font-[family-name:var(--font-pixel-display)] text-[10px]">
+            &lt;
+          </span>
           กลับโปรไฟล์
         </Link>
 
         <section className={`pixel-frame flex flex-col gap-1 p-4 ${PANEL}`}>
-          <h1 className="text-[17px] font-bold text-[#f2f5fa]">📜 ประวัติการเก็บแต้ม</h1>
+          <h1 className="text-[17px] font-bold text-[#f2f5fa]">
+            📜 ประวัติการเก็บแต้ม
+          </h1>
           <p className="text-[12.5px] text-[#8095ad]">{athlete.name}</p>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-[family-name:var(--font-pixel-display)] text-[22px] text-[#6fdc9a]">
               {exp.total.toLocaleString()}
             </span>
-            <span className="text-[12px] text-[#8095ad]">EXP รวม</span>
+            <span className="text-[12px] text-[#8095ad]">
+              {multiSeason ? `EXP ${seasonLabel}` : "EXP รวม"}
+            </span>
           </div>
+          {multiSeason && (
+            <span className="text-[11px] tabular-nums text-[#5d7086]">
+              EXP รวมทุก Season {seasoned.lifetimeExp.toLocaleString()} · Lv.
+              {seasoned.level.level}
+            </span>
+          )}
         </section>
 
-        {exp.total === 0 ? (
+        {seasoned.lifetimeExp === 0 ? (
           <p className={`pixel-frame p-4 text-[13px] text-[#8095ad] ${PANEL}`}>
             ยังไม่มีแต้ม — เริ่มเก็บได้หลังลงเล่นจบเกมแรกครับ
           </p>
         ) : (
           <>
             <section className="flex flex-col gap-2">
-              <h2 className="text-sm font-bold text-[#e2e8f2]">ที่มาของ EXP</h2>
+              <h2 className="text-sm font-bold text-[#e2e8f2]">
+                ที่มาของ EXP{multiSeason ? ` · ${seasonLabel}` : ""}
+              </h2>
+              {sources.length === 0 && (
+                <p className="text-[12px] text-[#8095ad]">
+                  {seasonLabel} ยังไม่มีแต้ม — เริ่มเก็บใหม่ได้เลยครับ
+                </p>
+              )}
               <ul className="flex flex-col rounded border border-[#384a63] bg-[#232f42]">
                 {sources.map((s) => (
                   <li
@@ -119,7 +154,9 @@ export default async function PointsHistoryPage({
 
             {completedQuests.length > 0 && (
               <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-bold text-[#e2e8f2]">🎯 เควสที่ทำสำเร็จ</h2>
+                <h2 className="text-sm font-bold text-[#e2e8f2]">
+                  🎯 เควสที่ทำสำเร็จ
+                </h2>
                 <ul className="flex flex-col rounded border border-[#384a63] bg-[#232f42]">
                   {completedQuests.map((q) => (
                     <li
@@ -155,7 +192,7 @@ export default async function PointsHistoryPage({
                 แต้มที่ได้แต่ละวันที่มาเล่น · ใหม่สุดอยู่บน
               </p>
               <ul className="flex flex-col gap-2">
-                {days.map((d) => {
+                {days.map((d, i) => {
                   const parts = [
                     { label: "มาเล่น", v: d.attendance },
                     { label: `${d.games} เกม`, v: d.gamesExp },
@@ -163,28 +200,41 @@ export default async function PointsHistoryPage({
                     { label: "ต่อเนื่อง", v: d.streakBonus },
                     { label: "คู่ใหม่", v: d.newPartnerBonus },
                   ].filter((p) => p.v > 0);
+                  const divider =
+                    multiSeason &&
+                    (i === 0 || days[i - 1].seasonLabel !== d.seasonLabel);
                   return (
                     <li
                       key={d.date.toISOString()}
-                      className="flex flex-col gap-1.5 rounded border border-[#384a63] bg-[#232f42] px-3 py-2.5"
+                      className="flex flex-col gap-2"
                     >
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[13px] font-semibold text-[#e2e8f2]">
-                          {thaiDate(d.date)}
+                      {divider && (
+                        <span className="text-center text-[11px] font-bold tracking-wider text-[#e8c766]">
+                          — {d.seasonLabel} —
                         </span>
-                        <span className="ml-auto font-[family-name:var(--font-pixel-display)] text-[13px] text-[#6fdc9a]">
-                          +{d.total.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {parts.map((p) => (
-                          <span
-                            key={p.label}
-                            className="rounded-full bg-[#1a2433] px-2 py-0.5 text-[10.5px] text-[#9fb4c9]"
-                          >
-                            {p.label} <span className="tabular-nums text-[#6fdc9a]">+{p.v}</span>
+                      )}
+                      <div className="flex flex-col gap-1.5 rounded border border-[#384a63] bg-[#232f42] px-3 py-2.5">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[13px] font-semibold text-[#e2e8f2]">
+                            {thaiDate(d.date)}
                           </span>
-                        ))}
+                          <span className="ml-auto font-[family-name:var(--font-pixel-display)] text-[13px] text-[#6fdc9a]">
+                            +{d.total.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {parts.map((p) => (
+                            <span
+                              key={p.label}
+                              className="rounded-full bg-[#1a2433] px-2 py-0.5 text-[10.5px] text-[#9fb4c9]"
+                            >
+                              {p.label}{" "}
+                              <span className="tabular-nums text-[#6fdc9a]">
+                                +{p.v}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </li>
                   );

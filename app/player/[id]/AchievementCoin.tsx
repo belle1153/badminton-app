@@ -50,8 +50,8 @@ export default function AchievementCoin({
 
   const coin = (
     <div
-      className={`relative shrink-0 ${earned ? "" : "grayscale"}`}
-      style={{ width: px, height: px, filter: earned ? undefined : "brightness(.5)" }}
+      className="relative shrink-0"
+      style={{ width: px, height: px, filter: earned ? undefined : "grayscale(1) brightness(.5)" }}
     >
       {/* Glow pool behind the coin; legendary breathes gold ↔ purple. */}
       {earned && (
