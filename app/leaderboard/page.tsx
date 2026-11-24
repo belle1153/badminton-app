@@ -2,6 +2,7 @@ import Link from "next/link";
 import { loadLeaderboard, type LeaderboardEntry } from "@/lib/leaderboard";
 import QuestBoard from "./QuestBoard";
 import { missionSummaryOpen } from "@/lib/missionSummary";
+import { currentSeason } from "@/lib/seasons";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,8 @@ function Avatar({
 
 export default async function LeaderboardPage() {
   const [top, summaryOpen] = await Promise.all([loadLeaderboard(), missionSummaryOpen()]);
+  const season = currentSeason();
+  const firstSeason = season.start == null;
 
   // Everyone who holds each of the top three places — a tie puts two or more
   // people on the same block rather than pushing one of them off it.
@@ -91,8 +94,17 @@ export default async function LeaderboardPage() {
         </Link>
 
         <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-bold text-[#f2f5fa]">🏆 อันดับโคตรตึง!</h1>
-          <p className="text-[12.5px] text-[#8095ad]">อันดับทุกคนในก๊วน — วัดจาก EXP</p>
+          <h1 className="flex items-center gap-2 text-xl font-bold text-[#f2f5fa]">
+            🏆 อันดับโคตรตึง!
+            <span className="rounded-full bg-amber-300 px-2.5 py-0.5 text-[11px] font-bold text-[#0b1c30]">
+              {season.label}
+            </span>
+          </h1>
+          <p className="text-[12.5px] text-[#8095ad]">
+            {firstSeason
+              ? "อันดับทุกคนในก๊วน — วัดจาก EXP"
+              : `อันดับทุกคนในก๊วน — วัดจาก EXP ของ ${season.label} (นับใหม่ทุก Season · Lv. ไม่ลด)`}
+          </p>
         </div>
 
         {summaryOpen && (
@@ -100,14 +112,16 @@ export default async function LeaderboardPage() {
             href="/leaderboard/summary"
             className="flex items-center justify-between rounded border-2 border-amber-300/70 bg-[#232f42] px-3 py-2.5 text-[13px] font-semibold text-amber-300 hover:bg-[#2a3950]"
           >
-            🏆 สรุปมิชชั่นโคตรตึง · 3 อันดับแรกแต่ละหมวด
+            🏆 สรุป Season 1 · Hall of Fame
             <span className="font-[family-name:var(--font-pixel-display)] text-[10px]">&gt;</span>
           </Link>
         )}
 
         {top.length === 0 ? (
           <p className="rounded border-2 border-[#384a63] bg-[#232f42] p-4 text-[13px] text-[#8095ad]">
-            ยังไม่มีใครมีสถิติ — อันดับจะขึ้นหลังมีเกมที่เล่นจบครับ
+            {firstSeason
+              ? "ยังไม่มีใครมีสถิติ — อันดับจะขึ้นหลังมีเกมที่เล่นจบครับ"
+              : `${season.label} เพิ่งเริ่ม — อันดับจะขึ้นหลังมีเกมที่เล่นจบครับ`}
           </p>
         ) : (
           <>

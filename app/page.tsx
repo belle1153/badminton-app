@@ -151,8 +151,8 @@ export default async function Home() {
             className={`rounded-2xl border-2 ${summaryOpen ? "border-amber-300 shadow-[0_0_16px_rgba(255,207,77,0.3)]" : "border-dashed border-amber-300"} bg-[#141d2b] p-6 flex flex-col items-center gap-1.5 text-center hover:border-amber-200 transition`}
           >
             <span className="text-4xl">🏆</span>
-            <span className="font-bold text-lg text-amber-300">สรุปมิชชั่นโคตรตึง</span>
-            <span className="text-xs text-slate-400">3 อันดับแรก เล่นมากสุด · Win Rate · เหรียญ และอื่น ๆ</span>
+            <span className="font-bold text-lg text-amber-300">สรุป Season 1</span>
+            <span className="text-xs text-slate-400">Hall of Fame · อันดับ EXP 1–5 · เล่นมากสุด · Win Rate · เหรียญ และอื่น ๆ</span>
             {!summaryOpen && <span className="text-xs text-amber-300">แอดมินเห็นคนเดียว · ผู้เล่นยังไม่เห็นการ์ดนี้</span>}
           </Link>
         )}

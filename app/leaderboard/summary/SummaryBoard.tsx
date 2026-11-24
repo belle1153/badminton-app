@@ -14,12 +14,14 @@ function Value({ row, unit, big }: { row: SummaryRow; unit: string; big?: boolea
 }
 
 /** One category: the winner(s) up front and large, then second and third. */
-function CategoryCard({ c }: { c: SummaryCategory }) {
+function CategoryCard({ c, wide }: { c: SummaryCategory; wide?: boolean }) {
   const first = c.rows.filter((r) => r.rank === 1);
   const rest = c.rows.filter((r) => r.rank > 1);
   return (
     <section
-      className="relative flex w-full flex-col gap-4 overflow-hidden rounded-2xl border p-4 md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] xl:p-5"
+      className={`relative flex w-full flex-col gap-4 overflow-hidden rounded-2xl border p-4 xl:p-5 ${
+        wide ? "" : "md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)]"
+      }`}
       style={{
         borderColor: "#ffcf4d40",
         background: "linear-gradient(165deg, #2a3650 0%, #18223a 55%, #121a2c 100%)",
@@ -65,7 +67,11 @@ function CategoryCard({ c }: { c: SummaryCategory }) {
           </div>
 
           {rest.length > 0 && (
-            <ol className="relative flex flex-col gap-2 border-t border-white/10 pt-3">
+            <ol
+              className={`relative grid gap-2 border-t border-white/10 pt-3 ${
+                wide ? "md:grid-cols-2 xl:grid-cols-4" : ""
+              }`}
+            >
               {rest.map((r) => (
                 <li key={r.athleteId}>
                   <Link href={`/player/${r.athleteId}`} className="flex items-center gap-3 rounded-lg px-1 py-0.5 hover:bg-white/5">
@@ -94,10 +100,14 @@ function CategoryCard({ c }: { c: SummaryCategory }) {
   );
 }
 
-/** The seven categories; an odd last card sits centred rather than hanging left. */
-export default function SummaryBoard({ categories }: { categories: SummaryCategory[] }) {
+/**
+ * The season's EXP top five across the full width, then the seven categories;
+ * an odd last card sits centred rather than hanging left.
+ */
+export default function SummaryBoard({ exp, categories }: { exp: SummaryCategory; categories: SummaryCategory[] }) {
   return (
     <div className="flex flex-wrap justify-center gap-4">
+      <CategoryCard c={exp} wide />
       {categories.map((c) => (
         <CategoryCard key={c.id} c={c} />
       ))}

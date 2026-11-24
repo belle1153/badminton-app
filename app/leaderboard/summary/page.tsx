@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { isAdmin } from "@/lib/adminAuth";
-import { loadMissionSummary, missionSummaryOpen, MIN_GAMES } from "@/lib/missionSummary";
+import { loadMissionSummary, missionSummaryOpen, MIN_GAMES, type MissionSummary } from "@/lib/missionSummary";
 import SummaryBoard from "./SummaryBoard";
 import AwardPresenter from "./AwardPresenter";
 
 export const dynamic = "force-dynamic";
 
 /**
- * มิชชั่นโคตรตึง summary: top three in seven categories, hall-of-fame style, plus a
- * full-screen award mode for the ceremony. Hidden until the admin opens it.
+ * มิชชั่นโคตรตึง Season 1 summary: the EXP top five and the top three in seven
+ * categories, hall-of-fame style, plus a full-screen award mode for the
+ * ceremony. Counts Season 1 only, so it is the season's permanent record.
+ * Hidden until the admin opens it.
  */
 export default async function MissionSummaryPage() {
   const [open, admin] = await Promise.all([missionSummaryOpen(), isAdmin()]);
   const visible = open || admin;
-  const categories = visible ? await loadMissionSummary() : [];
+  const summary: MissionSummary | null = visible ? await loadMissionSummary() : null;
+  // Award mode reads the EXP section last: the season's top prize closes the show.
+  const shows = summary ? [...summary.categories, summary.exp] : [];
 
   return (
     <div
@@ -43,7 +47,7 @@ export default async function MissionSummaryPage() {
               ✦
             </span>
           </span>
-          <span className="text-xs font-bold tracking-[0.35em] text-[#e8c766] md:text-sm">TUATUENG HALL OF FAME</span>
+          <span className="text-xs font-bold tracking-[0.35em] text-[#e8c766] md:text-sm">TUATUENG HALL OF FAME · SEASON&nbsp;1</span>
           <h1
             className="text-4xl font-bold leading-tight md:text-5xl xl:text-6xl"
             style={{
@@ -54,16 +58,16 @@ export default async function MissionSummaryPage() {
               filter: "drop-shadow(0 0 16px rgba(255,207,77,.35))",
             }}
           >
-            สรุปมิชชั่นโคตรตึง
+            สรุปมิชชั่นโคตรตึง Season 1
           </h1>
           <p className="max-w-2xl text-[13px] text-[#a9bdd3] md:text-sm">
-            3 อันดับแรกของแต่ละหมวด นับจากทุกเกมที่เล่นจบ · Win Rate นับเฉพาะคนที่เล่น {MIN_GAMES} เกมขึ้นไป ·
+            อันดับ EXP ที่ 1–5 และ 3 อันดับแรกของแต่ละหมวด นับจากทุกเกมที่เล่นจบใน Season 1 · Win Rate นับเฉพาะคนที่เล่น {MIN_GAMES} เกมขึ้นไป ·
             คะแนนเท่ากันได้อันดับเท่ากัน
           </p>
-          {visible && <AwardPresenter categories={categories} />}
+          {summary && <AwardPresenter categories={shows} />}
         </header>
 
-        {!visible ? (
+        {!summary ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[#384a63] p-8 text-center">
             <span className="text-4xl">🔒</span>
             <span className="rounded-full bg-amber-300 px-3 py-0.5 text-xs font-bold text-[#0b1c30]">Coming soon</span>
@@ -75,7 +79,7 @@ export default async function MissionSummaryPage() {
                 แอดมินเห็นหน้านี้คนเดียว · ผู้เล่นยังเห็น &quot;Coming soon&quot; จนกว่าจะเปิดที่หน้าเควสของแอดมิน
               </p>
             )}
-            <SummaryBoard categories={categories} />
+            <SummaryBoard exp={summary.exp} categories={summary.categories} />
           </>
         )}
       </main>

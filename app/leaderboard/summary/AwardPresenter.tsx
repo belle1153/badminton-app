@@ -17,7 +17,9 @@ type Step = { cat: number; shown: number[] }; // shown = places revealed so far
 function buildSteps(categories: SummaryCategory[]): Step[] {
   const steps: Step[] = [];
   categories.forEach((c, cat) => {
-    const places = [3, 2, 1].filter((p) => c.rows.some((r) => r.rank === p));
+    // The EXP category has five places: 5th and 4th open first, above the podium.
+    const order = c.id === "exp" ? [5, 4, 3, 2, 1] : [3, 2, 1];
+    const places = order.filter((p) => c.rows.some((r) => r.rank === p));
     steps.push({ cat, shown: [] });
     places.forEach((_, i) => steps.push({ cat, shown: places.slice(0, i + 1) }));
   });
@@ -231,7 +233,7 @@ export default function AwardPresenter({ categories }: { categories: SummaryCate
           {firstShown && <Confetti key={i} seed={i} />}
 
           <div className="relative flex items-center justify-between px-6 pt-4 text-[clamp(12px,1.6vh,16px)] text-[#8fa3bd]">
-            <span>🏆 สรุปมิชชั่นโคตรตึง</span>
+            <span>🏆 สรุปมิชชั่นโคตรตึง · Season 1</span>
             <button
               type="button"
               onClick={(e) => {
@@ -261,6 +263,39 @@ export default function AwardPresenter({ categories }: { categories: SummaryCate
             </h1>
             {c.note && <span className="text-[clamp(13px,2vh,22px)] text-[#a9bdd3]">{c.note}</span>}
           </div>
+
+          {c.rows.some((r) => r.rank > 3) && (
+            <div className="relative mx-auto mt-[2vh] flex flex-wrap items-center justify-center gap-x-[3vw] gap-y-2 px-[3vw]">
+              {[4, 5].flatMap((place) =>
+                c.rows
+                  .filter((r) => r.rank === place)
+                  .map((r) => (
+                    <div
+                      key={r.athleteId}
+                      className={`flex items-center gap-3 rounded-full border border-white/15 bg-white/5 py-1.5 pl-1.5 pr-5 ${
+                        step.shown.includes(place) ? "award-rise" : "invisible"
+                      }`}
+                    >
+                      <span
+                        className="grid shrink-0 place-items-center rounded-full font-bold text-[#1c2536]"
+                        style={{ background: MEDAL[place - 1].mid, width: "clamp(28px,4vh,44px)", height: "clamp(28px,4vh,44px)", fontSize: "clamp(14px,2.2vh,22px)" }}
+                      >
+                        {place}
+                      </span>
+                      <AwardAvatar row={r} rank={place} size={64} cssSize="min(64px, 7vh)" />
+                      <span className="font-bold text-white" style={{ fontSize: "clamp(16px,2.6vh,28px)" }}>
+                        {r.name}
+                      </span>
+                      <span className="font-bold tabular-nums text-[#ffcf4d]" style={{ fontSize: "clamp(16px,2.6vh,28px)" }}>
+                        {r.value.toLocaleString()}
+                        <span className="ml-1 text-[0.55em] text-[#e8c766]">{c.unit}</span>
+                      </span>
+                      {r.detail && <span className="text-[clamp(12px,1.6vh,16px)] text-[#a9bdd3]">{r.detail}</span>}
+                    </div>
+                  ))
+              )}
+            </div>
+          )}
 
           {c.rows.length === 0 ? (
             <p className="m-auto text-[clamp(18px,3vh,32px)] text-[#a9bdd3]">ยังไม่มีใครเข้าเกณฑ์</p>
