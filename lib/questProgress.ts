@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
+import { seasonOf, startedSeasons, type Season, type SeasonId } from "@/lib/seasons";
 import {
+  isPerDayKind,
   evaluateQuest,
   signedUpBeforeDay,
   startedQuests,
@@ -57,7 +59,7 @@ export async function loadQuests(activeOnly = true): Promise<QuestDef[]> {
 }
 
 /** One session, in the shape the quest maths needs. */
-interface QuestSession {
+export interface QuestSession {
   date: Date;
   signUps: {
     athleteId: string | null;
@@ -300,4 +302,70 @@ export async function loadQuestRoster(
       (d) => d.getTime() >= quest.startDate.getTime() && d.getTime() < quest.endDate.getTime()
     ).length,
   };
+}
+
+/**
+ * The part of a quest that belongs to a season, or null when none does.
+ *
+ * Per-day quests pay per qualifying day, so they are clipped at the season
+ * boundary: each day pays into its own season. A one-off quest (a target over
+ * the whole window, or a single payout) cannot be cut — split in two it could
+ * pay twice (perfect attendance in both halves) or not at all (a 10-game
+ * target met 6 + 4) — so it goes whole to the season its window ends in.
+ * Either way nothing played after a season ends changes that season's EXP.
+ */
+export function questForSeason<T extends QuestDef>(q: T, s: Season): T | null {
+  if (!isPerDayKind(q.kind)) {
+    return seasonOf(new Date(q.endDate.getTime() - 1)) === s.id ? q : null;
+  }
+  const start = s.start && s.start > q.startDate ? s.start : q.startDate;
+  const end = s.end && s.end < q.endDate ? s.end : q.endDate;
+  return start < end ? { ...q, startDate: start, endDate: end } : null;
+}
+
+/** Quest EXP per started season for one athlete, from already-loaded data. */
+export function scoreQuestExpBySeason(
+  athleteId: string,
+  quests: QuestDef[],
+  sessions: QuestSession[],
+  clubDays: Date[],
+  now: Date = new Date()
+): Map<SeasonId, number> {
+  const out = new Map<SeasonId, number>();
+  for (const season of startedSeasons(now)) {
+    const qs = quests.map((q) => questForSeason(q, season)).filter((q): q is QuestDef => q != null);
+    if (qs.length === 0) continue;
+    // Sessions stay unfiltered: a one-off quest assigned whole to this season
+    // still reads its full window; clipped quests read only their own days.
+    const exp = questExp(evaluateAthlete(athleteId, qs, sessions, clubDays, now));
+    if (exp > 0) out.set(season.id, exp);
+  }
+  return out;
+}
+
+export async function loadQuestExpBySeason(
+  athleteId: string,
+  now: Date = new Date()
+): Promise<Map<SeasonId, number>> {
+  const quests = startedQuests(await loadQuests(false), now);
+  if (quests.length === 0) return new Map();
+  const { sessions, clubDays } = await loadQuestData(quests);
+  return scoreQuestExpBySeason(athleteId, quests, sessions, clubDays, now);
+}
+
+/** loadQuestExpByAthlete, split by season — same two queries for the roster. */
+export async function loadQuestExpByAthleteBySeason(
+  now: Date = new Date()
+): Promise<Map<string, Map<SeasonId, number>>> {
+  const quests = startedQuests(await loadQuests(false), now);
+  const out = new Map<string, Map<SeasonId, number>>();
+  if (quests.length === 0) return out;
+  const { sessions, clubDays } = await loadQuestData(quests);
+  const athleteIds = new Set<string>();
+  for (const s of sessions) for (const su of s.signUps) if (su.athleteId) athleteIds.add(su.athleteId);
+  for (const athleteId of athleteIds) {
+    const m = scoreQuestExpBySeason(athleteId, quests, sessions, clubDays, now);
+    if (m.size > 0) out.set(athleteId, m);
+  }
+  return out;
 }
