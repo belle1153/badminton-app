@@ -96,6 +96,17 @@ body {
 /* Legendary coins shift between their two glows. Repeats the rim insets from
    AchievementCoin, because box-shadow animates as a whole — omitting them here
    would flatten the coin for the duration of the animation. */
+/* Legendary coins breathe between gold and purple (AchievementCoin). */
+@keyframes legendglow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px 2px #ffcf4daa, 0 0 24px 6px #ffcf4d44;
+  }
+  50% {
+    box-shadow: 0 0 10px 2px #b07cffaa, 0 0 24px 6px #b07cff44;
+  }
+}
+
 @keyframes duoglow {
   0%,
   100% {

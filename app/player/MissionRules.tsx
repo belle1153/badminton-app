@@ -1,6 +1,7 @@
 import { EXP_RATES } from "@/lib/exp";
 import { RARITY_EXP, RARITY_PALETTE, rarityFor, type Rarity } from "@/lib/achievementRarity";
 import { computeAchievements } from "@/lib/achievements";
+import AchievementCoin from "./[id]/AchievementCoin";
 import { expForStep } from "@/lib/levels";
 
 /**
@@ -150,14 +151,19 @@ export default function MissionRules() {
             <li key={t.rarity} className="flex items-center gap-3 px-3 py-2.5">
               {/* Same ring shading the coins use, so the tier is recognisable
                   on the profile at a glance. */}
-              <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-base"
-                style={{
-                  background: `radial-gradient(circle at 34% 28%, ${t.palette.r1} 0%, ${t.palette.r1} 34%, ${t.palette.r2} 35%, ${t.palette.r2} 70%, ${t.palette.r3} 71%, ${t.palette.r3} 100%)`,
-                  boxShadow: `0 0 0 2px ${t.palette.r3}, 0 0 0 3px ${t.palette.glow}, 0 0 8px ${t.palette.glow}88`,
-                }}
-              >
-                {t.example}
+              <span className="shrink-0">
+                <AchievementCoin
+                  size="sm"
+                  index={0}
+                  achievement={{
+                    id: `tier-${t.rarity}`,
+                    icon: t.example,
+                    label: t.palette.label,
+                    earned: true,
+                    target: t.rarity === "legendary" ? null : t.rarity === "epic" ? 50 : t.rarity === "rare" ? 5 : 1,
+                    current: null,
+                  }}
+                />
               </span>
               <div className="flex min-w-0 flex-col">
                 <span className="text-[13px] font-semibold text-slate-200">

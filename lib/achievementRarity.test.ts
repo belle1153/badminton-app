@@ -87,3 +87,12 @@ describe("every real achievement gets a tier", () => {
     expect(tiers.size).toBeGreaterThan(1);
   });
 });
+
+describe("RARITY_PALETTE tags", () => {
+  it("each tier has its own English tag for the coin's band", () => {
+    expect(RARITY_PALETTE.legendary.tag).toBe("LEGEND");
+    expect(RARITY_PALETTE.common.tag).toBe("COMMON");
+    const tags = Object.values(RARITY_PALETTE).map((p) => p.tag);
+    expect(new Set(tags).size).toBe(4);
+  });
+});

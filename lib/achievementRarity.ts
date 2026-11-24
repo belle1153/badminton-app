@@ -6,28 +6,43 @@
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 
 export interface RarityPalette {
-  /** Highlight, mid and shadow bands of the coin's ring shading. */
+  /** Rim: the milled edge's light and dark metal. */
   r1: string;
   r2: string;
+  /** Face: the struck centre, light then dark. */
+  f1: string;
+  f2: string;
+  /** Darkest shade, for outlines. */
   r3: string;
   /** Outer glow. */
   glow: string;
   /** Second glow — only legendary has one, which is what makes it shift. */
   glow2?: string;
+  /** Tier band under the coin. */
+  tag: "COMMON" | "RARE" | "EPIC" | "LEGEND";
   label: string;
 }
 
+/**
+ * Metals spread far apart so tiers read at a glance: dull silver, blue,
+ * orange-gold, and gold around a purple face.
+ */
 export const RARITY_PALETTE: Record<Rarity, RarityPalette> = {
-  common: { r1: "#33465c", r2: "#182330", r3: "#05070b", glow: "#3b5a7a", label: "ทั่วไป" },
-  rare: { r1: "#6fb3ff", r2: "#2f6690", r3: "#0d1f30", glow: "#4f9fe6", label: "หายาก" },
-  epic: { r1: "#ffc27a", r2: "#e8822e", r3: "#4a260f", glow: "#ff9d4d", label: "เอปิก" },
+  common: {
+    r1: "#9fb3c8", r2: "#5b7088", f1: "#3a4d63", f2: "#18222f", r3: "#0b1018",
+    glow: "#3b5a7a", tag: "COMMON", label: "ทั่วไป",
+  },
+  rare: {
+    r1: "#9fd0ff", r2: "#3b82c4", f1: "#2b5a85", f2: "#10263b", r3: "#081521",
+    glow: "#4f9fe6", tag: "RARE", label: "หายาก",
+  },
+  epic: {
+    r1: "#ffe1a8", r2: "#e8952e", f1: "#8a4b17", f2: "#3a1d08", r3: "#1f0f04",
+    glow: "#ff9d4d", tag: "EPIC", label: "เอปิก",
+  },
   legendary: {
-    r1: "#ffc27a",
-    r2: "#2f6690",
-    r3: "#05070b",
-    glow: "#4f9fe6",
-    glow2: "#ff9d4d",
-    label: "ตำนาน",
+    r1: "#fff2b8", r2: "#d9a520", f1: "#6b3fa0", f2: "#241238", r3: "#120820",
+    glow: "#ffcf4d", glow2: "#b07cff", tag: "LEGEND", label: "ตำนาน",
   },
 };
 
