@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Design-tool mockups: large, mostly inlined base64, reference only
 docs/mockups/
+
+# brainstorming / plan scratch
+.superpowers/
