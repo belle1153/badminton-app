@@ -30,7 +30,8 @@ export function longestWinRun(games: DayGameResult[]): number {
 
 /**
  * Hours spent on court that day: from the block the player signed up for
- * (19:00 or 20:00 ICT) to their last finished game.
+ * (EARLY = the day's start, usually 19:00; LATE = an hour later) to their last
+ * finished game.
  *
  * Deliberately NOT based on `checkedOutAt` — only an admin can set that, so a
  * badge resting on it would be unearnable by the player themselves, and would

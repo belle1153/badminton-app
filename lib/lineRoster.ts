@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
 import { WEEKDAY_WORDS } from "@/lib/lineWhen";
+import { isStandardStart, slotLabel } from "@/lib/sessionTime";
 
 /** Where the LINE message tells people to sign up. Overridable so a new short
  *  link doesn't need a redeploy; defaults to the club's current link. */
@@ -8,6 +9,7 @@ const SIGNUP_URL = process.env.LINE_SIGNUP_URL ?? "https://tinyurl.com/54fk2r7s"
 
 interface RosterSession {
   date: Date;
+  startTime: string;
   maxPlayers: number;
   courtsEarly: number;
   courtsLate: number;
@@ -47,15 +49,20 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   const lateUsed = confirmed.filter((s) => s.timeSlot === "LATE").length;
   const waitlist = signups.filter((s) => s.status === "WAITLIST");
 
+  const early = slotLabel(session.startTime, "EARLY");
+  const late = slotLabel(session.startTime, "LATE");
+
   const DIVIDER = "━━━━━━━━━━━━";
   const lines: string[] = [
     "📣 อัปเดต! รายชื่อลงตีแบดก๊วนตัวตึงแหลมฉบัง 🏸",
     "",
     `🗓 ${dateLabel(session.date)}`,
-    `🏸 สนาม : 1 ทุ่ม ${session.courtsEarly} คอร์ท / 2 ทุ่ม ${session.courtsLate} คอร์ท`,
+    // A day off the usual 19:00 says so up front, so nobody turns up early.
+    ...(isStandardStart(session.startTime) ? [] : [`🕖 เริ่ม ${session.startTime} น.`]),
+    `🏸 สนาม : ${early} ${session.courtsEarly} คอร์ท / ${late} ${session.courtsLate} คอร์ท`,
     `👥️ เปิดรับ ${totalCapacity} คน`,
     "",
-    "🔸รอบ 1 ทุ่ม🔸",
+    `🔸รอบ ${early}🔸`,
   ];
 
   for (let n = 1; n <= earlyCapacity; n++) {
@@ -64,12 +71,12 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   }
 
   if (lateCapacity > 0) {
-    lines.push("", "🔸รอบ 2 ทุ่ม🔸");
+    lines.push("", `🔸รอบ ${late}🔸`);
     for (let n = earlyCapacity + 1; n <= totalCapacity; n++) {
       const s = bySlot.get(n);
       // Someone seated in 2 ทุ่ม who actually wanted 1 ทุ่ม is flagged, same as
       // the web roster, so the group can see who's waiting to jump up.
-      const tag = s && s.preferredSlot === "EARLY" ? " (จองคิว 1 ทุ่ม)" : "";
+      const tag = s && s.preferredSlot === "EARLY" ? ` (จองคิว ${early})` : "";
       lines.push(s ? `${n}. ${s.name}${tag}` : `${n}.`);
     }
   }
@@ -79,15 +86,15 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
   if (waitlist.length > 0) {
     lines.push("", "🔸สำรอง🔸");
     waitlist.forEach((s, i) => {
-      lines.push(`${i + 1}. ${s.name} (รอบ ${s.timeSlot === "EARLY" ? "1" : "2"} ทุ่ม)`);
+      lines.push(`${i + 1}. ${s.name} (รอบ ${s.timeSlot === "EARLY" ? early : late})`);
     });
   }
 
   lines.push(
     "",
     DIVIDER,
-    `🟢 ว่างรอบ 1 ทุ่ม = ${Math.max(0, earlyCapacity - earlyUsed)} คน`,
-    `🟢 ว่างรอบ 2 ทุ่ม = ${Math.max(0, lateCapacity - lateUsed)} คน`,
+    `🟢 ว่างรอบ ${early} = ${Math.max(0, earlyCapacity - earlyUsed)} คน`,
+    `🟢 ว่างรอบ ${late} = ${Math.max(0, lateCapacity - lateUsed)} คน`,
     `🟠 สำรอง = ${waitlist.length} คน`,
     DIVIDER,
     `🗒 ลงชื่อผ่านเว็บแอป "Tua Tueng Go!" Click ที่นี่ ▶️ ${SIGNUP_URL}`

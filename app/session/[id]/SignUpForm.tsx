@@ -6,6 +6,7 @@ import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
 import Toast from "../Toast";
 import IdentityConfirm, { type SimilarPlayer } from "../IdentityConfirm";
+import { slotLabel } from "@/lib/sessionTime";
 
 interface AthleteSuggestion {
   id: string;
@@ -13,7 +14,14 @@ interface AthleteSuggestion {
   skillLevel: SkillLevel;
 }
 
-export default function SignUpForm({ sessionId }: { sessionId: string }) {
+export default function SignUpForm({
+  sessionId,
+  startTime,
+}: {
+  sessionId: string;
+  /** The day's start time — names the blocks (1 ทุ่ม, or 19:30 น. on a later day). */
+  startTime: string;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [timeSlot, setTimeSlot] = useState<"EARLY" | "LATE">("EARLY");
@@ -79,7 +87,7 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
       return { kind: "askIdentity" as const };
     }
     if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
-      const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
+      const label = slotLabel(startTime, timeSlot);
       if (confirm(`${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
         return submit(true, override);
       }
@@ -188,7 +196,7 @@ export default function SignUpForm({ sessionId }: { sessionId: string }) {
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
             }`}
           >
-            {slot === "EARLY" ? "🕖 1 ทุ่ม" : "🕗 2 ทุ่ม"}
+            {slot === "EARLY" ? "🕖" : "🕗"} {slotLabel(startTime, slot)}
           </button>
         ))}
       </div>

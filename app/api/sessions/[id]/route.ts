@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { COURT_CAPACITY, capacityFor } from "@/lib/capacity";
+import { COURT_CAPACITY, parseMaxPlayers } from "@/lib/capacity";
+import { normalizeStartTime } from "@/lib/sessionTime";
 import { rebalanceSession } from "@/lib/seating";
 
 export async function PATCH(
@@ -31,21 +32,35 @@ export async function PATCH(
   }
   if (courtsLate < courtsEarly) {
     return NextResponse.json(
-      { error: "คอร์ทช่วง 2 ทุ่ม ต้องไม่น้อยกว่าช่วง 1 ทุ่ม" },
+      { error: "คอร์ทช่วงสองต้องไม่น้อยกว่าช่วงแรก" },
       { status: 400 }
     );
   }
 
-  // Recompute advertised size from the (new) late-block court count, matching
-  // how creation derives it, then re-seat everyone against the new capacities.
-  const maxPlayers = capacityFor(courtsLate);
+  // Start time and capacity are the admin's own per-day settings; a request
+  // that leaves one out keeps what the day has.
+  const startTime =
+    body.startTime === undefined ? session.startTime : normalizeStartTime(body.startTime);
+  if (!startTime) {
+    return NextResponse.json({ error: "เวลาเริ่มไม่ถูกต้อง (เช่น 19:00)" }, { status: 400 });
+  }
+  const maxPlayers =
+    body.maxPlayers === undefined ? session.maxPlayers : parseMaxPlayers(body.maxPlayers);
+  if (maxPlayers == null) {
+    return NextResponse.json({ error: "จำนวนคนที่รับต้องเป็นเลข 1–200" }, { status: 400 });
+  }
+
   const updated = await prisma.session.update({
     where: { id },
-    data: { courtsEarly, courtsLate, maxPlayers },
+    data: { courtsEarly, courtsLate, maxPlayers, startTime },
   });
-  await rebalanceSession(updated);
+  // Re-seat everyone against the new capacities: more seats pull reserves up,
+  // fewer push the latest sign-ups back to reserve.
+  if (maxPlayers !== session.maxPlayers || courtsEarly !== session.courtsEarly) {
+    await rebalanceSession(updated);
+  }
 
-  return NextResponse.json({ ok: true, courtsEarly, courtsLate, maxPlayers });
+  return NextResponse.json({ ok: true, courtsEarly, courtsLate, maxPlayers, startTime });
 }
 
 export async function DELETE(

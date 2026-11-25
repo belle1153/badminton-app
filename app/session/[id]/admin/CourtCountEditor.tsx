@@ -3,22 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { COURT_OPTIONS, capacityFor } from "@/lib/capacity";
+import { slotLabel } from "@/lib/sessionTime";
 
 /**
  * Edit how many courts a session uses in each time block after it has been
- * created. Saving recomputes the advertised size and re-seats everyone (so a
- * bigger late block can pull people off the waitlist, a smaller one can bump
- * them back).
+ * created. The day's capacity is set on its own (SessionSettingsEditor); the
+ * early-block court count still decides how many of those seats are in the
+ * first block, so saving re-seats everyone.
  */
 export default function CourtCountEditor({
   sessionId,
   courtsEarly: initialEarly,
   courtsLate: initialLate,
+  startTime,
+  maxPlayers,
 }: {
   sessionId: string;
   courtsEarly: number;
   courtsLate: number;
+  startTime: string;
+  maxPlayers: number;
 }) {
+  const earlyName = slotLabel(startTime, "EARLY");
+  const lateName = slotLabel(startTime, "LATE");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [early, setEarly] = useState(initialEarly);
@@ -52,7 +59,7 @@ export default function CourtCountEditor({
     return (
       <section className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
         <span className="text-gray-600">
-          คอร์ท: 1 ทุ่ม {initialEarly} คอร์ท · 2 ทุ่ม {initialLate} คอร์ท ({capacityFor(initialLate)} คน)
+          คอร์ท: {earlyName} {initialEarly} คอร์ท · {lateName} {initialLate} คอร์ท
         </span>
         <button
           onClick={() => {
@@ -73,7 +80,7 @@ export default function CourtCountEditor({
       <h2 className="font-semibold text-sm">แก้จำนวนคอร์ท</h2>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-xs text-gray-600">
-          คอร์ทช่วง 1 ทุ่ม
+          คอร์ทช่วง {earlyName}
           <select
             value={early}
             onChange={(e) => setEarly(Number(e.target.value))}
@@ -87,7 +94,7 @@ export default function CourtCountEditor({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-gray-600">
-          คอร์ทช่วง 2 ทุ่ม
+          คอร์ทช่วง {lateName}
           <select
             value={late}
             onChange={(e) => setLate(Number(e.target.value))}
@@ -102,10 +109,12 @@ export default function CourtCountEditor({
         </label>
       </div>
       <p className="text-xs text-gray-500">
-        รับได้รวม {capacityFor(late)} คน (ช่วง 1 ทุ่ม {capacityFor(early)} คน)
+        รับรวม {maxPlayers} คน (ช่วง {earlyName} {Math.min(capacityFor(early), maxPlayers)} คน)
       </p>
       {invalid && (
-        <p className="text-xs text-amber-600">คอร์ทช่วง 2 ทุ่ม ต้องไม่น้อยกว่าช่วง 1 ทุ่ม</p>
+        <p className="text-xs text-amber-600">
+          คอร์ทช่วง {lateName} ต้องไม่น้อยกว่าช่วง {earlyName}
+        </p>
       )}
       {error && <p className="ui-msg text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">

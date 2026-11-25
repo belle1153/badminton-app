@@ -45,7 +45,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // Same rule as the page: a closed day bills at the fees frozen when it closed.
   const { entryFee, gameFee } = sessionFees(session, settings);
-  const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee);
+  const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee, session.startTime);
 
   const dateLabel = costDateLabel(session.date);
   const bytes = buildXlsxBytes(

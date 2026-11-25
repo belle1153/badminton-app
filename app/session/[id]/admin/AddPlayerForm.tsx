@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { slotLabel } from "@/lib/sessionTime";
 
 const SKILLS = Object.keys(SKILL_LABELS) as SkillLevel[];
 
@@ -21,17 +22,20 @@ interface AthleteSuggestion {
  * which keeps "NW"/"nw" from becoming two athletes and saves re-grading them.
  * A name that matches nobody is still fine: it creates a new athlete.
  *
- * The 1 ทุ่ม / 2 ทุ่ม choice is what they get billed from (19:00 vs 20:00), so it
- * has to be here — `defaultSlot` is pre-picked from the clock (2 ทุ่ม once 20:00
- * has passed) because that's almost always right for a walk-in, but the admin
+ * The 1 ทุ่ม / 2 ทุ่ม choice is what they get billed from (the day's start time
+ * vs an hour later), so it has to be here — `defaultSlot` is pre-picked from
+ * the clock (the second block once it has started) because that's almost always right for a walk-in, but the admin
  * can flip it before adding.
  */
 export default function AddPlayerForm({
   sessionId,
   defaultSlot,
+  startTime,
 }: {
   sessionId: string;
   defaultSlot: Slot;
+  /** The day's start time — names the blocks. */
+  startTime: string;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -87,7 +91,7 @@ export default function AddPlayerForm({
         text: data.alreadyExisted
           ? `"${name.trim()}" มีอยู่แล้ว — เช็คอินให้แล้ว (ใช้ช่วงเวลาเดิมที่เขาลงไว้)`
           : `เพิ่ม "${name.trim()}" (${SKILL_LABELS[skill]}) ${
-              slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"
+              slotLabel(startTime, slot)
             } เข้าคิวแล้ว`,
         ok: true,
       });
@@ -153,7 +157,7 @@ export default function AddPlayerForm({
                 slot === s ? "bg-brand-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
               }`}
             >
-              {s === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+              {slotLabel(startTime, s)}
             </button>
           ))}
         </div>

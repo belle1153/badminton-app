@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { selfWithdrawAllowed } from "@/lib/withdrawPolicy";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
+import { slotLabel } from "@/lib/sessionTime";
 import SignUpForm from "../SignUpForm";
 import WithdrawForm from "../WithdrawForm";
 
@@ -64,7 +65,7 @@ export default async function SessionSignUpPage({
           {registrationClosed ? (
             <p className="text-sm text-amber-600">ปิดรับสมัครแล้ว ลงชื่อเพิ่มไม่ได้ครับ</p>
           ) : (
-            <SignUpForm sessionId={id} />
+            <SignUpForm sessionId={id} startTime={session.startTime} />
           )}
           <WithdrawForm
             sessionId={id}
@@ -76,7 +77,7 @@ export default async function SessionSignUpPage({
 
       <section>
         <h2 className="font-semibold mb-2">
-          รอบ 1 ทุ่ม ({earlySlots.filter(Boolean).length}/{earlyCapacity})
+          รอบ {slotLabel(session.startTime, "EARLY")} ({earlySlots.filter(Boolean).length}/{earlyCapacity})
         </h2>
         <ol className="flex flex-col gap-1 list-none">
           {earlySlots.map((s, i) => (
@@ -98,7 +99,7 @@ export default async function SessionSignUpPage({
       {lateSlots.length > 0 && (
         <section>
           <h2 className="font-semibold mb-2">
-            รอบ 2 ทุ่ม ({lateSlots.filter(Boolean).length}/{lateSlots.length})
+            รอบ {slotLabel(session.startTime, "LATE")} ({lateSlots.filter(Boolean).length}/{lateSlots.length})
           </h2>
           <ol className="flex flex-col gap-1 list-none">
             {lateSlots.map((s, i) => (
@@ -109,7 +110,7 @@ export default async function SessionSignUpPage({
                 <span>
                   {earlyCapacity + i + 1}. {s ? s.name : <span className="text-gray-300">—</span>}
                   {s && s.preferredSlot === "EARLY" && (
-                    <span className="text-xs text-amber-600 ml-2">(จองคิว 1 ทุ่ม)</span>
+                    <span className="text-xs text-amber-600 ml-2">(จองคิว {slotLabel(session.startTime, "EARLY")})</span>
                   )}
                 </span>
               </li>

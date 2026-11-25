@@ -6,10 +6,13 @@ import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
 import Toast from "../session/Toast";
 import IdentityConfirm, { type SimilarPlayer } from "../session/IdentityConfirm";
+import { slotLabel } from "@/lib/sessionTime";
 
 interface DayOption {
   id: string;
   label: string;
+  /** The day's start time — a non-19:00 day names its blocks by clock time. */
+  startTime: string;
 }
 
 interface AthleteSuggestion {
@@ -40,6 +43,13 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const [pendingDays, setPendingDays] = useState<DayOption[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearMessage = useCallback(() => setMessage(null), []);
+
+  // One time choice covers every ticked day. Days can start at different
+  // times, so the button names each distinct block: "1 ทุ่ม" on 19:00 days,
+  // "1 ทุ่ม / 19:30 น." when a ticked day starts at 19:30.
+  const ticked = days.filter((d) => selectedDays.has(d.id));
+  const buttonLabel = (slot: Slot) =>
+    [...new Set((ticked.length ? ticked : days).map((d) => slotLabel(d.startTime, slot)))].join(" / ");
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -79,7 +89,7 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
       return { text: "", ok: false, askIdentity: data.similarPlayers };
     }
     if (res.status === 409 && data.alreadySignedUp && !confirmMove) {
-      const label = timeSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
+      const label = slotLabel(day.startTime, timeSlot);
       if (confirm(`${day.label}: ${data.error}\nต้องการย้ายมารอบ ${label} ใช่ไหมครับ?`)) {
         return signUp(day, true);
       }
@@ -256,7 +266,7 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
             >
-              {slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+              {buttonLabel(slot)}
             </button>
           ))}
         </div>

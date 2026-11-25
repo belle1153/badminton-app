@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SKILL_LABELS, type SkillLevel } from "@/lib/matching";
+import { slotLabel } from "@/lib/sessionTime";
 
 const SKILLS = Object.keys(SKILL_LABELS) as SkillLevel[];
 
@@ -22,9 +23,12 @@ interface CheckInSignUp {
 export default function CheckInList({
   sessionId,
   signUps,
+  startTime,
 }: {
   sessionId: string;
   signUps: CheckInSignUp[];
+  /** The day's start time — names the blocks. */
+  startTime: string;
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -173,7 +177,7 @@ export default function CheckInList({
         return (
           <div key={slot} className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold text-gray-600">
-              {slot === "EARLY" ? "🕖 รอบ 1 ทุ่ม" : "🕗 รอบ 2 ทุ่ม"}{" "}
+              {slot === "EARLY" ? "🕖" : "🕗"} รอบ {slotLabel(startTime, slot)}{" "}
               <span className="font-normal text-gray-400">
                 ({group.filter(isHere).length}/{group.length} มาแล้ว)
               </span>
@@ -225,7 +229,7 @@ export default function CheckInList({
                 {s.name}
                 {s.preferredSlot !== s.timeSlot && (
                   <span className="text-xs text-amber-600 ml-1.5">
-                    (จองคิว {s.preferredSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"})
+                    (จองคิว {slotLabel(startTime, s.preferredSlot)})
                   </span>
                 )}
               </span>

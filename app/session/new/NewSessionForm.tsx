@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { COURT_OPTIONS, capacityFor } from "@/lib/capacity";
+import { COURT_OPTIONS, DEFAULT_MAX_PLAYERS, capacityFor, parseMaxPlayers } from "@/lib/capacity";
+import { DEFAULT_START_TIME, normalizeStartTime, slotLabel } from "@/lib/sessionTime";
+import { WAITLIST_LIMIT } from "@/lib/signup";
 
 export default function NewSessionForm() {
   const router = useRouter();
   const [date, setDate] = useState("");
   const [venue, setVenue] = useState("");
-  const [startTime, setStartTime] = useState("19:00");
+  const [startTime, setStartTime] = useState(DEFAULT_START_TIME);
+  const [maxPlayers, setMaxPlayers] = useState(String(DEFAULT_MAX_PLAYERS));
   const [courtsEarly, setCourtsEarly] = useState("3");
   const [courtsLate, setCourtsLate] = useState("5");
   const [courtConfigNote, setCourtConfigNote] = useState("");
@@ -17,7 +20,11 @@ export default function NewSessionForm() {
   const [loading, setLoading] = useState(false);
 
   const earlyCapacity = capacityFor(Number(courtsEarly));
-  const totalCapacity = capacityFor(Number(courtsLate));
+  const totalCapacity = parseMaxPlayers(maxPlayers);
+  // Block names follow the start time: 1 ทุ่ม / 2 ทุ่ม on a 19:00 day.
+  const validStart = normalizeStartTime(startTime);
+  const early = slotLabel(validStart, "EARLY");
+  const late = slotLabel(validStart, "LATE");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,7 +34,16 @@ export default function NewSessionForm() {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, venue, startTime, courtsEarly, courtsLate, courtConfigNote, remark }),
+        body: JSON.stringify({
+          date,
+          venue,
+          startTime,
+          maxPlayers,
+          courtsEarly,
+          courtsLate,
+          courtConfigNote,
+          remark,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "สร้างรอบไม่สำเร็จ");
@@ -62,16 +78,31 @@ export default function NewSessionForm() {
             className="input"
           />
         </Field>
-        <Field label="เวลาเริ่ม">
-          <input
-            required
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="input"
-          />
-        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="คอร์ทช่วง 1 ทุ่ม">
+          <Field label="เวลาเริ่ม">
+            <input
+              type="time"
+              required
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="input"
+            />
+          </Field>
+          <Field label="รับกี่คน">
+            <input
+              type="number"
+              inputMode="numeric"
+              required
+              min={1}
+              max={200}
+              value={maxPlayers}
+              onChange={(e) => setMaxPlayers(e.target.value)}
+              className="input"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={`คอร์ทช่วง ${early}`}>
             <select value={courtsEarly} onChange={(e) => setCourtsEarly(e.target.value)} className="input">
               {COURT_OPTIONS.map((c) => (
                 <option key={c} value={c}>
@@ -80,24 +111,28 @@ export default function NewSessionForm() {
               ))}
             </select>
           </Field>
-          <Field label="คอร์ทช่วง 2 ทุ่ม">
+          <Field label={`คอร์ทช่วง ${late}`}>
             <select value={courtsLate} onChange={(e) => setCourtsLate(e.target.value)} className="input">
               {COURT_OPTIONS.map((c) => (
                 <option key={c} value={c}>
-                  {c} คอร์ท ({capacityFor(c)} คน)
+                  {c} คอร์ท
                 </option>
               ))}
             </select>
           </Field>
         </div>
-        <p className="text-xs text-gray-500 -mt-2">
-          รับรวม <span className="font-semibold text-brand-700">{totalCapacity} คน</span> — รอบ 1 ทุ่ม{" "}
-          {Math.min(earlyCapacity, totalCapacity)} คน / รอบ 2 ทุ่ม เพิ่มอีก{" "}
-          {Math.max(0, totalCapacity - earlyCapacity)} คน + สำรอง 5 คน
-        </p>
+        {totalCapacity == null ? (
+          <p className="text-xs text-amber-600 -mt-2">จำนวนคนที่รับต้องเป็นเลข 1–200</p>
+        ) : (
+          <p className="text-xs text-gray-500 -mt-2">
+            รับรวม <span className="font-semibold text-brand-700">{totalCapacity} คน</span> — รอบ {early}{" "}
+            {Math.min(earlyCapacity, totalCapacity)} คน / รอบ {late} เพิ่มอีก{" "}
+            {Math.max(0, totalCapacity - earlyCapacity)} คน + สำรอง {WAITLIST_LIMIT} คน
+          </p>
+        )}
         <Field label="หมายเหตุคอร์ท (ไม่บังคับ)">
           <input
-            placeholder="เช่น 1 ทุ่ม 2 คอร์ท / 2 ทุ่ม 3 คอร์ท"
+            placeholder={`เช่น ${early} 2 คอร์ท / ${late} 3 คอร์ท`}
             value={courtConfigNote}
             onChange={(e) => setCourtConfigNote(e.target.value)}
             className="input"
@@ -116,7 +151,7 @@ export default function NewSessionForm() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || totalCapacity == null || !validStart}
           className="rounded-md bg-brand-600 text-white px-4 py-2 text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
         >
           {loading ? "กำลังสร้าง..." : "สร้างรอบ"}

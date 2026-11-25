@@ -249,7 +249,13 @@ export default async function SessionMatchPage({
       )}
 
       {session.status === "OPEN" && (
-        <CourtCountEditor sessionId={id} courtsEarly={session.courtsEarly} courtsLate={session.courtsLate} />
+        <CourtCountEditor
+          sessionId={id}
+          courtsEarly={session.courtsEarly}
+          courtsLate={session.courtsLate}
+          startTime={session.startTime}
+          maxPlayers={session.maxPlayers}
+        />
       )}
 
       {session.status === "OPEN" && (

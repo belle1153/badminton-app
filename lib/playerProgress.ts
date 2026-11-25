@@ -42,7 +42,9 @@ export interface ProgressSignUp {
   timeSlot: string;
   /** When the admin marked this bill collected — drives the จ่ายตรงเวลา badge. */
   paidAt: Date | null;
-  session: { date: Date };
+  /** startTime moves the block start (and so hours-on-court) on a non-19:00
+   *  day; missing = 19:00. */
+  session: { date: Date; startTime?: string | null };
   matchSlots: {
     team: number;
     match: {
@@ -110,7 +112,7 @@ export function buildPlayerProgress(
           partnerIds: [],
           draws: 0,
           results: [],
-          blockStartAt: blockStart(s.session.date, s.timeSlot as "EARLY" | "LATE"),
+          blockStartAt: blockStart(s.session.date, s.timeSlot as "EARLY" | "LATE", s.session.startTime),
           lastFinishedAt: null,
         };
         byDate.set(dateKey, entry);
@@ -205,7 +207,7 @@ export function loadClubPlayDays(): Promise<Date[]> {
 export const PROGRESS_SIGNUP_SELECT = {
   timeSlot: true,
   paidAt: true,
-  session: { select: { date: true } },
+  session: { select: { date: true, startTime: true } },
   matchSlots: {
     select: {
       team: true,

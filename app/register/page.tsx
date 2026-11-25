@@ -3,6 +3,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
 import { WAITLIST_LIMIT } from "@/lib/signup";
+import { isStandardStart, slotLabel } from "@/lib/sessionTime";
 import MultiSignUpForm from "./MultiSignUpForm";
 import AutoRefresh from "../session/AutoRefresh";
 import BackLink from "../BackLink";
@@ -50,6 +51,8 @@ export default async function RegisterPage() {
       shortLabel,
       venue: s.venue,
       startTime: s.startTime,
+      earlyLabel: slotLabel(s.startTime, "EARLY"),
+      lateLabel: slotLabel(s.startTime, "LATE"),
       earlyCount,
       earlyCapacity,
       lateCount,
@@ -68,7 +71,8 @@ export default async function RegisterPage() {
         </h1>
 
       <p className="text-sm text-gray-600">
-        ลงชื่อครั้งเดียว เลือกได้หลายวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (1 ทุ่ม / 2 ทุ่ม)
+        ลงชื่อครั้งเดียว เลือกได้หลายวัน — ติ๊กวันที่จะไป แล้วเลือกเวลา (
+        {days.every((d) => isStandardStart(d.startTime)) ? "1 ทุ่ม / 2 ทุ่ม" : "รอบแรก / รอบสอง"})
       </p>
 
       {/* Days the admin closed registration on can't be picked any more. */}
@@ -76,7 +80,7 @@ export default async function RegisterPage() {
         <MultiSignUpForm
           days={days
             .filter((d) => !d.registrationClosed)
-            .map((d) => ({ id: d.id, label: d.shortLabel }))}
+            .map((d) => ({ id: d.id, label: d.shortLabel, startTime: d.startTime }))}
         />
       ) : (
         <p className="text-sm text-amber-600">ทุกวันปิดรับสมัครแล้วครับ</p>
@@ -94,7 +98,7 @@ export default async function RegisterPage() {
               <span className="text-xs text-gray-400">{d.venue}</span>
             </div>
             <div className="text-sm text-gray-600 mt-1">
-              เริ่ม {d.startTime} น. · 1 ทุ่ม {d.earlyCount}/{d.earlyCapacity} · 2 ทุ่ม {d.lateCount}/
+              เริ่ม {d.startTime} น. · {d.earlyLabel} {d.earlyCount}/{d.earlyCapacity} · {d.lateLabel} {d.lateCount}/
               {d.lateCapacity} · สำรอง {d.waitlistCount}/{WAITLIST_LIMIT}
               {d.registrationClosed && <span className="text-amber-600 ml-2">ปิดรับสมัครแล้ว</span>}
             </div>

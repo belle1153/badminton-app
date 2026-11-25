@@ -34,7 +34,7 @@ export default async function SessionCostPage({
   // Closed day bills at the fees frozen onto it. Everyone who signed up and
   // didn't withdraw is charged; a no-show (no check-in/out) pays the flat fine.
   const { entryFee, gameFee } = sessionFees(session, settings);
-  const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee);
+  const { rows } = buildCostRows(costAttendees(session.signUps), entryFee, gameFee, session.startTime);
 
   const grandTotal = rows.reduce((sum, r) => sum + r.totalBaht, 0);
   const unpaidBaht = rows.filter((r) => !r.paid).reduce((sum, r) => sum + r.totalBaht, 0);

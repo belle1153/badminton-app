@@ -105,7 +105,7 @@ export async function outstandingBillMessages(now: Date = new Date()): Promise<s
   const byName = new Map<string, Debt>();
   for (const s of sessions) {
     const { entryFee, gameFee } = sessionFees(s, settings);
-    const { rows } = buildCostRows(costAttendees(s.signUps), entryFee, gameFee);
+    const { rows } = buildCostRows(costAttendees(s.signUps), entryFee, gameFee, s.startTime);
     for (const r of rows) {
       if (r.paid) continue;
       const d = byName.get(r.name) ?? { name: r.name, total: 0, days: [] };

@@ -1,3 +1,4 @@
+import { slotClock } from "@/lib/sessionTime";
 /**
  * The per-person bill, in ONE place. The admin's คำนวณ page, the players' own
  * cost tab, the Excel/PNG exports and the LINE summary all render from this, so
@@ -30,7 +31,7 @@ export interface CostAttendee {
 export interface CostRow {
   id: string;
   name: string;
-  slot: string; // "19.00" | "20.00" — the block they played from
+  slot: string; // "19.00" | "20.00" (or the day's own start) — the block they played from
   timeSlot: "EARLY" | "LATE";
   /** Checkout time, or null while still on court / for a no-show. */
   out: Date | null;
@@ -84,14 +85,16 @@ export function paidBlockMessage(p: {
 export function buildCostRows(
   attendees: CostAttendee[],
   entryFee: number,
-  gameFee: number
+  gameFee: number,
+  /** The day's start time — the slot column shows each block's real start. */
+  startTime: string | null = null
 ): { rows: CostRow[] } {
   const rows = attendees
     .map((a): CostRow => {
       const base = {
         id: a.id,
         name: a.name,
-        slot: a.timeSlot === "EARLY" ? "19.00" : "20.00",
+        slot: slotClock(startTime, a.timeSlot),
         timeSlot: a.timeSlot,
         games: a.gamesPlayed,
         onCourt: a.onCourt ?? false,

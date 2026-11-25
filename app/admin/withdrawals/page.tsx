@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { slotLabel } from "@/lib/sessionTime";
 import { isAdmin } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function WithdrawalsPage() {
   const rows = await prisma.signUp.findMany({
     where: { status: "WITHDRAWN", addedByAdmin: false },
     orderBy: [{ withdrawnAt: "desc" }, { createdAt: "desc" }],
-    include: { session: { select: { date: true, venue: true } } },
+    include: { session: { select: { date: true, venue: true, startTime: true } } },
     take: 300,
   });
 
@@ -57,7 +58,7 @@ export default async function WithdrawalsPage() {
                     {dayLabel(r.session.date)} · {r.session.venue}
                   </td>
                   <td className="px-2 py-1.5 text-gray-500">
-                    {r.preferredSlot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม"}
+                    {slotLabel(r.session.startTime, r.preferredSlot)}
                   </td>
                   <td className="px-2 py-1.5 text-gray-500">{timeLabel(r.withdrawnAt)}</td>
                 </tr>

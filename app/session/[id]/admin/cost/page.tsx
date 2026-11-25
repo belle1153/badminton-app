@@ -45,7 +45,7 @@ export default async function SessionCostPage({
   // Everyone who signed up and didn't withdraw is billed. Someone with no
   // check-in and no check-out never came = no-show, shown ไม่มา and charged the
   // flat fine — a waitlist sign-up who didn't turn up owes it just the same.
-  const { rows } = buildCostRows(attendees, entryFee, gameFee);
+  const { rows } = buildCostRows(attendees, entryFee, gameFee, session.startTime);
 
   const tableRows = rows.map((r) => ({
     id: r.id,

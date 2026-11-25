@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { ictInstant } from "@/lib/billing";
+import { lateStartAt } from "@/lib/billing";
 import CheckInList from "./CheckInList";
 import RegistrationToggle from "./RegistrationToggle";
 import AddPlayerForm from "./AddPlayerForm";
+import SessionSettingsEditor from "./SessionSettingsEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -30,20 +31,33 @@ export default async function SessionCheckInPage({
   return (
     <>
       {session.status === "OPEN" && (
+        <SessionSettingsEditor
+          sessionId={id}
+          startTime={session.startTime}
+          maxPlayers={session.maxPlayers}
+          courtsEarly={session.courtsEarly}
+          activeCount={session.signUps.length}
+        />
+      )}
+
+      {session.status === "OPEN" && (
         <RegistrationToggle sessionId={id} registrationClosed={session.registrationClosedAt != null} />
       )}
 
       {session.status === "OPEN" && (
         <AddPlayerForm
           sessionId={id}
-          // Past 20:00 a walk-in is almost certainly a 2 ทุ่ม player — pre-pick
-          // that so the common case is right without the admin thinking about it.
-          defaultSlot={Date.now() >= ictInstant(session.date, 20).getTime() ? "LATE" : "EARLY"}
+          // Once the second block has started (20:00 on a 19:00 day) a walk-in is
+          // almost certainly playing it — pre-pick that so the common case is
+          // right without the admin thinking about it.
+          defaultSlot={Date.now() >= lateStartAt(session).getTime() ? "LATE" : "EARLY"}
+          startTime={session.startTime}
         />
       )}
 
       <CheckInList
         sessionId={id}
+        startTime={session.startTime}
         signUps={session.signUps.map((s) => ({
           id: s.id,
           name: s.name,

@@ -8,10 +8,10 @@ import {
   type TimeSlot,
 } from "@/lib/signup";
 import { blockCapacities } from "@/lib/capacity";
+import { slotLabel } from "@/lib/sessionTime";
 import { rebalanceSession } from "@/lib/seating";
 import { findSimilarNames } from "@/lib/nameSimilarity";
 
-const SLOT_LABEL: Record<TimeSlot, string> = { EARLY: "1 ทุ่ม", LATE: "2 ทุ่ม" };
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (already.preferredSlot === timeSlot) {
       return NextResponse.json(
         {
-          error: `"${name}" ลงชื่อรอบ ${SLOT_LABEL[timeSlot]} ไว้แล้วครับ${already.status === "WAITLIST" ? " (สำรอง)" : ""}`,
+          error: `"${name}" ลงชื่อรอบ ${slotLabel(session.startTime, timeSlot)} ไว้แล้วครับ${already.status === "WAITLIST" ? " (สำรอง)" : ""}`,
           duplicate: true,
         },
         { status: 400 }
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!confirmMove) {
       return NextResponse.json(
         {
-          error: `"${name}" ลงชื่อไว้แล้ว (รอบ ${SLOT_LABEL[already.preferredSlot as TimeSlot]}${already.status === "WAITLIST" ? " — สำรอง" : ""})`,
+          error: `"${name}" ลงชื่อไว้แล้ว (รอบ ${slotLabel(session.startTime, already.preferredSlot as TimeSlot)}${already.status === "WAITLIST" ? " — สำรอง" : ""})`,
           alreadySignedUp: true,
           currentTimeSlot: already.preferredSlot,
         },
