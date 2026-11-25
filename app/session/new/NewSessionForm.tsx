@@ -106,7 +106,7 @@ export default function NewSessionForm() {
             <select value={courtsEarly} onChange={(e) => setCourtsEarly(e.target.value)} className="input">
               {COURT_OPTIONS.map((c) => (
                 <option key={c} value={c}>
-                  {c} คอร์ท ({capacityFor(c)} คน)
+                  {c} คอร์ท
                 </option>
               ))}
             </select>
