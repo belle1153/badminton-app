@@ -21,7 +21,7 @@ export default function NewSessionForm() {
 
   const earlyCapacity = capacityFor(Number(courtsEarly));
   const totalCapacity = parseMaxPlayers(maxPlayers);
-  // Block names follow the start time: 1 ทุ่ม / 2 ทุ่ม on a 19:00 day.
+  // Blocks are named by clock time: 19:00 น. / 20:00 น. on a 19:00 day.
   const validStart = normalizeStartTime(startTime);
   const early = slotLabel(validStart, "EARLY");
   const late = slotLabel(validStart, "LATE");

@@ -6,7 +6,7 @@ import { type SkillLevel } from "@/lib/matching";
 import { addMySignup } from "@/lib/mySignups";
 import Toast from "../session/Toast";
 import IdentityConfirm, { type SimilarPlayer } from "../session/IdentityConfirm";
-import { slotLabel } from "@/lib/sessionTime";
+import { slotLabel, slotTime } from "@/lib/sessionTime";
 
 interface DayOption {
   id: string;
@@ -44,12 +44,14 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearMessage = useCallback(() => setMessage(null), []);
 
-  // One time choice covers every ticked day. Days can start at different
-  // times, so the button names each distinct block: "1 ทุ่ม" on 19:00 days,
-  // "1 ทุ่ม / 19:30 น." when a ticked day starts at 19:30.
+  // One time choice covers every ticked day. When they all start at the same
+  // time the button is just that time ("19:00 น."); when they don't, it reads
+  // รอบแรก / รอบสอง with each day's time for that block underneath.
   const ticked = days.filter((d) => selectedDays.has(d.id));
-  const buttonLabel = (slot: Slot) =>
-    [...new Set((ticked.length ? ticked : days).map((d) => slotLabel(d.startTime, slot)))].join(" / ");
+  const slotTimes = (slot: Slot) => [
+    ...new Set((ticked.length ? ticked : days).map((d) => slotTime(d.startTime, slot))),
+  ];
+  const mixedTimes = slotTimes("EARLY").length > 1;
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -266,7 +268,14 @@ export default function MultiSignUpForm({ days }: { days: DayOption[] }) {
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
             >
-              {buttonLabel(slot)}
+              {mixedTimes ? (
+                <span className="flex flex-col items-center leading-tight">
+                  <span>{slot === "EARLY" ? "รอบแรก" : "รอบสอง"}</span>
+                  <span className="text-xs font-normal opacity-80">{slotTimes(slot).join(" / ")} น.</span>
+                </span>
+              ) : (
+                `${slotTimes(slot)[0]} น.`
+              )}
             </button>
           ))}
         </div>

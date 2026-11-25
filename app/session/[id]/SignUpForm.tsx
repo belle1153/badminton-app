@@ -19,7 +19,7 @@ export default function SignUpForm({
   startTime,
 }: {
   sessionId: string;
-  /** The day's start time — names the blocks (1 ทุ่ม, or 19:30 น. on a later day). */
+  /** The day's start time — names the blocks ("19:00 น." / "20:00 น."). */
   startTime: string;
 }) {
   const router = useRouter();

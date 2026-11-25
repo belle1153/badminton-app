@@ -2,11 +2,10 @@
  * A play day's start time and its two blocks.
  *
  * The day is split into two one-hour-apart blocks: EARLY starts at the day's
- * start time and LATE one hour later (when the extra courts open). For the
- * club's usual 19:00 start those are "1 ทุ่ม" (19:00) and "2 ทุ่ม" (20:00) — the
- * words everyone knows, so they stay. A day that starts at another time (the
- * club can no longer always lock its courts for 19:00) shows the real clock
- * times instead, e.g. "19:30 น." / "20:30 น.".
+ * start time and LATE one hour later (when the extra courts open). Blocks are
+ * always named by their clock time, "19:00 น." / "20:00 น." — the old "1 ทุ่ม /
+ * 2 ทุ่ม" words only fit a 19:00 day, and mixing them with clock times on days
+ * that start later read as two different things (organiser, 2026-11-26).
  *
  * Session.startTime is stored as text ("19:00"); anything unreadable falls back
  * to 19:00 so an odd old value never breaks a page.
@@ -49,18 +48,19 @@ export function normalizeStartTime(text: string | null | undefined): string | nu
   return m == null ? null : hhmm(m);
 }
 
-/** Is this the club's usual 19:00 start (so the ทุ่ม words still apply)? */
+/** Is this the club's usual 19:00 start? */
 export function isStandardStart(startTime: string | null | undefined): boolean {
   return startMinutes(startTime) === DEFAULT_START_MIN;
 }
 
-/**
- * The block's name as players know it: "1 ทุ่ม" / "2 ทุ่ม" on a 19:00 day,
- * otherwise the block's clock time, "19:30 น." / "20:30 น.".
- */
+/** The block's name: its clock time, "19:00 น." / "20:30 น.". */
 export function slotLabel(startTime: string | null | undefined, slot: Slot): string {
-  if (isStandardStart(startTime)) return slot === "EARLY" ? "1 ทุ่ม" : "2 ทุ่ม";
-  return `${hhmm(slotStartMinutes(startTime, slot))} น.`;
+  return `${slotTime(startTime, slot)} น.`;
+}
+
+/** The block's clock time without the unit: "19:00" / "20:30". */
+export function slotTime(startTime: string | null | undefined, slot: Slot): string {
+  return hhmm(slotStartMinutes(startTime, slot));
 }
 
 /** The block's start written the way the cost sheet does: "19.00" / "20.30". */

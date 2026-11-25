@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { blockCapacities } from "@/lib/capacity";
 import { WEEKDAY_WORDS } from "@/lib/lineWhen";
-import { isStandardStart, slotLabel } from "@/lib/sessionTime";
+import { slotLabel } from "@/lib/sessionTime";
 
 /** Where the LINE message tells people to sign up. Overridable so a new short
  *  link doesn't need a redeploy; defaults to the club's current link. */
@@ -57,8 +57,6 @@ export function formatRosterMessage(session: RosterSession, signups: RosterSignU
     "📣 อัปเดต! รายชื่อลงตีแบดก๊วนตัวตึงแหลมฉบัง 🏸",
     "",
     `🗓 ${dateLabel(session.date)}`,
-    // A day off the usual 19:00 says so up front, so nobody turns up early.
-    ...(isStandardStart(session.startTime) ? [] : [`🕖 เริ่ม ${session.startTime} น.`]),
     `🏸 สนาม : ${early} ${session.courtsEarly} คอร์ท / ${late} ${session.courtsLate} คอร์ท`,
     `👥️ เปิดรับ ${totalCapacity} คน`,
     "",

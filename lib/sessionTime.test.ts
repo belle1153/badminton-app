@@ -26,10 +26,10 @@ describe("start time parsing", () => {
 });
 
 describe("a usual 19:00 day is unchanged", () => {
-  it("keeps the 1 ทุ่ม / 2 ทุ่ม names and 19.00 / 20.00 clock", () => {
+  it("names a 19:00 day by clock time too, 19:00 น. / 20:00 น.", () => {
     expect(isStandardStart("19:00")).toBe(true);
-    expect(slotLabel("19:00", "EARLY")).toBe("1 ทุ่ม");
-    expect(slotLabel("19:00", "LATE")).toBe("2 ทุ่ม");
+    expect(slotLabel("19:00", "EARLY")).toBe("19:00 น.");
+    expect(slotLabel("19:00", "LATE")).toBe("20:00 น.");
     expect(slotClock("19:00", "EARLY")).toBe("19.00");
     expect(slotClock("19:00", "LATE")).toBe("20.00");
   });
